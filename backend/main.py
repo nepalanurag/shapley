@@ -15,6 +15,7 @@ import time
 import uuid
 import threading
 import logging
+import urllib.parse
 from contextlib import asynccontextmanager
 
 # Structured logging
@@ -35,8 +36,13 @@ from pydantic import BaseModel, Field
 _jobs = {}
 _jobs_lock = threading.Lock()
 
+# GitHub OAuth sessions: session_id -> {access_token, username, expires_at}
+_oauth_sessions = {}
+_oauth_lock = threading.Lock()
+
 JOB_TIMEOUT_SEC = 600  # 10 minutes max per analysis job
 JOB_TTL_SEC = 3600     # Keep completed jobs for 1 hour
+OAUTH_TTL_SEC = 3600   # OAuth sessions last 1 hour
 
 
 def _cleanup_jobs():
@@ -243,6 +249,145 @@ def payout_status(batch_id: str):
         return get_payout_status(batch_id)
     except Exception as e:
         raise HTTPException(400, str(e)[:300])
+
+
+# ── GitHub OAuth ────────────────────────────────────────────────
+# Lets users connect their GitHub account and pick repos from a list,
+# instead of pasting URLs. Like Vercel's "import repository" flow.
+
+class OAuthCallback(BaseModel):
+    code: str
+    state: str | None = None
+
+
+def _github_oauth_config():
+    client_id = os.environ.get("GITHUB_OAUTH_CLIENT_ID", "")
+    client_secret = os.environ.get("GITHUB_OAUTH_CLIENT_SECRET", "")
+    # Frontend URL for redirect after OAuth
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+    return client_id, client_secret, frontend_url
+
+
+@app.get("/api/github/oauth-url")
+def github_oauth_url():
+    """Get the GitHub OAuth authorization URL."""
+    import urllib.parse
+    client_id, _, frontend_url = _github_oauth_config()
+    if not client_id:
+        raise HTTPException(500,
+            "GitHub OAuth not configured. Set GITHUB_OAUTH_CLIENT_ID.")
+    params = urllib.parse.urlencode({
+        "client_id": client_id,
+        "redirect_uri": f"{frontend_url}/oauth/callback",
+        "scope": "repo read:user",
+        "state": uuid.uuid4().hex[:16],
+    })
+    return {"url": f"https://github.com/login/oauth/authorize?{params}"}
+
+
+@app.post("/api/github/oauth-callback")
+def github_oauth_callback(body: OAuthCallback):
+    """Exchange OAuth code for access token. Returns a session ID."""
+    import urllib.request
+    import json as json_lib
+
+    client_id, client_secret, _ = _github_oauth_config()
+    if not client_id or not client_secret:
+        raise HTTPException(500, "GitHub OAuth not configured.")
+
+    # Exchange code for token
+    data = urllib.parse.urlencode({
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "code": body.code,
+    }).encode()
+    req = urllib.request.Request(
+        "https://github.com/login/oauth/access_token",
+        data=data,
+        headers={"Accept": "application/json",
+                 "Content-Type": "application/x-www-form-urlencoded"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            token_data = json_lib.loads(resp.read().decode())
+    except Exception as e:
+        log.warning(f"OAuth token exchange failed: {e}")
+        raise HTTPException(400, "GitHub authorization failed.")
+
+    access_token = token_data.get("access_token")
+    if not access_token:
+        raise HTTPException(400,
+            f"GitHub denied authorization: {token_data.get('error_description', 'unknown')}")
+
+    # Get username
+    req = urllib.request.Request(
+        "https://api.github.com/user",
+        headers={"Authorization": f"Bearer {access_token}",
+                 "Accept": "application/vnd.github.v3+json"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            user_data = json_lib.loads(resp.read().decode())
+    except Exception:
+        raise HTTPException(400, "Could not fetch GitHub user.")
+
+    session_id = uuid.uuid4().hex
+    with _oauth_lock:
+        _oauth_sessions[session_id] = {
+            "access_token": access_token,
+            "username": user_data.get("login", ""),
+            "avatar_url": user_data.get("avatar_url", ""),
+            "created_at": time.time(),
+        }
+    log.info(f"GitHub OAuth session created for {user_data.get('login')}")
+    return {"session_id": session_id,
+            "username": user_data.get("login", ""),
+            "avatar_url": user_data.get("avatar_url", "")}
+
+
+@app.get("/api/github/repos")
+def github_repos(session_id: str, per_page: int = 30):
+    """List the authenticated user's repos (for the repo picker)."""
+    import urllib.request
+    import json as json_lib
+
+    with _oauth_lock:
+        session = _oauth_sessions.get(session_id)
+    if not session:
+        raise HTTPException(401, "Not connected to GitHub. Please reconnect.")
+    if time.time() - session["created_at"] > OAUTH_TTL_SEC:
+        with _oauth_lock:
+            _oauth_sessions.pop(session_id, None)
+        raise HTTPException(401, "GitHub session expired. Please reconnect.")
+
+    token = session["access_token"]
+    url = (f"https://api.github.com/user/repos?per_page={min(per_page, 100)}"
+           f"&sort=updated&affiliation=owner,collaborator")
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github.v3+json"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            repos = json_lib.loads(resp.read().decode())
+    except Exception as e:
+        log.warning(f"Failed to list repos: {e}")
+        raise HTTPException(400, "Could not fetch your repositories.")
+
+    return {"repos": [
+        {"full_name": r["full_name"],
+         "name": r["name"],
+         "description": r.get("description") or "",
+         "private": r["private"],
+         "updated_at": r["updated_at"],
+         "language": r.get("language") or ""}
+        for r in repos
+    ]}
+
+
+@app.post("/api/github/disconnect")
+def github_disconnect(session_id: str):
+    """Revoke the OAuth session."""
+    with _oauth_lock:
+        _oauth_sessions.pop(session_id, None)
+    return {"disconnected": True}
 
 
 if __name__ == "__main__":
