@@ -5,17 +5,19 @@ Scores the combined semantic value of a coalition's code contributions.
 Uses structured JSON output, low temperature, caching, and rate limiting.
 """
 import json
+import os
 import re
 import sys
 import time
 import urllib.request
 import hashlib
 
-sys.path.insert(0, "/opt/hatch/skills/skill-creator/bin")
-from dynamic_credentials import add_surrogate_to_request, read_json_response
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from credentials import auth_request
 
 CREDENTIAL = "custom.google-gemini"
 HOSTS = ["generativelanguage.googleapis.com"]
+ENV_VAR = "GEMINI_API_KEY"
 MODEL = "gemini-3-flash-preview"
 BASE = "https://generativelanguage.googleapis.com/v1beta"
 
@@ -68,16 +70,21 @@ def _call_gemini(prompt):
         },
     }).encode()
 
-    req = urllib.request.Request(
-        url, data=data, headers={"Content-Type": "application/json"})
-    add_surrogate_to_request(req, CREDENTIAL, allowed_hosts=HOSTS)
+    # Gemini uses ?key= query param, not Bearer header
+    api_key = os.environ.get(ENV_VAR)
+    if api_key:
+        url = f"{url}?key={api_key}"
+
+    req = auth_request(url, ENV_VAR, CREDENTIAL, HOSTS,
+                       data=data,
+                       headers={"Content-Type": "application/json"})
 
     _last_call = time.time()
     max_retries = 3
     for attempt in range(max_retries):
         try:
             with urllib.request.urlopen(req, timeout=90) as resp:
-                return read_json_response(resp)
+                return json.loads(resp.read().decode())
         except Exception as e:
             if attempt < max_retries - 1 and "503" in str(e):
                 wait = 2 ** attempt

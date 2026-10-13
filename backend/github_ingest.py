@@ -5,16 +5,18 @@ Pulls commits, diffs, and contributor mapping for a repo.
 Usage: python github_ingest.py <owner/repo> [--max-commits 50]
 """
 import json
+import os
 import sys
 import urllib.request
 import urllib.parse
 import urllib.error
 
-sys.path.insert(0, "/opt/hatch/skills/skill-creator/bin")
-from dynamic_credentials import add_surrogate_to_request, read_json_response
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from credentials import auth_request
 
 CREDENTIAL = "custom.github"
 HOSTS = ["api.github.com"]
+ENV_VAR = "GITHUB_TOKEN"
 
 # Skip these patterns (bots, merges)
 SKIP_AUTHORS = ["dependabot", "github-actions", "renovate"]
@@ -23,14 +25,13 @@ SKIP_MESSAGES = ["merge branch", "merge pull request"]
 
 def api_get(path):
     url = f"https://api.github.com{path}"
-    req = urllib.request.Request(url, headers={
+    req = auth_request(url, ENV_VAR, CREDENTIAL, HOSTS, headers={
         "Accept": "application/vnd.github.v3+json",
         "User-Agent": "shapley-hackathon",
     })
-    add_surrogate_to_request(req, CREDENTIAL, allowed_hosts=HOSTS)
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
-            return read_json_response(resp)
+            return json.loads(resp.read().decode())
     except urllib.error.HTTPError as e:
         if e.code == 404:
             raise ValueError(
