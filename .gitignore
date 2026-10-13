@@ -1,7 +1,39 @@
+# ── Secrets ──────────────────────────────────────────────
+# NEVER commit these. Use .env.example as a template.
 .env
-*.db
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ── Python ───────────────────────────────────────────────
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.db
+*.sqlite
+*.sqlite3
+.venv/
+venv/
+.pytest_cache/
+
+# ── Node / Frontend ──────────────────────────────────────
 node_modules/
 .next/
+out/
+dist/
+build/
+*.tsbuildinfo
+.next-env.d.ts
+
+# ── OS / Editor ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Misc ─────────────────────────────────────────────────
 /tmp/
+*.log
