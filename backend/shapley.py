@@ -95,13 +95,25 @@ def compute_shapley(contributor_diffs, contributor_names=None,
             marginal = v(S_with_i) - v(S)
             shapley[i] += weight * marginal
 
-    # Convert to percentages
-    total = sum(shapley.values())
+    # Convert to percentages.
+    # Handle negative Shapley values: a negative value means the AI judged
+    # that contributor's marginal impact as harmful (e.g., inconsistent
+    # scoring across coalitions). For payouts, clamp negatives to zero —
+    # you can't pay someone a negative share — then renormalize.
+    clamped = {i: max(0.0, v) for i, v in shapley.items()}
+    total = sum(clamped.values())
     if total > 0:
-        shares = {i: round(v / total * 100, 2) for i, v in shapley.items()}
+        shares = {i: round(v / total * 100, 2) for i, v in clamped.items()}
     else:
-        # Edge case: all zero, split equally
+        # Edge case: all zero or negative, split equally
         shares = {i: round(100 / n, 2) for i in range(n)}
+
+    # Fix rounding dust so shares sum to exactly 100
+    share_sum = sum(shares.values())
+    if abs(share_sum - 100.0) > 0.01:
+        # Adjust the largest share by the difference
+        largest = max(shares, key=lambda k: shares[k])
+        shares[largest] = round(shares[largest] + (100.0 - share_sum), 2)
 
     return {
         "shapley_values": {i: round(v, 2) for i, v in shapley.items()},
@@ -147,9 +159,18 @@ def monte_carlo_shapley(contributor_diffs, contributor_names=None,
             shapley[i] += (after - before)
 
     shapley = {i: v / num_samples for i, v in shapley.items()}
-    total = sum(shapley.values())
-    shares = ({i: round(v / total * 100, 2) for i, v in shapley.items()}
-              if total > 0 else {i: round(100 / n, 2) for i in range(n)})
+    # Clamp negatives to zero for payouts (see compute_shapley for rationale)
+    clamped = {i: max(0.0, v) for i, v in shapley.items()}
+    total = sum(clamped.values())
+    if total > 0:
+        shares = {i: round(v / total * 100, 2) for i, v in clamped.items()}
+    else:
+        shares = {i: round(100 / n, 2) for i in range(n)}
+    # Fix rounding dust
+    share_sum = sum(shares.values())
+    if abs(share_sum - 100.0) > 0.01:
+        largest = max(shares, key=lambda k: shares[k])
+        shares[largest] = round(shares[largest] + (100.0 - share_sum), 2)
 
     return {
         "shapley_values": {i: round(v, 2) for i, v in shapley.items()},
