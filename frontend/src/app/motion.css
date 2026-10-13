@@ -1,0 +1,216 @@
+/* Shapley Motion Design System
+ *
+ * Personality: Corporate — clean, professional, dashboard
+ * Signature easing: cubic-bezier(0.2, 0, 0, 1) (Material Design 3)
+ * Duration palette: quick 150ms / standard 300ms / slow 500ms
+ * Entrance pattern: fade + rise (20px below → 0, opacity 0 → 1)
+ *
+ * Three layers per animation: primary + secondary + ambient.
+ * Never linear for spatial movement. Never opacity-only for state changes.
+ */
+
+:root {
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-entrance: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+  --dur-quick: 150ms;
+  --dur-standard: 300ms;
+  --dur-slow: 500ms;
+}
+
+/* ── Entrances ─────────────────────────────────────────────── */
+
+@keyframes shapley-rise {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shapley-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes shapley-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-rise {
+  animation: shapley-rise var(--dur-standard) var(--ease-entrance) both;
+}
+
+.animate-fade {
+  animation: shapley-fade var(--dur-standard) var(--ease-standard) both;
+}
+
+.animate-scale-in {
+  animation: shapley-scale-in var(--dur-standard) var(--ease-entrance) both;
+}
+
+/* Staggered entrances: apply .stagger-1 through .stagger-6 */
+.stagger-1 { animation-delay: 50ms; }
+.stagger-2 { animation-delay: 100ms; }
+.stagger-3 { animation-delay: 150ms; }
+.stagger-4 { animation-delay: 200ms; }
+.stagger-5 { animation-delay: 250ms; }
+.stagger-6 { animation-delay: 300ms; }
+
+/* ── Buttons ───────────────────────────────────────────────── */
+
+.btn-interactive {
+  transition:
+    transform var(--dur-quick) var(--ease-standard),
+    background-color var(--dur-quick) var(--ease-standard),
+    box-shadow var(--dur-quick) var(--ease-standard);
+}
+
+.btn-interactive:hover {
+  transform: translateY(-1px);
+}
+
+.btn-interactive:active {
+  transform: scale(0.97);
+}
+
+.btn-interactive:disabled {
+  transform: none;
+  cursor: not-allowed;
+}
+
+/* ── Loading ───────────────────────────────────────────────── */
+
+@keyframes shapley-pulse-ring {
+  0% { transform: scale(0.8); opacity: 0.6; }
+  50% { transform: scale(1.1); opacity: 0.2; }
+  100% { transform: scale(0.8); opacity: 0.6; }
+}
+
+.loading-ring {
+  animation: shapley-pulse-ring 1.5s var(--ease-standard) infinite;
+}
+
+@keyframes shapley-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: shapley-shimmer 1.5s linear infinite;
+}
+
+/* Progress bar fill */
+.progress-fill {
+  transition: width var(--dur-standard) var(--ease-standard);
+}
+
+/* ── Success ───────────────────────────────────────────────── */
+
+@keyframes shapley-pop {
+  0% { opacity: 0; transform: scale(0.8); }
+  60% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.animate-pop {
+  animation: shapley-pop var(--dur-standard) var(--ease-entrance) both;
+}
+
+@keyframes shapley-check-draw {
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
+}
+
+.check-draw {
+  stroke-dasharray: 24;
+  animation: shapley-check-draw var(--dur-standard) var(--ease-standard) both;
+  animation-delay: 150ms;
+}
+
+/* ── Error ─────────────────────────────────────────────────── */
+
+@keyframes shapley-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-10px); }
+  40% { transform: translateX(10px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
+.animate-shake {
+  animation: shapley-shake 400ms ease-in-out both;
+}
+
+/* ── Modal ─────────────────────────────────────────────────── */
+
+@keyframes shapley-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes shapley-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-backdrop {
+  animation: shapley-backdrop-in var(--dur-quick) var(--ease-standard) both;
+}
+
+.modal-content {
+  animation: shapley-modal-in var(--dur-standard) var(--ease-entrance) both;
+}
+
+/* ── Ambient ───────────────────────────────────────────────── */
+
+@keyframes shapley-breathe {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+.animate-breathe {
+  animation: shapley-breathe 3s ease-in-out infinite;
+}
+
+/* ── Reduced motion ────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-fade,
+  .animate-scale-in,
+  .animate-pop,
+  .modal-content,
+  .modal-backdrop {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+  .animate-shake { animation: none; }
+  .loading-ring,
+  .animate-breathe { animation: none; }
+  .btn-interactive:hover { transform: none; }
+  .btn-interactive:active { transform: none; }
+}
