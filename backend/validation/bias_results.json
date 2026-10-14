@@ -1,0 +1,19 @@
+{
+  "identity": {
+    "simple_utils": {
+      "scores": {
+        "Alex Johnson": 20,
+        "Wei Chen": 20
+      },
+      "spread": 0
+    },
+    "complex_auth": {
+      "skipped": true,
+      "reason": "API failures"
+    },
+    "medium_api": {
+      "skipped": true,
+      "reason": "API failures"
+    }
+  }
+}

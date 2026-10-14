@@ -80,14 +80,18 @@ def _call_gemini(prompt):
                        headers={"Content-Type": "application/json"})
 
     _last_call = time.time()
-    max_retries = 3
+    max_retries = 5
     for attempt in range(max_retries):
         try:
             with urllib.request.urlopen(req, timeout=90) as resp:
                 return json.loads(resp.read().decode())
         except Exception as e:
-            if attempt < max_retries - 1 and "503" in str(e):
-                wait = 2 ** attempt
+            err = str(e)
+            # Retry on 429 (rate limit) with exponential backoff
+            # and on 503 (overloaded) as before
+            if attempt < max_retries - 1 and ("429" in err or "503" in err):
+                # 429 needs longer waits: 15s, 30s, 60s, 120s
+                wait = (15 * (2 ** attempt)) if "429" in err else (2 ** attempt)
                 print(f"  [retry {attempt+1} after {wait}s: {e}]",
                       file=sys.stderr)
                 time.sleep(wait)
