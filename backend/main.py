@@ -94,6 +94,72 @@ class PayoutRequest(BaseModel):
 
 # ── Background analysis ─────────────────────────────────────────
 
+def _compute_share_cis(result, n_runs=200, noise=5.0):
+    """Monte Carlo confidence intervals for payout shares.
+
+    Perturbs each coalition score by uniform noise in [-noise, +noise],
+    recomputes Shapley shares, and returns 95% CI per contributor.
+    Pure math, no API calls.
+    """
+    import math
+    import random
+
+    evaluations = result.get("evaluations", [])
+    n = len(result.get("contributor_names", {}))
+    if n < 2 or not evaluations:
+        return {}
+
+    # Build score map from evaluations
+    base_scores = {}
+    for ev in evaluations:
+        key = frozenset(ev["coalition"])
+        base_scores[key] = ev["score"]
+
+    def shapley_shares(scores):
+        # Exact Shapley from score dict
+        shap = {i: 0.0 for i in range(n)}
+        n_fact = math.factorial(n)
+        for mask in range(2 ** n):
+            S = {i for i in range(n) if mask & (1 << i)}
+            for i in range(n):
+                if i in S:
+                    continue
+                s_size = len(S)
+                w = (math.factorial(s_size) *
+                     math.factorial(n - s_size - 1)) / n_fact
+                v_with = scores.get(frozenset(S | {i}), 0)
+                v_without = scores.get(frozenset(S), 0)
+                # Apply monotonicity: v(S|i) >= v(S)
+                v_with = max(v_with, v_without)
+                shap[i] += w * (v_with - v_without)
+        clamped = {i: max(0.0, v) for i, v in shap.items()}
+        total = sum(clamped.values())
+        if total > 0:
+            return {i: v / total * 100 for i, v in clamped.items()}
+        return {i: 100.0 / n for i in range(n)}
+
+    all_shares = {i: [] for i in range(n)}
+    for _ in range(n_runs):
+        noisy = {}
+        for key, score in base_scores.items():
+            if len(key) == 0:
+                noisy[key] = 0
+            else:
+                noisy[key] = max(0, min(100,
+                    score + random.uniform(-noise, noise)))
+        shares = shapley_shares(noisy)
+        for i in range(n):
+            all_shares[i].append(shares[i])
+
+    cis = {}
+    for i in range(n):
+        vals = sorted(all_shares[i])
+        lo = vals[int(0.025 * n_runs)]
+        hi = vals[int(0.975 * n_runs)]
+        cis[i] = {"low": round(lo, 1), "high": round(hi, 1)}
+    return cis
+
+
 def _run_analysis(job_id, repo_url, total_amount, max_commits):
     """Background worker: ingest → score → Shapley."""
     def update(status, **kw):
@@ -135,10 +201,16 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits):
         clear_cache()
         result = compute_shapley(contributor_diffs, contributor_names)
 
+        # Compute 95% confidence intervals via Monte Carlo perturbation.
+        # Perturb each coalition score ±5, recompute shares 200 times.
+        # This quantifies how sensitive payouts are to scoring noise.
+        ci_data = _compute_share_cis(result, n_runs=200, noise=5.0)
+
         # Build response
         contribs = []
         for idx, (email, data) in enumerate(contributors.items()):
             pct = result["shares_pct"][idx]
+            ci = ci_data.get(idx, {})
             contribs.append({
                 "name": data["name"],
                 "email": email,
@@ -147,7 +219,11 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits):
                 "deletions": sum(c["deletions"] for c in data["commits"]),
                 "shapley_value": result["shapley_values"][idx],
                 "share_pct": pct,
+                "share_ci_low": ci.get("low", pct),
+                "share_ci_high": ci.get("high", pct),
                 "payout_usd": round(total_amount * pct / 100, 2),
+                "payout_ci_low": round(total_amount * ci.get("low", pct) / 100, 2),
+                "payout_ci_high": round(total_amount * ci.get("high", pct) / 100, 2),
             })
 
         update("complete",
@@ -155,7 +231,8 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits):
                contributors=contribs,
                evaluations=result["evaluations"],
                api_calls=result["api_calls"],
-               num_coalitions=result["num_coalitions"])
+               num_coalitions=result["num_coalitions"],
+               monotonicity_fixes=result.get("monotonicity_fixes", []))
     except Exception as e:
         with _jobs_lock:
             _jobs[job_id].update({"status": "failed", "error": str(e)[:500]})

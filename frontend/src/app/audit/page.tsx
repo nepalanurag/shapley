@@ -74,6 +74,18 @@ function AuditContent() {
         valueFormatter: (p) => `${(Number(p.value) * 100).toFixed(0)}%`,
       },
       {
+        field: "rubric",
+        headerName: "Rubric (C/I/O/U)",
+        width: 180,
+        valueFormatter: (p) => {
+          const r = p.value;
+          if (!r) return "—";
+          return `${r.complexity}/${r.impact}/${r.originality}/${r.unblocking}`;
+        },
+        tooltipValueGetter: (p) =>
+          "Complexity / Impact / Originality / Unblocking (each 0-25)",
+      },
+      {
         field: "reasoning",
         headerName: "AI Reasoning",
         flex: 2,

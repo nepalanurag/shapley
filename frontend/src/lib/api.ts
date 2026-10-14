@@ -9,7 +9,11 @@ export interface Contributor {
   deletions?: number;
   shapley_value: number;
   share_pct: number;
+  share_ci_low?: number;
+  share_ci_high?: number;
   payout_usd: number;
+  payout_ci_low?: number;
+  payout_ci_high?: number;
 }
 
 export interface Evaluation {
@@ -18,6 +22,13 @@ export interface Evaluation {
   score: number;
   reasoning: string;
   confidence: number;
+  rubric?: {
+    complexity: number;
+    impact: number;
+    originality: number;
+    unblocking: number;
+  };
+  monotonicity_adjusted?: boolean;
 }
 
 export interface AnalysisResult {

@@ -70,12 +70,48 @@ def compute_shapley(contributor_diffs, contributor_names=None,
                 "score": result["score"],
                 "reasoning": result["reasoning"],
                 "confidence": result["confidence"],
+                "rubric": result.get("rubric"),
             })
             if verbose:
                 m_names = [names[i] for i in member_list]
                 print(f"  Coalition {m_names}: score={result['score']}",
                       file=sys.stderr)
         return value_cache[key]
+
+    # ── Monotonicity enforcement ──────────────────────────────
+    # A coalition's value should be >= every sub-coalition's value.
+    # LLMs sometimes score incoherently (v({A,B}) < v({A})), which breaks
+    # the game-theoretic validity and produces negative Shapley values.
+    # Enforce: v(S) = max(v(S), max(v(T) for T ⊂ S)).
+    # First force-score every coalition so the cache is complete,
+    # then process in increasing size so subsets are fixed first.
+    # Track which scores were adjusted for the audit trail.
+    for S in all_coalitions(n):
+        v(S)  # populate cache
+
+    monotonicity_fixes = []
+    for size in range(1, n + 1):
+        for S in all_coalitions(n):
+            if len(S) != size:
+                continue
+            key = frozenset(S)
+            best_sub = max(
+                (value_cache.get(frozenset(S - {i}), 0) for i in S),
+                default=0,
+            )
+            if value_cache[key] < best_sub:
+                monotonicity_fixes.append({
+                    "coalition": sorted(S),
+                    "original": value_cache[key],
+                    "adjusted": best_sub,
+                })
+                value_cache[key] = best_sub
+                # Update the evaluation record too
+                for ev in evaluations:
+                    if set(ev["coalition"]) == set(S):
+                        ev["score"] = best_sub
+                        ev["monotonicity_adjusted"] = True
+                        break
 
     # Compute Shapley values
     shapley = {i: 0.0 for i in range(n)}
@@ -122,6 +158,7 @@ def compute_shapley(contributor_diffs, contributor_names=None,
         "num_coalitions": total_coalitions,
         "api_calls": api_calls,
         "evaluations": evaluations,
+        "monotonicity_fixes": monotonicity_fixes,
     }
 
 

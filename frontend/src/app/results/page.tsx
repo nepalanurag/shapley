@@ -101,17 +101,27 @@ function ResultsContent() {
       {
         field: "share_pct",
         headerName: "Share %",
-        width: 110,
+        width: 170,
         sortable: true,
-        valueFormatter: (p) => `${Number(p.value).toFixed(1)}%`,
+        valueFormatter: (p) => {
+          const row = p.data as Contributor;
+          const lo = row.share_ci_low ?? p.value;
+          const hi = row.share_ci_high ?? p.value;
+          return `${Number(p.value).toFixed(1)}% [${lo.toFixed(1)}, ${hi.toFixed(1)}]`;
+        },
         cellStyle: { fontWeight: "bold", color: "#60a5fa" },
       },
       {
         field: "payout_usd",
         headerName: "Payout (USD)",
-        width: 140,
+        width: 200,
         sortable: true,
-        valueFormatter: (p) => `$${Number(p.value).toFixed(2)}`,
+        valueFormatter: (p) => {
+          const row = p.data as Contributor;
+          const lo = row.payout_ci_low ?? p.value;
+          const hi = row.payout_ci_high ?? p.value;
+          return `$${Number(p.value).toFixed(2)} [$${lo.toFixed(2)}, $${hi.toFixed(2)}]`;
+        },
         cellStyle: { fontWeight: "bold", color: "#34d399" },
       },
     ],

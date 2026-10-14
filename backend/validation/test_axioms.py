@@ -159,6 +159,25 @@ def test_negative_clamping():
     assert abs(total - 100.0) < 0.05
 
 
+def test_monotonicity_enforcement():
+    """Incoherent scores (v(S) < v(subset)) get raised to subset max."""
+    scores = {
+        frozenset(): 0,
+        frozenset({0}): 80, frozenset({1}): 10,
+        frozenset({0, 1}): 70,  # Incoherent: less than v({0})
+    }
+    result = run_with_mock(scores, 2)
+    # The {0,1} coalition should have been fixed to 80
+    fixes = result.get("monotonicity_fixes", [])
+    assert len(fixes) == 1, f"Expected 1 fix, got {len(fixes)}"
+    assert fixes[0]["original"] == 70
+    assert fixes[0]["adjusted"] == 80
+    # No negative marginals should remain after enforcement
+    for i in range(2):
+        assert result["shapley_values"][i] >= 0, \
+            f"P{i} has negative Shapley after monotonicity fix"
+
+
 if __name__ == "__main__":
     import traceback
     tests = [v for k, v in sorted(globals().items())
