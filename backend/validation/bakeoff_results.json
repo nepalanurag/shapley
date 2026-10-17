@@ -1,0 +1,86 @@
+[
+  {
+    "repo": "pallets/jinja",
+    "contributors": {
+      "davidism@gmail.com": "David Lord",
+      "adam@voltaire.claims": "Adam Englander",
+      "kevin@kevin-brown.com": "Kevin Brown-Silva"
+    },
+    "ai_shares": {
+      "davidism@gmail.com": 10.6,
+      "adam@voltaire.claims": 7.9,
+      "kevin@kevin-brown.com": 81.5
+    },
+    "baseline_shares": {
+      "lines_changed": {
+        "davidism@gmail.com": 70.0,
+        "adam@voltaire.claims": 29.7,
+        "kevin@kevin-brown.com": 0.3
+      },
+      "commit_count": {
+        "davidism@gmail.com": 91.4,
+        "adam@voltaire.claims": 5.7,
+        "kevin@kevin-brown.com": 2.9
+      },
+      "files_touched": {
+        "davidism@gmail.com": 58.6,
+        "adam@voltaire.claims": 38.8,
+        "kevin@kevin-brown.com": 2.6
+      }
+    },
+    "correlations": {
+      "lines_changed": -0.5,
+      "commit_count": -0.5,
+      "files_touched": -0.5
+    },
+    "top_match": {
+      "lines_changed": false,
+      "commit_count": false,
+      "files_touched": false
+    },
+    "num_coalitions": 8,
+    "api_calls": 8
+  },
+  {
+    "repo": "aio-libs/aiohttp",
+    "contributors": {
+      "nick@koston.org": "J. Nick Koston",
+      "patchback[bot]@users.noreply.github.com": "patchback[bot]",
+      "git@sambull.org": "Sam Bull"
+    },
+    "ai_shares": {
+      "nick@koston.org": 30.2,
+      "patchback[bot]@users.noreply.github.com": 21.0,
+      "git@sambull.org": 48.8
+    },
+    "baseline_shares": {
+      "lines_changed": {
+        "nick@koston.org": 41.5,
+        "patchback[bot]@users.noreply.github.com": 27.9,
+        "git@sambull.org": 30.6
+      },
+      "commit_count": {
+        "nick@koston.org": 50.0,
+        "patchback[bot]@users.noreply.github.com": 33.3,
+        "git@sambull.org": 16.7
+      },
+      "files_touched": {
+        "nick@koston.org": 42.9,
+        "patchback[bot]@users.noreply.github.com": 23.8,
+        "git@sambull.org": 33.3
+      }
+    },
+    "correlations": {
+      "lines_changed": 0.5,
+      "commit_count": -0.5,
+      "files_touched": 0.5
+    },
+    "top_match": {
+      "lines_changed": false,
+      "commit_count": false,
+      "files_touched": false
+    },
+    "num_coalitions": 8,
+    "api_calls": 8
+  }
+]

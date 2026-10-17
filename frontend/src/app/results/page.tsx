@@ -92,6 +92,20 @@ function ResultsContent() {
       { field: "name", headerName: "Contributor", flex: 1, sortable: true },
       { field: "commits", headerName: "Commits", width: 100, sortable: true },
       {
+        field: "additions",
+        headerName: "Lines +",
+        width: 100,
+        sortable: true,
+        valueFormatter: (p) => (p.value ?? 0).toLocaleString(),
+      },
+      {
+        field: "deletions",
+        headerName: "Lines -",
+        width: 100,
+        sortable: true,
+        valueFormatter: (p) => (p.value ?? 0).toLocaleString(),
+      },
+      {
         field: "shapley_value",
         headerName: "Shapley Value",
         width: 140,

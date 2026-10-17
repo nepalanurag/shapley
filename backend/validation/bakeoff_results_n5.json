@@ -1,0 +1,106 @@
+[
+  {
+    "repo": "psf/black",
+    "contributors": {
+      "prateek99-s@users.noreply.github.com": "Prateek99-s",
+      "jiteshgulati805@gmail.com": "Jitesh Gulati",
+      "jelle.zijlstra@gmail.com": "Jelle Zijlstra",
+      "msuozzo@google.com": "Matthew Suozzo",
+      "zhoujunbai123@gmail.com": "Jay Zhou"
+    },
+    "ai_shares": {
+      "prateek99-s@users.noreply.github.com": 31.9,
+      "jiteshgulati805@gmail.com": 24.0,
+      "jelle.zijlstra@gmail.com": 2.5,
+      "msuozzo@google.com": 35.6,
+      "zhoujunbai123@gmail.com": 5.9
+    },
+    "baseline_shares": {
+      "lines_changed": {
+        "prateek99-s@users.noreply.github.com": 53.9,
+        "jiteshgulati805@gmail.com": 12.5,
+        "jelle.zijlstra@gmail.com": 24.3,
+        "msuozzo@google.com": 4.4,
+        "zhoujunbai123@gmail.com": 4.9
+      },
+      "commit_count": {
+        "prateek99-s@users.noreply.github.com": 39.3,
+        "jiteshgulati805@gmail.com": 21.4,
+        "jelle.zijlstra@gmail.com": 17.9,
+        "msuozzo@google.com": 10.7,
+        "zhoujunbai123@gmail.com": 10.7
+      },
+      "files_touched": {
+        "prateek99-s@users.noreply.github.com": 40.0,
+        "jiteshgulati805@gmail.com": 13.3,
+        "jelle.zijlstra@gmail.com": 20.0,
+        "msuozzo@google.com": 11.7,
+        "zhoujunbai123@gmail.com": 15.0
+      }
+    },
+    "correlations": {
+      "lines_changed": -0.3,
+      "commit_count": 0.051,
+      "files_touched": -0.4
+    },
+    "top_match": {
+      "lines_changed": false,
+      "commit_count": false,
+      "files_touched": false
+    },
+    "num_coalitions": 32,
+    "api_calls": 32
+  },
+  {
+    "repo": "pytest-dev/pytest",
+    "contributors": {
+      "opensource@ronnypfannschmidt.de": "Ronny Pfannschmidt",
+      "ronny.pfannschmidt@gmail.com": "Ronny Pfannschmidt",
+      "pre-commit-ci[bot]@users.noreply.github.com": "pre-commit-ci[bot]",
+      "gangeunzzang@users.noreply.github.com": "GangEunzzang",
+      "15r10nk-git@polarbit.de": "Frank Hoffmann"
+    },
+    "ai_shares": {
+      "opensource@ronnypfannschmidt.de": 0.0,
+      "ronny.pfannschmidt@gmail.com": 50.0,
+      "pre-commit-ci[bot]@users.noreply.github.com": 0.0,
+      "gangeunzzang@users.noreply.github.com": 0.0,
+      "15r10nk-git@polarbit.de": 50.0
+    },
+    "baseline_shares": {
+      "lines_changed": {
+        "opensource@ronnypfannschmidt.de": 48.0,
+        "ronny.pfannschmidt@gmail.com": 29.6,
+        "pre-commit-ci[bot]@users.noreply.github.com": 1.9,
+        "gangeunzzang@users.noreply.github.com": 12.7,
+        "15r10nk-git@polarbit.de": 7.8
+      },
+      "commit_count": {
+        "opensource@ronnypfannschmidt.de": 30.4,
+        "ronny.pfannschmidt@gmail.com": 21.7,
+        "pre-commit-ci[bot]@users.noreply.github.com": 17.4,
+        "gangeunzzang@users.noreply.github.com": 17.4,
+        "15r10nk-git@polarbit.de": 13.0
+      },
+      "files_touched": {
+        "opensource@ronnypfannschmidt.de": 52.7,
+        "ronny.pfannschmidt@gmail.com": 27.3,
+        "pre-commit-ci[bot]@users.noreply.github.com": 7.3,
+        "gangeunzzang@users.noreply.github.com": 7.3,
+        "15r10nk-git@polarbit.de": 5.5
+      }
+    },
+    "correlations": {
+      "lines_changed": 0.0,
+      "commit_count": -0.296,
+      "files_touched": -0.296
+    },
+    "top_match": {
+      "lines_changed": false,
+      "commit_count": false,
+      "files_touched": false
+    },
+    "num_coalitions": 32,
+    "api_calls": 32
+  }
+]

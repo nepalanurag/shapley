@@ -87,8 +87,11 @@ def analyze_repo(repo, max_commits):
         print("  SKIP: need >= 2 contributors")
         return None
     if len(emails) > 5:
-        print(f"  SKIP: too many contributors ({len(emails)}), max 5")
-        return None
+        # Take top 5 by commit count for exact Shapley (finer than n=3)
+        by_commits = sorted(emails, key=lambda e: len(contributors[e]["commits"]), reverse=True)
+        emails = by_commits[:5]
+        contributors = {e: contributors[e] for e in emails}
+        print(f"  (capped to top 5 by commits)")
 
     # Baselines
     baselines = compute_baselines(contributors)

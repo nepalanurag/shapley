@@ -28,7 +28,7 @@ Where `v(S)` is the AI-evaluated semantic value of coalition `S`. For N≤5 cont
 ## Tech Stack
 
 - **Frontend:** Next.js 16, TypeScript, AG Grid Community, AG Charts Community
-- **Backend:** Python, FastAPI, NumPy
+- **Backend:** Python, FastAPI
 - **AI:** Google Gemini (function calling, structured JSON output)
 - **Payments:** PayPal Payouts API (batch)
 - **Data:** GitHub REST API

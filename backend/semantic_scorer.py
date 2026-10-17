@@ -24,7 +24,7 @@ BASE = "https://generativelanguage.googleapis.com/v1beta"
 # In-memory cache: coalition hash -> score result
 _cache = {}
 _last_call = 0
-MIN_INTERVAL = 1.0  # seconds between API calls
+MIN_INTERVAL = 4.0  # bumped for free-tier bake-off  # seconds between API calls
 
 
 def sanitize_diff(text):

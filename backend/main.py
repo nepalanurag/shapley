@@ -178,9 +178,9 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits):
         if len(contributors) < 2:
             update("failed", error=f"Need ≥2 contributors, found {len(contributors)}")
             return
-        if len(contributors) > 5:
-            update("failed", error=f"Too many contributors ({len(contributors)}). Max 5 for live analysis.")
-            return
+        use_monte_carlo = len(contributors) > 5
+        if use_monte_carlo:
+            update("scoring", note=f"Using Monte Carlo approximation for {len(contributors)} contributors")
 
         update("scoring", contributors=[
             {"name": d["name"], "email": e, "commits": len(d["commits"])}
@@ -199,7 +199,14 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits):
 
         update("computing_shapley")
         clear_cache()
-        result = compute_shapley(contributor_diffs, contributor_names)
+        if use_monte_carlo:
+            from shapley import monte_carlo_shapley
+            result = monte_carlo_shapley(contributor_diffs, contributor_names)
+            result["evaluations"] = result.get("num_samples", 200)
+            result["num_coalitions"] = f"~{result.get('num_samples', 200)} sampled"
+            result["monotonicity_fixes"] = 0
+        else:
+            result = compute_shapley(contributor_diffs, contributor_names)
 
         # Compute 95% confidence intervals via Monte Carlo perturbation.
         # Perturb each coalition score ±5, recompute shares 200 times.

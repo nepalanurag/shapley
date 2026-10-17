@@ -25,6 +25,11 @@ def load_env():
     return env
 
 ENV = load_env()
+
+import os
+def env(key, default=None):
+    """Read from os.environ first (Render/hosting), fall back to .env file."""
+    return os.environ.get(key) or ENV.get(key, default)
 PAYPAL_BASE = "https://api-m.sandbox.paypal.com"
 
 # Token cache: avoid fetching new token per API call
@@ -37,8 +42,8 @@ def get_access_token():
             time.time() < _token_cache["expires_at"] - 60):
         return _token_cache["token"]
 
-    client_id = ENV.get("PAYPAL_CLIENT_ID")
-    secret = ENV.get("PAYPAL_CLIENT_SECRET")
+    client_id = env("PAYPAL_CLIENT_ID")
+    secret = env("PAYPAL_CLIENT_SECRET")
     if not client_id or not secret:
         raise RuntimeError("PAYPAL_CLIENT_ID/SECRET not set in .env")
 
@@ -202,11 +207,11 @@ if __name__ == "__main__":
     if "--execute" in sys.argv:
         print("Executing test payout...", file=sys.stderr)
         result = create_batch_payout([
-            {"email": ENV.get("PAYPAL_SANDBOX_RECIPIENT_EMAIL", "test@example.com"),
+            {"email": env("PAYPAL_SANDBOX_RECIPIENT_EMAIL", "test@example.com"),
              "amount": 0.50, "note": "Shapley test A"},
-            {"email": ENV.get("PAYPAL_SANDBOX_RECIPIENT_EMAIL", "test@example.com"),
+            {"email": env("PAYPAL_SANDBOX_RECIPIENT_EMAIL", "test@example.com"),
              "amount": 0.30, "note": "Shapley test B"},
-            {"email": ENV.get("PAYPAL_SANDBOX_RECIPIENT_EMAIL", "test@example.com"),
+            {"email": env("PAYPAL_SANDBOX_RECIPIENT_EMAIL", "test@example.com"),
              "amount": 0.20, "note": "Shapley test C"},
         ], total_amount=1.00)
         print(json.dumps(result, indent=2))
