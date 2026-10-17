@@ -27,7 +27,7 @@ body {
   min-height: 100vh;
 }
 
-/* Bencho & shadcn/ui Inspired Micro-Interactions */
+/* Interactive Micro-Interactions */
 .glass-panel {
   background: rgba(17, 18, 21, 0.75);
   backdrop-filter: blur(16px);
@@ -40,13 +40,13 @@ body {
   border-color: rgba(255, 255, 255, 0.16);
 }
 
-.bencho-sweep {
+.shimmer-sweep {
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
   background-size: 200% 100%;
-  animation: benchoSweep 3s infinite linear;
+  animation: shimmerSweep 3s infinite linear;
 }
 
-@keyframes benchoSweep {
+@keyframes shimmerSweep {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }

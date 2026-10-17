@@ -43,13 +43,13 @@
       from { opacity: 0; transform: scale(0.97) translateY(8px); }
       to { opacity: 1; transform: scale(1) translateY(0); }
     }
-    /* Bencho Interactive Micro-Interactions */
-    .bencho-sweep {
+    /* Interactive Micro-Interactions */
+    .shimmer-sweep {
       background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
       background-size: 200% 100%;
-      animation: benchoSweep 3s infinite linear;
+      animation: shimmerSweep 3s infinite linear;
     }
-    @keyframes benchoSweep {
+    @keyframes shimmerSweep {
       0% { background-position: -200% 0; }
       100% { background-position: 200% 0; }
     }
@@ -70,7 +70,7 @@
     .glow-emerald {
       box-shadow: 0 0 24px -4px rgba(16, 185, 129, 0.25);
     }
-    /* Bencho Drag Slider */
+    /* Escrow Drag Slider */
     .slide-track {
       touch-action: none;
       user-select: none;
@@ -225,14 +225,11 @@
     </div>
 
     <!-- Phased Milestone Escrow & Dynamic Lifecycle Tracker -->
-    <div class="bg-[#111215] border border-zinc-800 rounded-xl p-3.5 sm:p-5 mb-6 shadow-sm">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3.5">
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-blue-400 font-mono">Project Milestone Lifecycle</span>
-            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-950/60 text-blue-300 border border-blue-800/60">Dynamic Tranches</span>
-          </div>
-          <p class="text-xs text-zinc-400 mt-0.5">Projects are living codebases: payouts update dynamically per milestone without modifying settled tranches.</p>
+    <div class="bg-[#111215] border border-zinc-800 rounded-xl p-3.5 sm:p-4 mb-5 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-blue-400 font-mono">Milestone Tranches</span>
+          <span class="text-xs text-zinc-400 hidden sm:inline">&bull; Settled tranches immutable; new commits accumulate incrementally</span>
         </div>
         <div class="text-[11px] font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg self-start sm:self-auto">
           Active Tranche: <span id="activeTrancheBadge" class="text-emerald-400 font-bold">$2,500.00 USD</span>
@@ -303,122 +300,83 @@
     </div>
 
     <!-- PayPal Multi-Stakeholder Custodial Escrow Vault -->
-    <div class="bg-gradient-to-r from-[#003087]/20 via-[#001c48]/30 to-zinc-950 border border-blue-600/40 rounded-xl p-4 sm:p-5 mb-6 shadow-lg shadow-blue-950/20">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 mb-4 border-b border-blue-900/40">
+    <div class="bg-gradient-to-r from-blue-950/20 via-zinc-900 to-zinc-900 border border-blue-600/30 rounded-xl p-4 sm:p-5 mb-5 shadow-sm">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 mb-3 border-b border-zinc-800/80">
         <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-base shadow-md shadow-blue-600/30">
+          <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-blue-600/30">
             &Pcy;
           </div>
           <div>
             <div class="flex items-center gap-2">
               <h3 class="text-sm font-bold text-white">PayPal Custodial Escrow Vault</h3>
-              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
-                🔒 Vault: ESCROW-PP-JINJA-02
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/80 font-bold">
+                ESCROW-PP-JINJA-02
               </span>
             </div>
-            <p class="text-xs text-zinc-300 mt-0.5">
-              Neutral regulated escrow holding milestone funds under PayPal Delayed Authorization Hold between Sponsor, Maintainers, and Contributors.
+            <p class="text-xs text-zinc-400 mt-0.5">
+              Milestone funds held in neutral escrow until maintainer validation and dispute window expiry.
             </p>
           </div>
         </div>
 
-        <div class="flex items-center gap-2 self-start md:self-auto">
-          <span class="text-xs font-mono text-zinc-400 bg-zinc-900/90 border border-zinc-800 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            Escrow Hold: <strong class="text-emerald-400">$2,500.00 USD</strong>
-          </span>
-          <button onclick="openPayoutModal()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-all shadow-md shadow-emerald-700/30 flex items-center gap-1.5">
-            <span>🔓</span>
-            Authorize Release
-          </button>
-        </div>
-      </div>
-
-      <!-- The 3 Stakeholders Pipeline -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs mb-3">
-        <!-- Stakeholder 1: Funder / Sponsor -->
-        <div class="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800/80">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-[10px] font-mono uppercase font-bold text-blue-400">1. Sponsor (Depositor)</span>
-            <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-1.5 py-0.2 rounded border border-emerald-800/80">&check; Authorized</span>
+        <!-- Single Sleek Slide-to-Confirm Release Control -->
+        <div class="flex items-center gap-3 self-start md:self-auto">
+          <div class="text-right hidden sm:block">
+            <span class="text-[10px] text-zinc-500 uppercase font-mono block">Escrow In Custody</span>
+            <span class="text-xs font-mono font-bold text-emerald-400">$2,500.00 USD</span>
           </div>
-          <span class="font-semibold text-white block">Open Source Capital Fund</span>
-          <span class="text-[11px] text-zinc-400 font-mono block">Auth ID: AUTH-PP-8829410-USD</span>
-          <p class="text-[10px] text-zinc-500 mt-1">Funds locked in escrow; non-retractable during active sprint.</p>
-        </div>
-
-        <!-- Stakeholder 2: Neutral Custodian -->
-        <div class="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800/80">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-[10px] font-mono uppercase font-bold text-blue-400">2. Escrow Custodian</span>
-            <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-1.5 py-0.2 rounded border border-emerald-800/80">&check; In Custody</span>
-          </div>
-          <span class="font-semibold text-white block">PayPal Inc. (Delayed Capture)</span>
-          <span class="text-[11px] text-zinc-400 font-mono block">Disbursement Mode: DELAYED</span>
-          <p class="text-[10px] text-zinc-500 mt-1">Guarantees exact-penny release upon dual-quorum consensus.</p>
-        </div>
-
-        <!-- Stakeholder 3: Maintainer / Validators -->
-        <div class="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800/80">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-[10px] font-mono uppercase font-bold text-blue-400">3. Maintainer Review</span>
-            <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-1.5 py-0.2 rounded border border-emerald-800/80">&check; Merkle Verified</span>
-          </div>
-          <span class="font-semibold text-white block">Pallets Review Board</span>
-          <span class="text-[11px] text-zinc-400 font-mono block">Signed by: armin@mitsuhiko.at</span>
-          <p class="text-[10px] text-zinc-500 mt-1">Validated AST marginal scores and commit cryptographic provenance.</p>
-        </div>
-      </div>
-
-      <!-- Challenge Window & Dispute Terms -->
-      <div class="bg-zinc-950/60 border border-zinc-800/80 rounded-lg p-2.5 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-zinc-400 gap-2">
-        <div class="flex items-center gap-2">
-          <span>⏱️</span>
-          <span><strong>48-Hour Dispute Challenge Window:</strong> Active (31h remaining &bull; 0 contested claims)</span>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="text-zinc-500 font-mono text-[10px]">Hare-Niemeyer Exact Cents: $0.00 Stranded Float</span>
-          <a href="#payoutModal" onclick="openPayoutModal(); return false;" class="text-blue-400 hover:underline font-mono text-[11px]">Inspect Escrow Contract &rarr;</a>
-        </div>
-      </div>
-
-      <!-- Bencho Interactive Slide-to-Confirm Escrow Release -->
-      <div class="mt-3 pt-3 border-t border-blue-900/30">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-emerald-400 font-bold font-mono">⚡ Bencho Slide-Confirm:</span>
-            <span class="text-zinc-400 text-[11px]">Drag thumb to right to authorize PayPal Escrow disbursement</span>
-          </div>
-
-          <div id="slideConfirmTrack" class="slide-track relative w-full sm:w-80 h-10 bg-zinc-950/90 border border-zinc-700/80 rounded-full overflow-hidden flex items-center select-none cursor-grab active:cursor-grabbing shadow-inner">
-            <div id="slideProgressFill" class="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-blue-600 via-emerald-600 to-emerald-500 opacity-40 transition-all pointer-events-none" style="width: 0%"></div>
-            <div id="slideThumbBtn" class="absolute left-1 top-1 bottom-1 w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white font-bold text-xs flex items-center justify-center shadow-md shadow-emerald-900/40 transition-transform">
+          <div id="slideConfirmTrack" class="slide-track relative w-64 h-9 bg-zinc-950 border border-zinc-700/80 rounded-full overflow-hidden flex items-center select-none cursor-grab active:cursor-grabbing shadow-inner">
+            <div id="slideProgressFill" class="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-blue-600 to-emerald-500 opacity-40 transition-all pointer-events-none" style="width: 0%"></div>
+            <div id="slideThumbBtn" class="absolute left-1 top-1 bottom-1 w-7 h-7 rounded-full bg-emerald-500 text-white font-bold text-xs flex items-center justify-center shadow-md shadow-emerald-900/40 transition-transform">
               &rarr;
             </div>
             <span id="slideActionLabel" class="w-full text-center text-[10px] font-semibold text-zinc-300 font-mono pointer-events-none pl-6 pr-2">
-              Slide to Authorize Release ($2.5k) ➔
+              Slide to Release ($2.5k) ➔
             </span>
           </div>
         </div>
       </div>
+
+      <!-- Compact 3-Party Quorum Bar -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 py-2 px-3 bg-zinc-950/70 rounded-lg border border-zinc-800/80 text-xs">
+        <div class="flex items-center justify-between sm:justify-start gap-2">
+          <span class="flex items-center gap-1.5 text-zinc-300">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span> 1. Sponsor Deposit
+          </span>
+          <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded">&check; Authorized</span>
+        </div>
+        <div class="flex items-center justify-between sm:justify-start gap-2">
+          <span class="flex items-center gap-1.5 text-zinc-300">
+            <span class="w-2 h-2 rounded-full bg-blue-400"></span> 2. PayPal Neutral Escrow
+          </span>
+          <span class="text-[10px] font-mono text-blue-300 bg-blue-950/60 border border-blue-800/60 px-1.5 py-0.5 rounded">&check; In Custody</span>
+        </div>
+        <div class="flex items-center justify-between sm:justify-start gap-2">
+          <span class="flex items-center gap-1.5 text-zinc-300">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span> 3. Maintainer Sign-off
+          </span>
+          <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded">&check; Merkle Verified</span>
+        </div>
+      </div>
+
+      <!-- Clean Status Footer -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-zinc-400 pt-2 gap-1.5">
+        <span>⏱️ <strong>48-Hour Dispute Challenge Window:</strong> Active (31h remaining &bull; 0 claims) &bull; Exact Cents: $0.00 Float</span>
+        <button onclick="openPayoutModal()" class="text-blue-400 hover:text-blue-300 font-mono text-[11px] text-left sm:text-right">View Settlement Modal &rarr;</button>
+      </div>
     </div>
 
     <!-- AI Semantic Contribution Synthesis Banner -->
-    <div class="bg-gradient-to-r from-blue-950/30 via-zinc-900 to-zinc-900 border border-blue-900/40 rounded-xl p-4 sm:p-5 mb-6 flex items-start gap-4">
-      <div class="w-9 h-9 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center flex-shrink-0 mt-0.5 font-bold font-mono text-xs">
-        AI
-      </div>
-      <div class="flex-1">
-        <div class="flex items-center justify-between mb-1">
-          <h3 class="text-xs font-bold text-blue-400 uppercase tracking-wider">
-            Gemini Semantic &amp; AST Physical Contribution Synthesis
-          </h3>
-          <span class="text-[11px] font-mono text-zinc-400">Confidence: 94.2%</span>
+    <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5 sm:p-4 mb-6 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-mono font-bold text-xs flex-shrink-0">
+          AI
         </div>
-        <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed">
-          Analysis of 30 commits across 4 developers identified distinct archetypes. <strong class="text-white">Maya Chen</strong> introduced the core AST parser pipeline (highest marginal impact across coalitions). <strong class="text-white">Sara Ahmed</strong> resolved high-severity memory leak CVEs with tight, high-leverage diffs. <strong class="text-white">Tom Rivera&apos;s</strong> 2,400 lines were identified primarily as linter reformatting, adjusting his share from naive 50% down to 5.4%.
+        <p class="text-xs text-zinc-300 leading-normal">
+          <strong class="text-white">AST Semantic Contribution Analysis:</strong> Filtered 2,400 linter lines for Tom Rivera down to <strong>5.4%</strong> fair share, attributing core value to Maya Chen&apos;s AST rewrite (<strong>47.0%</strong>) and Sara Ahmed&apos;s security CVE fix (<strong>31.6%</strong>).
         </p>
       </div>
+      <span class="text-[11px] font-mono text-zinc-400 bg-zinc-950 px-2.5 py-1 rounded-md border border-zinc-800 whitespace-nowrap hidden sm:inline-block">Confidence: 94.2%</span>
     </div>
 
     <!-- Visual Proof & Live Simulator Layout -->
@@ -1593,7 +1551,7 @@
   </div>
 
   <!-- ============================================================ -->
-  <!-- MODAL: BENCHO QUICK COMMAND PALETTE (CMD+K)                  -->
+  <!-- MODAL: QUICK COMMAND PALETTE (CMD+K)                         -->
   <!-- ============================================================ -->
   <div id="commandPaletteModal" class="fixed inset-0 z-50 flex items-start justify-center pt-24 p-4 hidden">
     <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" onclick="closeCommandPalette()"></div>
@@ -2410,7 +2368,7 @@ jobs:
       showToast('Audit JSON copied to clipboard!');
     }
 
-    // --- Bencho UI Micro-Interactions & Haptics ---
+    // --- Micro-Interactions & Haptics ---
     let audioCtx = null;
     function playHaptic(freq = 600, duration = 0.04, type = 'sine') {
       try {
@@ -2485,7 +2443,7 @@ jobs:
       }
     });
 
-    // Bencho Slide-to-Confirm Drag Handler
+    // Escrow Slide-to-Confirm Drag Handler
     let isDraggingSlide = false;
     let slideStartX = 0;
     let isSlideAuthorized = false;

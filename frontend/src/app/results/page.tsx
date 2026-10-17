@@ -424,7 +424,7 @@ function ResultsContent() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowCommandPalette(true)}
-              className="bg-zinc-900/90 hover:bg-zinc-800 px-3 py-1.5 rounded-lg text-xs font-semibold border border-zinc-700/80 flex items-center gap-2 transition-all text-zinc-300 shadow-sm bencho-sweep"
+              className="bg-zinc-900/90 hover:bg-zinc-800 px-3 py-1.5 rounded-lg text-xs font-semibold border border-zinc-700/80 flex items-center gap-2 transition-all text-zinc-300 shadow-sm shimmer-sweep"
               title="Quick Action Command Palette (⌘K)"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400">
@@ -1171,79 +1171,60 @@ jobs:
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
-              <span className="text-xs font-mono text-zinc-300 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800">
-                Escrow Hold: <strong className="text-emerald-400">${currentTotal.toFixed(2)} USD</strong>
-              </span>
-              <button
-                onClick={() => setShowConfirm(true)}
-                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow-md shadow-emerald-700/20 active:scale-95 btn-interactive"
-              >
-                <span>🔓</span>
-                Release Escrow
-              </button>
-            </div>
-          </div>
-
-          {/* Bencho Interactive Slide-to-Confirm Escrow Release */}
-          <div className="mt-3 pt-3 border-t border-blue-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-emerald-400 font-bold font-mono">⚡ Bencho Slide-Confirm:</span>
-              <span className="text-zinc-400 text-[11px]">Slide to authorize PayPal Escrow disbursement</span>
-            </div>
-            <div 
-              className="relative w-full sm:w-80 h-10 bg-zinc-950/90 border border-zinc-700/80 rounded-full overflow-hidden flex items-center select-none cursor-pointer group shadow-inner"
-              onClick={() => {
-                setIsSlideAuthorized(true);
-                setShowConfirm(true);
-              }}
-            >
+            <div className="flex items-center gap-3 self-start md:self-auto">
+              <div className="text-right hidden sm:block">
+                <span className="text-[10px] text-zinc-500 uppercase font-mono block">Escrow In Custody</span>
+                <span className="text-xs font-mono font-bold text-emerald-400">${currentTotal.toFixed(2)} USD</span>
+              </div>
               <div 
-                className={`absolute left-0 top-0 bottom-0 bg-gradient-to-r from-blue-600 via-emerald-600 to-emerald-500 opacity-40 transition-all ${isSlideAuthorized ? "w-full" : "w-1/4 group-hover:w-1/2"}`}
-              />
-              <div 
-                className={`absolute left-1 top-1 bottom-1 w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shadow-md transition-all ${
-                  isSlideAuthorized 
-                    ? "bg-emerald-500 text-white translate-x-[260px] shadow-emerald-500/50" 
-                    : "bg-gradient-to-br from-emerald-400 to-emerald-600 text-white group-hover:translate-x-3 shadow-emerald-900/40"
-                }`}
+                className="relative w-64 h-9 bg-zinc-950 border border-zinc-700/80 rounded-full overflow-hidden flex items-center select-none cursor-pointer group shadow-inner"
+                onClick={() => {
+                  setIsSlideAuthorized(true);
+                  setShowConfirm(true);
+                }}
               >
-                {isSlideAuthorized ? "✓" : "→"}
+                <div 
+                  className={`absolute left-0 top-0 bottom-0 bg-gradient-to-r from-blue-600 via-emerald-600 to-emerald-500 opacity-40 transition-all ${isSlideAuthorized ? "w-full" : "w-1/4 group-hover:w-1/2"}`}
+                />
+                <div 
+                  className={`absolute left-1 top-1 bottom-1 w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shadow-md transition-all ${
+                    isSlideAuthorized 
+                      ? "bg-emerald-500 text-white translate-x-[220px] shadow-emerald-500/50" 
+                      : "bg-emerald-500 text-white group-hover:translate-x-2 shadow-emerald-900/40"
+                  }`}
+                >
+                  {isSlideAuthorized ? "✓" : "→"}
+                </div>
+                <span className="w-full text-center text-[10px] font-semibold text-zinc-300 font-mono pointer-events-none pl-6 pr-2">
+                  {isSlideAuthorized ? "✓ Escrow Tranche Disbursed" : `Slide to Release ($${currentTotal.toFixed(2)}) ➔`}
+                </span>
               </div>
-              <span className="w-full text-center text-[10px] font-semibold text-zinc-300 font-mono pointer-events-none pl-6 pr-2">
-                {isSlideAuthorized ? "✓ Escrow Tranche Disbursed" : `Slide to Authorize Release ($${currentTotal.toFixed(2)}) ➔`}
+            </div>
+          </div>
+
+          {/* Compact 3-Party Quorum Bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 py-2 px-3 bg-zinc-950/70 rounded-lg border border-zinc-800/80 text-xs mb-3">
+            <div className="flex items-center justify-between sm:justify-start gap-2">
+              <span className="flex items-center gap-1.5 text-zinc-300">
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span> 1. Sponsor Deposit
               </span>
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded">&check; Authorized</span>
+            </div>
+            <div className="flex items-center justify-between sm:justify-start gap-2">
+              <span className="flex items-center gap-1.5 text-zinc-300">
+                <span className="w-2 h-2 rounded-full bg-blue-400"></span> 2. PayPal Neutral Escrow
+              </span>
+              <span className="text-[10px] font-mono text-blue-300 bg-blue-950/60 border border-blue-800/60 px-1.5 py-0.5 rounded">&check; In Custody</span>
+            </div>
+            <div className="flex items-center justify-between sm:justify-start gap-2">
+              <span className="flex items-center gap-1.5 text-zinc-300">
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span> 3. Maintainer Sign-off
+              </span>
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded">&check; Merkle Verified</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs mb-3">
-            <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-mono uppercase font-bold text-blue-400">1. Funder / Sponsor</span>
-                <span className="text-[10px] font-mono text-emerald-400">&check; Authorized</span>
-              </div>
-              <span className="font-semibold text-white block">Grant Sponsor</span>
-              <span className="text-[10px] text-zinc-500 font-mono">Non-retractable authorization hold</span>
-            </div>
-            <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-mono uppercase font-bold text-blue-400">2. Neutral Escrow</span>
-                <span className="text-[10px] font-mono text-blue-400">&check; In Custody</span>
-              </div>
-              <span className="font-semibold text-white block">PayPal Commerce Platform</span>
-              <span className="text-[10px] text-zinc-500 font-mono">Disbursement Mode: DELAYED</span>
-            </div>
-            <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-mono uppercase font-bold text-blue-400">3. Maintainer Sign-off</span>
-                <span className="text-[10px] font-mono text-emerald-400">&check; Merkle Validated</span>
-              </div>
-              <span className="font-semibold text-white block">Project Core Maintainers</span>
-              <span className="text-[10px] text-zinc-500 font-mono">48h Dispute Challenge Window active</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-zinc-400 pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-zinc-400 pt-1 gap-1">
             <span>⏱️ <strong>48-Hour Dispute Challenge Window:</strong> Active &bull; Exact-Penny conservation verified ($0.00 float)</span>
             <span className="font-mono text-[10px] text-zinc-500">Idempotency: SHA-256 State-Locked</span>
           </div>
@@ -1591,7 +1572,7 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
         )}
 
         {/* ============================================================ */}
-        {/* MODAL: BENCHO QUICK COMMAND PALETTE (CMD+K)                  */}
+        {/* MODAL: QUICK COMMAND PALETTE (CMD+K)                         */}
         {/* ============================================================ */}
         {showCommandPalette && (
           <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 p-4 animate-fade">
