@@ -292,27 +292,78 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 mt-12">
-          <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800 animate-rise stagger-2">
-            <h3 className="font-semibold mb-2">AI Evaluation</h3>
-            <p className="text-sm text-zinc-400">
-              Gemini reads every commit diff and scores semantic impact —
-              not line counts, actual contribution value.
+        {/* End-to-End Workflow Pipeline */}
+        <div className="mt-14 pt-10 border-t border-zinc-800/80">
+          <div className="text-center mb-8">
+            <h2 className="text-xl font-bold text-white tracking-tight">End-to-End Workflow Architecture</h2>
+            <p className="text-xs text-zinc-400 mt-1 max-w-xl mx-auto">
+              How Shapley connects git commit history to mathematical attribution and instant PayPal settlements
             </p>
           </div>
-          <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800 animate-rise stagger-3">
-            <h3 className="font-semibold mb-2">Shapley Fairness</h3>
-            <p className="text-sm text-zinc-400">
-              Cooperative game theory computes each person&apos;s marginal
-              contribution across every possible team combination.
-            </p>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-5 relative">
+              <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 font-mono text-xs font-bold flex items-center justify-center mb-3">
+                01
+              </div>
+              <h3 className="font-semibold text-sm text-zinc-200 mb-1.5">Git Ingestion</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Parallelized commit fetching. Filters out noise (lockfiles, minified bundles, auto-lints) to isolate genuine semantic changes.
+              </p>
+            </div>
+
+            <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-5 relative">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 font-mono text-xs font-bold flex items-center justify-center mb-3">
+                02
+              </div>
+              <h3 className="font-semibold text-sm text-zinc-200 mb-1.5">Coalition Scoring</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Forms all 2<sup>N</sup> contributor subsets. Google Gemini scores each coalition capability v(S) &isin; [0, 100] across 4 rubric dimensions.
+              </p>
+            </div>
+
+            <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-5 relative">
+              <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 font-mono text-xs font-bold flex items-center justify-center mb-3">
+                03
+              </div>
+              <h3 className="font-semibold text-sm text-zinc-200 mb-1.5">Game Theory Proofs</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Computes exact marginal contributions &phi;&#7522;. Enforces Monotonicity: v(S &cup; &#123;i&#125;) &ge; v(S) to eliminate temperature noise.
+              </p>
+            </div>
+
+            <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-5 relative">
+              <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-400 font-mono text-xs font-bold flex items-center justify-center mb-3">
+                04
+              </div>
+              <h3 className="font-semibold text-sm text-zinc-200 mb-1.5">PayPal Settlement</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Deterministic batch payout via PayPal REST API. Human maintains confirmation authority with SHA-256 idempotency protection.
+              </p>
+            </div>
           </div>
-          <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800 animate-rise stagger-4">
-            <h3 className="font-semibold mb-2">PayPal Payout</h3>
-            <p className="text-sm text-zinc-400">
-              One click executes the fair split via PayPal Payouts.
-              Full audit trail of every AI decision.
-            </p>
+
+          {/* Agentic Commerce Workflow Banner */}
+          <div className="mt-6 bg-gradient-to-r from-purple-950/30 via-zinc-900 to-zinc-900 border border-purple-900/40 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+                <span className="text-xs font-bold uppercase tracking-wider text-purple-400">
+                  Agentic Commerce & Autonomous Swarms ($5,000 Prize Category)
+                </span>
+              </div>
+              <p className="text-xs text-zinc-300 max-w-2xl leading-relaxed">
+                Autonomous AI developer agents discover Shapley via Model Context Protocol (MCP) endpoints (<code className="text-purple-300 font-mono">/api/agent/tools</code>), negotiate fair pull request splits programmatically, and disburse payouts directly into agent wallets.
+              </p>
+            </div>
+            <a
+              href="https://github.com/nepalanurag/shapley/blob/main/backend/agent_tool.py"
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs font-semibold px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 rounded-lg whitespace-nowrap transition-colors"
+            >
+              View MCP Schema &rarr;
+            </a>
           </div>
         </div>
 
