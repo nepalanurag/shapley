@@ -52,7 +52,7 @@ function AuditContent() {
         headerName: "Coalition",
         flex: 1,
         valueFormatter: (p) =>
-          p.value.length === 0 ? "(empty)" : p.value.join(" + "),
+          (p.value && p.value.length > 0) ? p.value.join(" + ") : "(empty)",
         sortable: true,
         filter: true,
       },

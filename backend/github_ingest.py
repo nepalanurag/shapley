@@ -18,6 +18,8 @@ CREDENTIAL = "custom.github"
 HOSTS = ["api.github.com"]
 ENV_VAR = "GITHUB_TOKEN"
 
+from concurrent.futures import ThreadPoolExecutor
+
 # Skip these patterns (bots, merges)
 SKIP_AUTHORS = ["dependabot", "github-actions", "renovate"]
 SKIP_MESSAGES = ["merge branch", "merge pull request"]
@@ -78,13 +80,28 @@ def get_commits(repo, max_commits=50):
     print(f"Fetching commits for {repo}...", file=sys.stderr)
     commits_data = api_get(f"/repos/{repo}/commits?per_page={min(max_commits, 100)}")
 
+    valid_commits = [c for c in commits_data if not is_bot_commit(c)]
+
+    def fetch_detail(sha):
+        try:
+            return sha, api_get(f"/repos/{repo}/commits/{sha}")
+        except Exception as e:
+            print(f"  Warning: could not fetch {sha[:7]}: {e}", file=sys.stderr)
+            return sha, None
+
+    # Fetch commit details in parallel to eliminate N+1 latency
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        shas = [c["sha"] for c in valid_commits]
+        details = dict(executor.map(fetch_detail, shas))
+
     contributors = {}  # email -> {name, email, commits: []}
 
-    for c in commits_data:
-        if is_bot_commit(c):
+    for c in valid_commits:
+        sha = c["sha"]
+        detail = details.get(sha)
+        if not detail:
             continue
 
-        sha = c["sha"]
         author_info = c["commit"]["author"]
         email = author_info.get("email", "unknown")
         name = author_info.get("name", email)
@@ -95,13 +112,6 @@ def get_commits(repo, max_commits=50):
             if gh_author:
                 email = f"{gh_author}@users.noreply.github.com"
                 name = gh_author
-
-        # Get full commit with diffs
-        try:
-            detail = api_get(f"/repos/{repo}/commits/{sha}")
-        except Exception as e:
-            print(f"  Warning: could not fetch {sha[:7]}: {e}", file=sys.stderr)
-            continue
 
         files = []
         for f in detail.get("files", []):

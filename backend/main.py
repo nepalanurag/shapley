@@ -15,6 +15,7 @@ import time
 import uuid
 import threading
 import logging
+import copy
 import urllib.parse
 from contextlib import asynccontextmanager
 
@@ -38,6 +39,7 @@ _jobs_lock = threading.Lock()
 
 # GitHub OAuth sessions: session_id -> {access_token, username, expires_at}
 _oauth_sessions = {}
+_oauth_states = {}  # state -> created_timestamp
 _oauth_lock = threading.Lock()
 
 JOB_TIMEOUT_SEC = 600  # 10 minutes max per analysis job
@@ -106,7 +108,7 @@ def _compute_share_cis(result, n_runs=200, noise=5.0):
 
     evaluations = result.get("evaluations", [])
     n = len(result.get("contributor_names", {}))
-    if n < 2 or not evaluations:
+    if n < 2 or n > 5 or not isinstance(evaluations, list) or not evaluations:
         return {}
 
     # Build score map from evaluations
@@ -202,9 +204,6 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits):
         if use_monte_carlo:
             from shapley import monte_carlo_shapley
             result = monte_carlo_shapley(contributor_diffs, contributor_names)
-            result["evaluations"] = result.get("num_samples", 200)
-            result["num_coalitions"] = f"~{result.get('num_samples', 200)} sampled"
-            result["monotonicity_fixes"] = 0
         else:
             result = compute_shapley(contributor_diffs, contributor_names)
 
@@ -253,9 +252,12 @@ async def lifespan(app):
 
 app = FastAPI(title="Shapley API", version="1.0.0", lifespan=lifespan)
 
+allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "*")
+origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Tighten in production
+    allow_origins=origins if origins else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -303,9 +305,10 @@ def analyze_status(job_id: str):
     _check_job_timeout(job_id)
     with _jobs_lock:
         job = _jobs.get(job_id)
-    if not job:
-        raise HTTPException(404, "Job not found or expired")
-    return {"job_id": job_id, **job}
+        if not job:
+            raise HTTPException(404, "Job not found or expired")
+        job_copy = copy.deepcopy(job)
+    return {"job_id": job_id, **job_copy}
 
 
 @app.post("/api/payout")
@@ -360,11 +363,18 @@ def github_oauth_url():
     if not client_id:
         raise HTTPException(500,
             "GitHub OAuth not configured. Set GITHUB_OAUTH_CLIENT_ID.")
+    state = uuid.uuid4().hex[:16]
+    with _oauth_lock:
+        now = time.time()
+        for s in list(_oauth_states.keys()):
+            if now - _oauth_states[s] > 900:
+                del _oauth_states[s]
+        _oauth_states[state] = now
     params = urllib.parse.urlencode({
         "client_id": client_id,
         "redirect_uri": f"{frontend_url}/oauth/callback",
         "scope": "repo read:user",
-        "state": uuid.uuid4().hex[:16],
+        "state": state,
     })
     return {"url": f"https://github.com/login/oauth/authorize?{params}"}
 
@@ -378,6 +388,12 @@ def github_oauth_callback(body: OAuthCallback):
     client_id, client_secret, _ = _github_oauth_config()
     if not client_id or not client_secret:
         raise HTTPException(500, "GitHub OAuth not configured.")
+
+    if body.state:
+        with _oauth_lock:
+            if body.state not in _oauth_states:
+                raise HTTPException(400, "Invalid or expired OAuth state parameter.")
+            del _oauth_states[body.state]
 
     # Exchange code for token
     data = urllib.parse.urlencode({

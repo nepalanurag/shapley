@@ -20,6 +20,7 @@ function AnalyzeContent() {
     }
 
     let cancelled = false;
+    let pollInterval = 2000;
     const poll = async () => {
       try {
         const j = await pollAnalysis(jobId);
@@ -31,8 +32,8 @@ function AnalyzeContent() {
         // Estimate progress from status
         if (j.status === "ingesting") setProgress({ current: 1, total: 4 });
         else if (j.status === "scoring") {
-          const total = j.num_coalitions || 16;
-          const done = j.evaluations?.length || 0;
+          const total = typeof j.num_coalitions === "number" ? j.num_coalitions : 16;
+          const done = Array.isArray(j.evaluations) ? j.evaluations.length : 0;
           setProgress({ current: done, total });
         } else if (j.status === "computing_shapley") setProgress({ current: 3, total: 4 });
         else if (j.status === "complete") {
@@ -43,10 +44,13 @@ function AnalyzeContent() {
           return;
         }
 
-        if (!cancelled) setTimeout(poll, 2000);
+        pollInterval = Math.min(pollInterval + 500, 5000);
+        if (!cancelled) setTimeout(poll, pollInterval);
       } catch (e: any) {
         if (!cancelled) {
           setError(e.message || "Connection failed");
+          pollInterval = Math.min(pollInterval + 1000, 6000);
+          setTimeout(poll, pollInterval);
         }
       }
     };

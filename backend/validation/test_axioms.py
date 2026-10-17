@@ -178,6 +178,23 @@ def test_monotonicity_enforcement():
             f"P{i} has negative Shapley after monotonicity fix"
 
 
+def test_demo_data_consistency():
+    """Verify that compute_shapley on DEMO_COALITION_SCORES recovers DEMO_SHAPLEY."""
+    from demo_data import DEMO_COALITION_SCORES, DEMO_SHAPLEY, DEMO_CONTRIBUTORS
+    score_map = {frozenset(k): v["score"] for k, v in DEMO_COALITION_SCORES.items()}
+    res = run_with_mock(score_map, len(DEMO_CONTRIBUTORS))
+    for i in range(len(DEMO_CONTRIBUTORS)):
+        expected_sv = DEMO_SHAPLEY["shapley_values"][i]
+        actual_sv = round(res["shapley_values"][i], 1)
+        assert abs(actual_sv - expected_sv) <= 0.1, \
+            f"Contributor {i} Shapley: expected {expected_sv}, got {actual_sv}"
+
+        expected_share = DEMO_SHAPLEY["shares_pct"][i]
+        actual_share = round(res["shares_pct"][i], 1)
+        assert abs(actual_share - expected_share) <= 0.2, \
+            f"Contributor {i} Share: expected {expected_share}%, got {actual_share}%"
+
+
 if __name__ == "__main__":
     import traceback
     tests = [v for k, v in sorted(globals().items())

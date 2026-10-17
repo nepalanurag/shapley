@@ -61,6 +61,7 @@ function ResultsContent() {
           setStatus("complete");
         } else if (jobId) {
           // Poll until complete
+          let pollDelay = 2500;
           const poll = async () => {
             const j = await pollAnalysis(jobId);
             if (j.status === "complete") {
@@ -71,7 +72,8 @@ function ResultsContent() {
               setStatus("failed");
             } else {
               setStatus(j.status);
-              setTimeout(poll, 3000);
+              pollDelay = Math.min(pollDelay + 500, 6000);
+              setTimeout(poll, pollDelay);
             }
           };
           poll();
@@ -196,9 +198,10 @@ function ResultsContent() {
   };
 
   const pollPayoutStatus = async (batchId: string) => {
-    // Poll every 5s for up to 2 minutes
-    for (let i = 0; i < 24; i++) {
-      await new Promise((r) => setTimeout(r, 5000));
+    // Poll with progressive backoff: 3s -> 4s -> 5s -> max 8s
+    let delay = 3000;
+    for (let i = 0; i < 20; i++) {
+      await new Promise((r) => setTimeout(r, delay));
       try {
         const s = await fetchPayoutStatus(batchId);
         setPayoutStatus(s.status);
@@ -206,6 +209,7 @@ function ResultsContent() {
       } catch {
         break; // Stop polling on error
       }
+      delay = Math.min(delay + 1000, 8000);
     }
   };
 

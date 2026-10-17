@@ -86,14 +86,19 @@ def compute_shapley(contributor_diffs, contributor_names=None,
     # First force-score every coalition so the cache is complete,
     # then process in increasing size so subsets are fixed first.
     # Track which scores were adjusted for the audit trail.
-    for S in all_coalitions(n):
+    all_subs = list(all_coalitions(n))
+    for S in all_subs:
         v(S)  # populate cache
 
     monotonicity_fixes = []
+    subsets_by_size = {size: [] for size in range(n + 1)}
+    for S in all_subs:
+        subsets_by_size[len(S)].append(S)
+
+    eval_by_coalition = {frozenset(ev["coalition"]): ev for ev in evaluations}
+
     for size in range(1, n + 1):
-        for S in all_coalitions(n):
-            if len(S) != size:
-                continue
+        for S in subsets_by_size[size]:
             key = frozenset(S)
             best_sub = max(
                 (value_cache.get(frozenset(S - {i}), 0) for i in S),
@@ -106,20 +111,16 @@ def compute_shapley(contributor_diffs, contributor_names=None,
                     "adjusted": best_sub,
                 })
                 value_cache[key] = best_sub
-                # Update the evaluation record too
-                for ev in evaluations:
-                    if set(ev["coalition"]) == set(S):
-                        ev["score"] = best_sub
-                        ev["monotonicity_adjusted"] = True
-                        break
+                if key in eval_by_coalition:
+                    eval_by_coalition[key]["score"] = best_sub
+                    eval_by_coalition[key]["monotonicity_adjusted"] = True
 
     # Compute Shapley values
     shapley = {i: 0.0 for i in range(n)}
     n_factorial = math.factorial(n)
 
-    total_coalitions = 0
-    for S in all_coalitions(n):
-        total_coalitions += 1
+    total_coalitions = len(all_subs)
+    for S in all_subs:
         for i in range(n):
             if i in S:
                 continue
@@ -171,6 +172,7 @@ def monte_carlo_shapley(contributor_diffs, contributor_names=None,
     names = contributor_names or {i: f"Contributor {i}" for i in range(n)}
 
     value_cache = {}
+    evaluations = []
     api_calls = 0
 
     def v(coalition):
@@ -181,6 +183,14 @@ def monte_carlo_shapley(contributor_diffs, contributor_names=None,
             result = score_coalition(member_list, contributor_diffs, names)
             value_cache[key] = result["score"]
             api_calls += 1
+            evaluations.append({
+                "coalition": member_list,
+                "members": [names[i] for i in member_list],
+                "score": result["score"],
+                "reasoning": result.get("reasoning", ""),
+                "confidence": result.get("confidence", 0.5),
+                "rubric": result.get("rubric"),
+            })
         return value_cache[key]
 
     shapley = {i: 0.0 for i in range(n)}
@@ -213,8 +223,11 @@ def monte_carlo_shapley(contributor_diffs, contributor_names=None,
         "shapley_values": {i: round(v, 2) for i, v in shapley.items()},
         "shares_pct": shares,
         "contributor_names": names,
+        "num_coalitions": len(value_cache),
         "num_samples": num_samples,
         "api_calls": api_calls,
+        "evaluations": evaluations,
+        "monotonicity_fixes": [],
         "method": "monte_carlo",
     }
 

@@ -18,13 +18,15 @@ from credentials import auth_request
 CREDENTIAL = "custom.google-gemini"
 HOSTS = ["generativelanguage.googleapis.com"]
 ENV_VAR = "GEMINI_API_KEY"
-MODEL = "gemini-3-flash-preview"
+DEFAULT_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+FALLBACK_MODELS = [DEFAULT_MODEL, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
+MODELS = list(dict.fromkeys(FALLBACK_MODELS))
 BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 # In-memory cache: coalition hash -> score result
 _cache = {}
 _last_call = 0
-MIN_INTERVAL = 4.0  # bumped for free-tier bake-off  # seconds between API calls
+MIN_INTERVAL = float(os.environ.get("GEMINI_MIN_INTERVAL", "1.0"))  # default 1.0s between API calls
 
 
 def sanitize_diff(text):
@@ -56,47 +58,51 @@ def sanitize_diff(text):
 
 def _call_gemini(prompt):
     global _last_call
-    # Rate limiting
-    elapsed = time.time() - _last_call
-    if elapsed < MIN_INTERVAL:
-        time.sleep(MIN_INTERVAL - elapsed)
-
-    url = f"{BASE}/models/{MODEL}:generateContent"
-    data = json.dumps({
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.1,
-            "responseMimeType": "application/json",
-        },
-    }).encode()
-
-    # Gemini uses ?key= query param, not Bearer header
+    last_err = None
     api_key = os.environ.get(ENV_VAR)
-    if api_key:
-        url = f"{url}?key={api_key}"
 
-    req = auth_request(url, ENV_VAR, CREDENTIAL, HOSTS,
-                       data=data,
-                       headers={"Content-Type": "application/json"})
+    for model_name in MODELS:
+        elapsed = time.time() - _last_call
+        if elapsed < MIN_INTERVAL:
+            time.sleep(MIN_INTERVAL - elapsed)
 
-    _last_call = time.time()
-    max_retries = 5
-    for attempt in range(max_retries):
-        try:
-            with urllib.request.urlopen(req, timeout=90) as resp:
-                return json.loads(resp.read().decode())
-        except Exception as e:
-            err = str(e)
-            # Retry on 429 (rate limit) with exponential backoff
-            # and on 503 (overloaded) as before
-            if attempt < max_retries - 1 and ("429" in err or "503" in err):
-                # 429 needs longer waits: 15s, 30s, 60s, 120s
-                wait = (15 * (2 ** attempt)) if "429" in err else (2 ** attempt)
-                print(f"  [retry {attempt+1} after {wait}s: {e}]",
-                      file=sys.stderr)
-                time.sleep(wait)
-            else:
-                raise
+        url = f"{BASE}/models/{model_name}:generateContent"
+        data = json.dumps({
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.1,
+                "responseMimeType": "application/json",
+            },
+        }).encode()
+
+        if api_key:
+            url = f"{url}?key={api_key}"
+
+        req = auth_request(url, ENV_VAR, CREDENTIAL, HOSTS,
+                           data=data,
+                           headers={"Content-Type": "application/json"})
+
+        _last_call = time.time()
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                with urllib.request.urlopen(req, timeout=90) as resp:
+                    return json.loads(resp.read().decode())
+            except Exception as e:
+                err = str(e)
+                last_err = e
+                if attempt < max_retries - 1 and ("429" in err or "503" in err):
+                    wait = 5 * (2 ** attempt)
+                    print(f"  [{model_name} retry {attempt+1} after {wait}s: {e}]",
+                          file=sys.stderr)
+                    time.sleep(wait)
+                else:
+                    print(f"  [{model_name} exhausted or failed: {e}; trying fallback model...]",
+                          file=sys.stderr)
+                    break
+    if last_err:
+        raise last_err
+    raise RuntimeError("All Gemini models failed")
 
 
 def _coalition_hash(member_indices, contributor_diffs):
