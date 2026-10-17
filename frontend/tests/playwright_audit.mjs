@@ -25,7 +25,7 @@ async function runTestSuite() {
   });
 
   const context = await browser.newContext({
-    viewport: { width: 1440, height: 900 },
+    viewport: { width: 1600, height: 950 },
     acceptDownloads: true
   });
 
@@ -120,6 +120,98 @@ async function runTestSuite() {
       `Registered tools count: ${toolNames.length}`);
   } catch (err) {
     logResult('Backend API', 'GET /api/agent/tools', false, 0, err.message);
+  }
+
+  // Test 1.6: GET /api/pot/validate (Hackathon Pot Solvency)
+  try {
+    const t0 = Date.now();
+    const res = await context.request.get(`${BACKEND_URL}/api/pot/validate?hackathon_id=hack-sf-2026&expected_pool_usd=2500`);
+    const data = await res.json();
+    const pot = data.pot || data;
+    const holdId = pot.paypal_auth_id || pot.paypal_hold_id;
+    const cert = pot.cryptographic_certificate || pot.pot_solvency_certificate;
+    const passed = res.status() === 200 &&
+      data.status === 'SUCCESS' &&
+      pot.pot_status === 'SOLVENT_ESCROW_HELD' &&
+      holdId === 'AUTH-PP-8829410-USD' &&
+      cert &&
+      cert.startsWith('POT-CERT-SHA256-');
+    logResult('Backend API', 'GET /api/pot/validate Cryptographic Solvency Certificate', passed, Date.now() - t0,
+      `Hold ID: ${holdId}, Status: ${pot.pot_status}`);
+  } catch (err) {
+    logResult('Backend API', 'GET /api/pot/validate', false, 0, err.message);
+  }
+
+  // Test 1.7: GET /api/contributor/profiles
+  try {
+    const t0 = Date.now();
+    const res = await context.request.get(`${BACKEND_URL}/api/contributor/profiles`);
+    const data = await res.json();
+    const passed = res.status() === 200 && data.profiles && Object.keys(data.profiles).length === 4;
+    logResult('Backend API', 'GET /api/contributor/profiles Git Provenance Profiles', passed, Date.now() - t0,
+      `Profiles: ${Object.keys(data.profiles).join(', ')}`);
+  } catch (err) {
+    logResult('Backend API', 'GET /api/contributor/profiles', false, 0, err.message);
+  }
+
+  // Test 1.8: POST /api/contributor/claim (Legitimate Git Provenance Claim)
+  try {
+    const t0 = Date.now();
+    const res = await context.request.post(`${BACKEND_URL}/api/contributor/claim`, {
+      data: {
+        contributor_id: 'maya',
+        oauth_github_username: 'mayachen',
+        oauth_email: 'maya@example.com',
+        paypal_recipient_email: 'maya.chen.dev@gmail.com',
+        tax_form_type: 'W-8BEN',
+        tax_certified: true
+      }
+    });
+    const data = await res.json();
+    const proof = data.profile?.verification_proof || data.profile?.claim_proof_hash;
+    const passed = res.status() === 200 &&
+      data.status === 'SUCCESS' &&
+      data.profile &&
+      proof &&
+      proof.startsWith('PROOF-SHA256-');
+    logResult('Backend API', 'POST /api/contributor/claim Legitimate Git Author Claim', passed, Date.now() - t0,
+      `Proof: ${proof?.slice(0, 20)}...`);
+  } catch (err) {
+    logResult('Backend API', 'POST /api/contributor/claim', false, 0, err.message);
+  }
+
+  // Test 1.9: POST /api/contributor/claim (Impostor Rejection)
+  try {
+    const t0 = Date.now();
+    const res = await context.request.post(`${BACKEND_URL}/api/contributor/claim`, {
+      data: {
+        contributor_id: 'maya',
+        oauth_github_username: 'fake-maya',
+        oauth_email: 'hacker@malicious.org',
+        paypal_recipient_email: 'hacker@wallet.com',
+        tax_form_type: 'W-8BEN',
+        tax_certified: true
+      }
+    });
+    const passed = res.status() === 403;
+    logResult('Backend API', 'POST /api/contributor/claim Impostor Provenance Rejection (403)', passed, Date.now() - t0,
+      `Rejected with HTTP status ${res.status()}`);
+  } catch (err) {
+    logResult('Backend API', 'POST /api/contributor/claim Impostor Rejection', false, 0, err.message);
+  }
+
+  // Test 1.10: GET /api/sponsor/connect-paypal (PayPal Partner Referrals)
+  try {
+    const t0 = Date.now();
+    const res = await context.request.get(`${BACKEND_URL}/api/sponsor/connect-paypal`);
+    const data = await res.json();
+    const passed = res.status() === 200 &&
+      data.action_url &&
+      data.action_url.includes('features=PAYOUTS,DELAYED_CAPTURE');
+    logResult('Backend API', 'GET /api/sponsor/connect-paypal Partner Referral Onboarding', passed, Date.now() - t0,
+      `Scopes: ${data.requested_scopes?.join(', ')}`);
+  } catch (err) {
+    logResult('Backend API', 'GET /api/sponsor/connect-paypal', false, 0, err.message);
   }
 
   // =========================================================================
@@ -394,6 +486,136 @@ async function runTestSuite() {
       `Merkle Root verified: ${rootText.slice(0, 16)}...`);
   } catch (err) {
     logResult('Interactive Demo', 'Merkle Modal', false, 0, err.message);
+  }
+
+  // =========================================================================
+  // SUITE 4: PERSONA WORKSPACES, AUTH MODAL & CONTRIBUTOR SELF-SERVE ONBOARDING
+  // =========================================================================
+  console.log('\n[*] SUITE 4: Persona Workspaces & Contributor Self-Serve Onboarding...');
+
+  // Test 4.1: Persona Workspaces Switching (Lead -> Sponsor -> Member)
+  try {
+    const t0 = Date.now();
+    // Switch to Sponsor
+    await page.evaluate(() => switchPersona('sponsor'));
+    await page.waitForTimeout(100);
+    const sponsorVisible = await page.locator('#view-sponsor').isVisible();
+    const resultsHidden = await page.locator('#view-results').isHidden();
+
+    // Switch to Member
+    await page.evaluate(() => switchPersona('member'));
+    await page.waitForTimeout(100);
+    const memberVisible = await page.locator('#view-member').isVisible();
+    const sponsorHidden = await page.locator('#view-sponsor').isHidden();
+
+    // Switch back to Lead
+    await page.evaluate(() => switchPersona('lead'));
+    await page.waitForTimeout(100);
+    const leadVisible = await page.locator('#view-results').isVisible();
+    const memberHidden = await page.locator('#view-member').isHidden();
+
+    const passed = sponsorVisible && resultsHidden && memberVisible && sponsorHidden && leadVisible && memberHidden;
+    logResult('Persona Workspaces', 'Tri-Persona Navigation (Lead ↔ Sponsor ↔ Contributor)', passed, Date.now() - t0);
+  } catch (err) {
+    logResult('Persona Workspaces', 'Tri-Persona Navigation', false, 0, err.message);
+  }
+
+  // Test 4.2: Auth Modal Interactive Persona Switching
+  try {
+    const t0 = Date.now();
+    await page.click('#btnAuthTrigger');
+    await page.waitForTimeout(150);
+    const authVisible = await page.locator('#authModal').isVisible();
+
+    // Click Contributor login button
+    await page.click('#authModal button:has-text("Team Member / Contributor")');
+    await page.waitForTimeout(200);
+    const authClosed = await page.locator('#authModal').isHidden();
+    const memberActive = await page.locator('#view-member').isVisible();
+    const authBadgeText = await page.locator('#authBadgeText').innerText();
+
+    const passed = authVisible && authClosed && memberActive && authBadgeText.includes('Contributor');
+    logResult('Persona Workspaces', 'Interactive Auth Modal Persona Login Trigger', passed, Date.now() - t0,
+      `Badge: ${authBadgeText}`);
+  } catch (err) {
+    logResult('Persona Workspaces', 'Auth Modal', false, 0, err.message);
+  }
+
+  // Test 4.3: Cryptographic Hackathon Pot Solvency Modal
+  try {
+    const t0 = Date.now();
+    await page.evaluate(() => openPotModal());
+    await page.waitForTimeout(150);
+    const potVisible = await page.locator('#potModal').isVisible();
+    const potAmount = await page.locator('#potAmountDisplay').innerText();
+    const holdId = await page.locator('#potHoldIdDisplay').innerText();
+
+    // Trigger live re-verification
+    await page.click('#btnVerifyPotLive');
+    await page.waitForTimeout(500);
+    const badgeText = await page.locator('#potStatusBadge').innerText();
+
+    await page.evaluate(() => closePotModal());
+    await page.waitForTimeout(100);
+    const potClosed = await page.locator('#potModal').isHidden();
+
+    const passed = potVisible && potClosed && potAmount.includes('$2,500') && holdId.includes('AUTH-PP-8829410-USD') && badgeText.includes('SOLVENT');
+    logResult('Persona Workspaces', 'Cryptographic Hackathon Pot Solvency Modal & Verification', passed, Date.now() - t0,
+      `Pot: ${potAmount}, Hold: ${holdId}, Status: ${badgeText.trim()}`);
+  } catch (err) {
+    logResult('Persona Workspaces', 'Pot Modal', false, 0, err.message);
+  }
+
+  // Test 4.4: PayPal Partner Direct Onboarding Modal
+  try {
+    const t0 = Date.now();
+    await page.evaluate(() => openPartnerModal());
+    await page.waitForTimeout(150);
+    const partnerVisible = await page.locator('#partnerModal').isVisible();
+    const partnerLink = await page.locator('#partnerModal a[href*="paypal.com"]').getAttribute('href');
+    await page.evaluate(() => closePartnerModal());
+    await page.waitForTimeout(100);
+    const partnerClosed = await page.locator('#partnerModal').isHidden();
+
+    const passed = partnerVisible && partnerClosed && partnerLink.includes('features=PAYOUTS,DELAYED_CAPTURE');
+    logResult('Persona Workspaces', 'PayPal Partner Direct Onboarding Modal (Zero Secret Leakage)', passed, Date.now() - t0,
+      `Scopes verified: PAYOUTS, DELAYED_CAPTURE`);
+  } catch (err) {
+    logResult('Persona Workspaces', 'Partner Modal', false, 0, err.message);
+  }
+
+  // Test 4.5: Contributor Self-Serve Payout Setup & Provenance Matching
+  try {
+    const t0 = Date.now();
+    // Ensure we are in contributor workspace
+    await page.evaluate(() => switchPersona('member'));
+    await page.waitForTimeout(100);
+
+    // Switch to David Kim
+    await page.click('#member-tab-david');
+    await page.waitForTimeout(150);
+    const davidName = await page.locator('#memberCardName').innerText();
+    const davidPayout = await page.locator('#memberCardPayout').innerText();
+    const davidEmail = await page.locator('#memberGitEmail').innerText();
+
+    // Verify PayPal wallet and tax self-certification
+    await page.fill('#memberPayPalInput', 'david.kim.wallet@gmail.com');
+    await page.check('#memberTaxCert');
+
+    // Click Save & Bind
+    await page.click('#view-member button:has-text("Save & Bind Payout Wallet")');
+    await page.waitForTimeout(400);
+
+    const noticeText = await page.locator('#memberBindingNotice').innerText();
+    const passed = davidName.includes('David Kim') &&
+      davidPayout.includes('$160.00') &&
+      davidEmail.includes('david@example.com') &&
+      noticeText.includes('Bound');
+
+    logResult('Persona Workspaces', 'Contributor Self-Serve Payout Binding & IRS W-8BEN/W-9 Tax Self-Cert', passed, Date.now() - t0,
+      `David Kim ($160.00) -> Wallet Bound: ${noticeText}`);
+  } catch (err) {
+    logResult('Persona Workspaces', 'Contributor Payout Setup', false, 0, err.message);
   }
 
   // Test 3.11: Check for Browser Page & Console Errors

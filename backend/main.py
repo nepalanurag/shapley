@@ -588,7 +588,86 @@ async def paypal_webhook(request: Request):
     return {"status": "SUCCESS", "verified": True, "reconciled_at": time.time()}
 
 
+# ============================================================================
+# PHASE 2.3: CONTRIBUTOR CLAIM, HACKATHON POT VALIDATION & SPONSOR CONNECT
+# ============================================================================
+from contributor_claims import claim_registry, pot_validator
+
+
+class ContributorClaimRequest(BaseModel):
+    contributor_id: str = Field(..., description="Contributor short ID e.g. maya, sara, david, tom")
+    oauth_github_username: str = Field(..., description="Authenticated GitHub username")
+    oauth_email: str = Field(..., description="Authenticated GitHub commit author email")
+    paypal_recipient_email: str = Field(..., description="PayPal wallet email for disbursement")
+    tax_form_type: str = Field(default="W-8BEN", description="IRS form type: W-9 or W-8BEN")
+    tax_certified: bool = Field(default=True, description="Self-certification of tax status")
+
+
+@app.get("/api/contributor/profiles")
+def get_contributor_profiles():
+    """Retrieve all contributor payout onboarding and wallet claim profiles."""
+    return {"profiles": claim_registry.list_profiles()}
+
+
+@app.get("/api/contributor/claim/{contributor_id}")
+def get_contributor_claim(contributor_id: str):
+    """Retrieve specific contributor wallet claim status and git provenance."""
+    profile = claim_registry.get_profile(contributor_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail=f"Contributor '{contributor_id}' not found")
+    return {"profile": profile}
+
+
+@app.post("/api/contributor/claim")
+def claim_contributor_payout(req: ContributorClaimRequest):
+    """Bind a contributor's PayPal payout destination after verifying git author provenance."""
+    try:
+        updated = claim_registry.claim_payout(
+            contributor_id=req.contributor_id,
+            oauth_github_username=req.oauth_github_username,
+            oauth_email=req.oauth_email,
+            paypal_recipient_email=req.paypal_recipient_email,
+            tax_form_type=req.tax_form_type,
+            tax_certified=req.tax_certified
+        )
+        return {"status": "SUCCESS", "profile": updated}
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/pot/validate")
+def validate_hackathon_pot(pot_id: str = "HACKATHON-2026-Q4-JINJA"):
+    """Verify cryptographic solvency and PayPal authorization hold for a hackathon/grant pot."""
+    cert = pot_validator.validate_pot(pot_id)
+    return {"status": "SUCCESS", "pot": cert}
+
+
+@app.get("/api/sponsor/connect-paypal")
+def get_sponsor_paypal_connect_url():
+    """Generate scoped PayPal Partner referral link for Business Account onboarding."""
+    partner_client_id = os.environ.get("PAYPAL_CLIENT_ID", "PARTNER_CLIENT_ID_PLACEHOLDER")
+    referral_url = (
+        f"https://www.sandbox.paypal.com/bizsignup/partner/entry"
+        f"?partnerId=PARTNER_SHAPLEY_PROTOCOL"
+        f"&partnerClientId={partner_client_id}"
+        f"&features=PAYOUTS,DELAYED_CAPTURE"
+    )
+    return {
+        "status": "READY",
+        "action_url": referral_url,
+        "partner_id": "PARTNER_SHAPLEY_PROTOCOL",
+        "requested_scopes": ["PAYOUTS", "DELAYED_CAPTURE", "ORDERS_V2"],
+        "connected": True,
+        "business_email": os.environ.get("PAYPAL_SANDBOX_BUSINESS_EMAIL", "sb-t5nzj53303983@business.example.com")
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
 

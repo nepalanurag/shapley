@@ -26,6 +26,7 @@ SCRIPTS = [
     ("AI Co-Authorship & Human Pilot Disambiguation", "test_ai_attribution.py"),
     ("MCP Chat & Webhook Protocol Integration", "test_mcp_chat.py"),
     ("PayPal Multi-Stakeholder Escrow Invariants", "test_paypal_escrow.py"),
+    ("Contributor Claims, RBAC & Hackathon Pot Solvency", "test_claims_and_onboarding.py"),
 ]
 
 
