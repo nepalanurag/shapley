@@ -764,14 +764,14 @@ jobs:
           </p>
         </div>
 
-        {/* Contributor Deep Dive Flyout Drawer */}
+        {/* Contributor Deep Dive Forensic Modal */}
         {selectedContributor && (
-          <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+              className="absolute inset-0 bg-black/75 backdrop-blur-sm transition-opacity"
               onClick={() => setSelectedContributor(null)}
             />
-            <div className="relative w-full max-w-lg bg-zinc-900 border-l border-zinc-800 h-full p-6 overflow-y-auto shadow-2xl flex flex-col justify-between">
+            <div className="relative w-full max-w-xl bg-zinc-900 border border-zinc-700/80 rounded-2xl p-6 overflow-y-auto max-h-[90vh] shadow-2xl">
               <div>
                 <div className="flex items-center justify-between pb-4 border-b border-zinc-800 mb-6">
                   <div>
