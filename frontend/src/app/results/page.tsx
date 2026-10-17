@@ -721,6 +721,40 @@ function ResultsContent() {
           </div>
         </div>
 
+        {/* Phased Milestone & AI Co-Authorship Protocol Notice */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 mb-3 border-b border-zinc-800/80">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-purple-400"></span>
+              <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
+                Human Pilot &amp; AI Co-Authorship Attribution Rule
+              </h3>
+              <span className="text-[10px] font-mono bg-purple-950 text-purple-300 border border-purple-800 px-2 py-0.5 rounded-full">
+                RFC 2822 Trailer Provenance
+              </span>
+            </div>
+            <span className="text-[11px] font-mono text-zinc-500">Legal: AI Agent Cannot Hold Bank Accounts</span>
+          </div>
+          <p className="text-zinc-400 text-xs leading-relaxed mb-3">
+            When developers push commits generated with Claude, Cursor, Copilot, or Cline (e.g. <code className="text-purple-300 bg-zinc-950 px-1 py-0.5 rounded font-mono text-[11px]">Co-authored-by: Claude &lt;noreply@anthropic.com&gt;</code>), 
+            Shapley attributes financial disburse to the <strong>Human Pilot</strong> who authored the prompt, reviewed the code, validated the unit test suite, and GPG-signed the commit.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
+            <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800/80">
+              <span className="text-zinc-500 block text-[10px]">Human Pilot Leverage</span>
+              <span className="text-white">Full Financial Disbursement</span>
+            </div>
+            <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800/80">
+              <span className="text-zinc-500 block text-[10px]">Synthetic Code Quarantine</span>
+              <span className="text-blue-400">AST Filters Boilerplate</span>
+            </div>
+            <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800/80">
+              <span className="text-zinc-500 block text-[10px]">Autonomous Bots</span>
+              <span className="text-emerald-400">Project Maintenance Escrow</span>
+            </div>
+          </div>
+        </div>
+
         {/* Payout confirmation modal */}
         {showConfirm && data && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
