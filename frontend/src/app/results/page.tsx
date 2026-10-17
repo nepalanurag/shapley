@@ -248,8 +248,31 @@ function ResultsContent() {
       } catch {
         break; // Stop polling on error
       }
-      delay = Math.min(delay + 1000, 8000);
+    delay = Math.min(delay + 1000, 8000);
     }
+  };
+
+  const exportCSV = () => {
+    if (!data) return;
+    const headers = ["Contributor", "Email", "Commits", "Lines Added", "Lines Deleted", "Shapley Value", "Share Pct", "Payout USD"];
+    const rows = data.contributors.map((c) => [
+      `"${c.name}"`,
+      `"${emailOverrides[c.name] || c.email || ""}"`,
+      c.commits,
+      c.additions,
+      c.deletions,
+      c.shapley_value,
+      `${c.share_pct}%`,
+      `$${c.payout_usd.toFixed(2)}`
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `shapley_payout_${data.repo.replace("/", "_")}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (status === "loading" || status === "ingesting" || status === "scoring" || status === "computing_shapley" || status === "queued") {
@@ -286,26 +309,48 @@ function ResultsContent() {
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-8">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-xs text-zinc-500 mb-4">
+          <button onClick={() => router.push("/")} className="hover:text-zinc-300 transition-colors">
+            Home
+          </button>
+          <span>/</span>
+          <span className="font-mono text-zinc-400">{data.repo}</span>
+          <span>/</span>
+          <span className="text-zinc-300">Fair Share Results</span>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-8 border-b border-zinc-800/80 gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Fair Share Results</h1>
-            <p className="text-zinc-400 mt-1">
-              {data.repo} · ${data.total_amount.toFixed(2)} total ·{" "}
+            <h1 className="text-3xl font-bold tracking-tight">Fair Share Results</h1>
+            <p className="text-zinc-400 mt-1 text-sm font-mono">
+              {data.repo} · ${data.total_amount.toFixed(2)} USD pool ·{" "}
               {data.num_coalitions} coalitions evaluated
               {data.demo_mode && (
-                <span className="ml-2 bg-yellow-900 text-yellow-200 text-xs px-2 py-1 rounded">
-                  DEMO
+                <span className="ml-2 bg-yellow-900/60 border border-yellow-700/50 text-yellow-200 text-xs px-2 py-0.5 rounded font-sans font-semibold">
+                  DEMO MODE
                 </span>
               )}
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={exportCSV}
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Export CSV
+            </button>
             <button onClick={() => router.push(`/audit?demo=${params.get("demo")}&job=${params.get("job") || ""}`)}
-              className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-sm border border-zinc-700">
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 transition-colors">
               View Audit Trail
             </button>
             <button onClick={() => router.push("/")}
-              className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-sm border border-zinc-700">
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 transition-colors">
               New Analysis
             </button>
           </div>
