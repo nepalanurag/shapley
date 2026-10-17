@@ -227,7 +227,8 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits):
                 "share_pct": pct,
                 "share_ci_low": ci.get("low"),
                 "share_ci_high": ci.get("high"),
-                "payout_usd": round(total_amount * pct / 100, 2),
+                "payout_usd": result.get("payout_usd", {}).get(idx, round(total_amount * pct / 100, 2)),
+                "payout_cents": result.get("payout_cents", {}).get(idx),
                 "payout_ci_low": round(total_amount * ci["low"] / 100, 2) if "low" in ci else None,
                 "payout_ci_high": round(total_amount * ci["high"] / 100, 2) if "high" in ci else None,
             })
@@ -246,6 +247,7 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits):
                evaluations=result["evaluations"],
                api_calls=result["api_calls"],
                num_coalitions=result["num_coalitions"],
+               merkle_receipt=result.get("merkle_receipt"),
                monotonicity_fixes=result.get("monotonicity_fixes", []))
     except Exception as e:
         with _jobs_lock:
