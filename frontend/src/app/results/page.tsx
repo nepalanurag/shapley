@@ -26,6 +26,7 @@ import {
 import PotSolvencyModal from "@/components/PotSolvencyModal";
 import SponsorHub from "@/components/SponsorHub";
 import ContributorPortal from "@/components/ContributorPortal";
+import SlideToAuthorize from "@/components/SlideToAuthorize";
 
 GridModuleRegistry.registerModules([GridAllCommunityModule]);
 ChartModuleRegistry.registerModules([ChartAllCommunityModule]);
@@ -88,6 +89,7 @@ function ResultsContent() {
   const [activeGridTab, setActiveGridTab] = useState<"contributors" | "coalitions">("contributors");
   const [hoveredMarginal, setHoveredMarginal] = useState<{ name: string; deltas: number[]; avg: number } | null>(null);
   const gridRef = useRef<any>(null);
+  const gridApiRef = useRef<any>(null);
   const coalitionGridRef = useRef<any>(null);
 
   useEffect(() => {
@@ -102,6 +104,8 @@ function ResultsContent() {
         setShowMerkleModal(false);
         setShowRepoModal(false);
         setShowActionModal(false);
+        setShowMath(false);
+        setShowPotModal(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -260,9 +264,24 @@ function ResultsContent() {
 
   const handleBaselineChange = (metric: "shapley" | "loc" | "commits") => {
     setBaselineMetric(metric);
-    if (gridRef.current?.api) {
+    const api = gridApiRef.current || (typeof window !== "undefined" ? (window as any).__gridApi : null);
+    if (api) {
+      const currentRows: any[] = [];
+      api.forEachNode((n: any) => {
+        if (n.data) currentRows.push(n.data);
+      });
+      const sorted = [...currentRows].sort((a, b) => {
+        if (metric === "loc") {
+          return ((b.additions || 0) + (b.deletions || 0)) - ((a.additions || 0) + (a.deletions || 0));
+        } else if (metric === "commits") {
+          return (b.commits || 0) - (a.commits || 0);
+        } else {
+          return (b.share_pct || 0) - (a.share_pct || 0);
+        }
+      });
+      api.setGridOption("rowData", sorted);
       setTimeout(() => {
-        gridRef.current.api.flashCells({ columns: ["share_pct", "payout_usd", "marginalDeltas", "rank"] });
+        api.flashCells({ columns: ["share_pct", "payout_usd", "marginalDeltas", "rank", "additions", "commits"] });
       }, 50);
     }
   };
@@ -344,8 +363,9 @@ function ResultsContent() {
           );
         },
       },
-      { field: "commits", headerName: "Commits", width: 90, sortable: true },
+      { colId: "commits", field: "commits", headerName: "Commits", width: 90, sortable: true },
       {
+        colId: "additions",
         field: "additions",
         headerName: "Lines +",
         width: 90,
@@ -494,17 +514,18 @@ function ResultsContent() {
             };
           },
           listeners: {
-            nodeClick: (e: any) => {
+            seriesNodeClick: (e: any) => {
               const name = e.datum?.contributor;
               if (name) {
                 const match = displayedContributors.find((c) => c.name === name);
                 if (match) {
                   setSelectedContributor(match);
-                  if (gridRef.current?.api) {
-                    gridRef.current.api.forEachNode((node: any) => {
+                  const api = gridApiRef.current || gridRef.current?.api;
+                  if (api) {
+                    api.forEachNode((node: any) => {
                       if (node.data?.name === name) {
                         node.setSelected(true);
-                        gridRef.current.api.ensureIndexVisible(node.rowIndex, "middle");
+                        api.ensureIndexVisible(node.rowIndex, "middle");
                       } else {
                         node.setSelected(false);
                       }
@@ -531,7 +552,7 @@ function ResultsContent() {
             };
           },
           listeners: {
-            nodeClick: (e: any) => {
+            seriesNodeClick: (e: any) => {
               const name = e.datum?.contributor;
               if (name) {
                 const match = displayedContributors.find((c) => c.name === name);
@@ -695,43 +716,46 @@ function ResultsContent() {
 
         {/* Persona Switcher Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-1.5 bg-[#121316] border border-[#1e2024] rounded-xl mb-6">
-          <div className="flex flex-wrap items-center gap-1 p-0.5 bg-[#0c0d0e] rounded-lg text-xs font-mono border border-[#1e2024]">
+          <div className="grid grid-cols-3 sm:flex items-center gap-1 p-0.5 bg-[#0c0d0e] rounded-lg text-xs font-mono border border-[#1e2024] w-full sm:w-auto">
             <button
               onClick={() => setCurrentPersona("lead")}
-              className={`px-3 py-1.5 rounded-md transition-colors ${
+              className={`px-2 sm:px-3 py-1.5 rounded-md transition-colors text-center ${
                 currentPersona === "lead"
                   ? "bg-[#1e2024] text-white font-semibold"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
-              Team Lead
+              <span className="sm:hidden">Lead</span>
+              <span className="hidden sm:inline">Team Lead</span>
             </button>
             <button
               onClick={() => setCurrentPersona("sponsor")}
-              className={`px-3 py-1.5 rounded-md transition-colors ${
+              className={`px-2 sm:px-3 py-1.5 rounded-md transition-colors text-center ${
                 currentPersona === "sponsor"
                   ? "bg-[#1e2024] text-white font-semibold"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
-              Business Sponsor
+              <span className="sm:hidden">Sponsor</span>
+              <span className="hidden sm:inline">Business Sponsor</span>
             </button>
             <button
               onClick={() => setCurrentPersona("member")}
-              className={`px-3 py-1.5 rounded-md transition-colors ${
+              className={`px-2 sm:px-3 py-1.5 rounded-md transition-colors text-center ${
                 currentPersona === "member"
                   ? "bg-[#1e2024] text-white font-semibold"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
-              Contributor
+              <span className="sm:hidden">Member</span>
+              <span className="hidden sm:inline">Contributor</span>
             </button>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowPotModal(true)}
-              className="px-3 py-1.5 rounded-lg bg-[#0c0d0e] hover:bg-zinc-900 border border-[#1e2024] text-emerald-400 text-xs font-mono flex items-center gap-2 transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-[#0c0d0e] hover:bg-zinc-900 border border-[#1e2024] text-emerald-400 text-xs font-mono flex items-center justify-center gap-2 transition-colors w-full sm:w-auto"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               Hackathon Pot Solvency ($2,500)
@@ -1513,38 +1537,42 @@ jobs:
               </div>
             </div>
 
-            <div className="flex items-center gap-3 self-start md:self-auto">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
               <div className="text-right hidden sm:block">
                 <span className="text-[10px] text-zinc-500 uppercase font-mono block">Escrow In Custody</span>
                 <span className="text-xs font-mono font-bold text-emerald-400 tabular-nums">${currentTotal.toFixed(2)} USD</span>
               </div>
-              <div 
-                className="relative w-64 h-9 bg-[#0c0d0e] border border-[#1e2024] rounded-full overflow-hidden flex items-center select-none cursor-pointer group shadow-inner"
-                onClick={() => {
-                  setIsSlideAuthorized(true);
-                  setShowConfirm(true);
-                }}
-              >
-                <div 
-                  className={`absolute left-0 top-0 bottom-0 bg-emerald-600/30 transition-all ${isSlideAuthorized ? "w-full" : "w-1/4 group-hover:w-1/2"}`}
+
+              {!isSlideAuthorized ? (
+                <SlideToAuthorize
+                  amountUsd={currentTotal}
+                  isAuthorized={isSlideAuthorized}
+                  onAuthorize={() => setIsSlideAuthorized(true)}
                 />
-                <div 
-                  className={`absolute left-1 top-1 bottom-1 w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shadow-md transition-all ${
-                    isSlideAuthorized 
-                      ? "bg-emerald-500 text-white translate-x-[220px]" 
-                      : "bg-zinc-700 text-white group-hover:translate-x-2"
-                  }`}
-                >
-                  {isSlideAuthorized ? (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-                  ) : (
+              ) : (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="flex items-center justify-between sm:justify-start gap-2 px-3 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-800/80 text-xs font-mono text-emerald-400">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span>Hold Authorized: <strong>${currentTotal.toFixed(2)}</strong></span>
+                    </span>
+                    <button
+                      onClick={() => setIsSlideAuthorized(false)}
+                      title="Reset hold state for testing"
+                      className="text-[10px] text-zinc-500 hover:text-zinc-300 ml-1 underline cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setShowConfirm(true)}
+                    className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Execute Payout</span>
                     <span>&rarr;</span>
-                  )}
+                  </button>
                 </div>
-                <span className="w-full text-center text-[10px] font-semibold text-zinc-300 font-mono pointer-events-none pl-6 pr-2">
-                  {isSlideAuthorized ? "Escrow Tranche Disbursed" : `Slide to Authorize ($${currentTotal.toFixed(2)}) →`}
-                </span>
-              </div>
+              )}
             </div>
           </div>
 
@@ -1558,9 +1586,15 @@ jobs:
             </div>
             <div className="flex-1 flex items-center justify-between p-2.5">
               <span className="flex items-center gap-1.5 text-zinc-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span> 2. PayPal Neutral Escrow
+                <span className={`w-1.5 h-1.5 rounded-full ${isSlideAuthorized ? "bg-emerald-400" : "bg-zinc-400"}`}></span> 2. PayPal Neutral Escrow
               </span>
-              <span className="text-[10px] text-zinc-300 bg-zinc-900 border border-zinc-700 px-1.5 py-0.5 rounded">In Custody</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                isSlideAuthorized 
+                  ? "text-emerald-400 bg-emerald-950/60 border border-emerald-800/60" 
+                  : "text-zinc-300 bg-zinc-900 border border-zinc-700"
+              }`}>
+                {isSlideAuthorized ? "29-Day Auth Hold" : "In Custody"}
+              </span>
             </div>
             <div className="flex-1 flex items-center justify-between p-2.5">
               <span className="flex items-center gap-1.5 text-zinc-300">
@@ -1715,10 +1749,15 @@ jobs:
                   ref={gridRef}
                   theme={darkTheme}
                   rowData={displayedContributors}
+                  getRowId={(p) => p.data.email}
                   columnDefs={contributorCols}
                   animateRows={true}
                   rowSelection="single"
                   defaultColDef={{ resizable: true }}
+                  onGridReady={(e) => {
+                    gridApiRef.current = e.api;
+                    if (typeof window !== "undefined") (window as any).__gridApi = e.api;
+                  }}
                   onRowClicked={(e) => setSelectedContributor(e.data || null)}
                 />
               </div>

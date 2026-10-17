@@ -66,7 +66,7 @@ async function verifyAGGridIntegration() {
   console.log('  ✓ Switched back to Contributors view');
 
   // 1.5 Verify AG Grid Row Selection & Cross-Filtering
-  const firstRow = page.locator('.ag-theme-quartz [role="row"][row-index="0"]');
+  const firstRow = page.locator('.ag-theme-quartz [role="row"][row-index="0"]').last();
   await firstRow.click();
   await page.waitForTimeout(300);
   console.log('  ✓ AG Grid row clicked for contributor deep-dive cross-filtering');

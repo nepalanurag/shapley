@@ -122,7 +122,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="max-w-4xl mx-auto px-6 py-16">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
         <div className="text-center mb-12 animate-rise">
           <h1 className="text-5xl font-bold tracking-tight mb-4">
             Shapley
@@ -134,7 +134,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="bg-zinc-900 rounded-xl p-8 border border-zinc-800 animate-rise stagger-1">
+        <div className="bg-zinc-900 rounded-xl p-5 sm:p-8 border border-zinc-800 animate-rise stagger-1">
           <h2 className="text-lg font-semibold mb-6">Analyze a repository</h2>
 
           {/* GitHub connect / repo picker */}
@@ -226,7 +226,7 @@ export default function Home() {
             />
           </div>
 
-          <div className="flex items-center gap-2 mb-5 overflow-x-auto text-xs">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-5 text-xs">
             <span className="text-zinc-500 whitespace-nowrap font-medium font-mono text-[11px] uppercase tracking-wider">Presets:</span>
             <button
               type="button"

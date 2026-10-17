@@ -29,13 +29,26 @@ export default function PotSolvencyModal({ isOpen, onClose }: PotSolvencyModalPr
   useEffect(() => {
     if (isOpen) {
       fetchSolvency();
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          onClose();
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
     }
-  }, [isOpen]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fade">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fade"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="bg-zinc-950 border border-zinc-800 rounded-xl max-w-2xl w-full p-6 shadow-2xl relative">
         <button
           onClick={onClose}
