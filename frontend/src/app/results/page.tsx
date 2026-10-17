@@ -64,6 +64,27 @@ function ResultsContent() {
   const [customRepoError, setCustomRepoError] = useState("");
   const [selectedContributor, setSelectedContributor] = useState<Contributor | null>(null);
   const [copiedMd, setCopiedMd] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [commandPaletteQuery, setCommandPaletteQuery] = useState("");
+  const [isSlideAuthorized, setIsSlideAuthorized] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setShowCommandPalette((prev) => !prev);
+      } else if (e.key === "Escape") {
+        setShowCommandPalette(false);
+        setShowConfirm(false);
+        setShowChatModal(false);
+        setShowMerkleModal(false);
+        setShowRepoModal(false);
+        setShowActionModal(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const currentTotal = adjustedAmount ?? data?.total_amount ?? 1000;
 
@@ -401,6 +422,18 @@ function ResultsContent() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setShowCommandPalette(true)}
+              className="bg-zinc-900/90 hover:bg-zinc-800 px-3 py-1.5 rounded-lg text-xs font-semibold border border-zinc-700/80 flex items-center gap-2 transition-all text-zinc-300 shadow-sm bencho-sweep"
+              title="Quick Action Command Palette (⌘K)"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <span>Command</span>
+              <kbd className="text-[10px] font-mono bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-700">⌘K</kbd>
+            </button>
             <button
               onClick={() => setShowMerkleModal(true)}
               className="bg-emerald-950/60 hover:bg-emerald-900/60 px-3.5 py-2 rounded-lg text-xs font-semibold border border-emerald-700/60 flex items-center gap-2 transition-colors text-emerald-300"
@@ -1138,17 +1171,48 @@ jobs:
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
               <span className="text-xs font-mono text-zinc-300 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800">
                 Escrow Hold: <strong className="text-emerald-400">${currentTotal.toFixed(2)} USD</strong>
               </span>
               <button
                 onClick={() => setShowConfirm(true)}
-                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-md shadow-emerald-700/20"
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow-md shadow-emerald-700/20 active:scale-95 btn-interactive"
               >
                 <span>🔓</span>
                 Release Escrow
               </button>
+            </div>
+          </div>
+
+          {/* Bencho Interactive Slide-to-Confirm Escrow Release */}
+          <div className="mt-3 pt-3 border-t border-blue-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-emerald-400 font-bold font-mono">⚡ Bencho Slide-Confirm:</span>
+              <span className="text-zinc-400 text-[11px]">Slide to authorize PayPal Escrow disbursement</span>
+            </div>
+            <div 
+              className="relative w-full sm:w-80 h-10 bg-zinc-950/90 border border-zinc-700/80 rounded-full overflow-hidden flex items-center select-none cursor-pointer group shadow-inner"
+              onClick={() => {
+                setIsSlideAuthorized(true);
+                setShowConfirm(true);
+              }}
+            >
+              <div 
+                className={`absolute left-0 top-0 bottom-0 bg-gradient-to-r from-blue-600 via-emerald-600 to-emerald-500 opacity-40 transition-all ${isSlideAuthorized ? "w-full" : "w-1/4 group-hover:w-1/2"}`}
+              />
+              <div 
+                className={`absolute left-1 top-1 bottom-1 w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shadow-md transition-all ${
+                  isSlideAuthorized 
+                    ? "bg-emerald-500 text-white translate-x-[260px] shadow-emerald-500/50" 
+                    : "bg-gradient-to-br from-emerald-400 to-emerald-600 text-white group-hover:translate-x-3 shadow-emerald-900/40"
+                }`}
+              >
+                {isSlideAuthorized ? "✓" : "→"}
+              </div>
+              <span className="w-full text-center text-[10px] font-semibold text-zinc-300 font-mono pointer-events-none pl-6 pr-2">
+                {isSlideAuthorized ? "✓ Escrow Tranche Disbursed" : `Slide to Authorize Release ($${currentTotal.toFixed(2)}) ➔`}
+              </span>
             </div>
           </div>
 
@@ -1521,6 +1585,132 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                     )}
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* MODAL: BENCHO QUICK COMMAND PALETTE (CMD+K)                  */}
+        {/* ============================================================ */}
+        {showCommandPalette && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 p-4 animate-fade">
+            <div
+              className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+              onClick={() => setShowCommandPalette(false)}
+            />
+            <div className="relative bg-[#111215] border border-zinc-700/80 rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden font-sans modal-enter">
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input
+                  type="text"
+                  autoFocus
+                  value={commandPaletteQuery}
+                  onChange={(e) => setCommandPaletteQuery(e.target.value)}
+                  placeholder="Search actions, contributors, milestones, webhooks..."
+                  className="w-full bg-transparent text-sm text-white placeholder-zinc-500 focus:outline-none font-mono"
+                />
+                <kbd className="text-[10px] font-mono bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-700">ESC</kbd>
+              </div>
+
+              <div className="p-2 max-h-80 overflow-y-auto space-y-1 text-xs">
+                {[
+                  {
+                    icon: "🔓",
+                    title: `Authorize PayPal Escrow Release ($${currentTotal.toFixed(2)})`,
+                    badge: "Milestone 2",
+                    action: () => {
+                      setShowCommandPalette(false);
+                      setShowConfirm(true);
+                    },
+                  },
+                  {
+                    icon: "🔍",
+                    title: "Verify Cryptographic Merkle Root",
+                    badge: "RFC 6962 Proof",
+                    action: () => {
+                      setShowCommandPalette(false);
+                      setShowMerkleModal(true);
+                    },
+                  },
+                  {
+                    icon: "✈️",
+                    title: "Telegram Bot Webhook Simulator",
+                    badge: "MCP Tool",
+                    action: () => {
+                      setShowCommandPalette(false);
+                      setChatPlatform("telegram");
+                      setShowChatModal(true);
+                    },
+                  },
+                  {
+                    icon: "💬",
+                    title: "WhatsApp Cloud API Interactive Message",
+                    badge: "MCP Tool",
+                    action: () => {
+                      setShowCommandPalette(false);
+                      setChatPlatform("whatsapp");
+                      setShowChatModal(true);
+                    },
+                  },
+                  {
+                    icon: "💡",
+                    title: "Plain English Game Theory Explainer",
+                    badge: "Nobel Intuition",
+                    action: () => {
+                      setShowCommandPalette(false);
+                      setExplainerTab("simple");
+                    },
+                  },
+                  {
+                    icon: "🔬",
+                    title: "Axiomatic Math Proofs & Marginal Deltas",
+                    badge: "16 Coalitions",
+                    action: () => {
+                      setShowCommandPalette(false);
+                      setExplainerTab("math");
+                    },
+                  },
+                  {
+                    icon: "🚀",
+                    title: "Analyze Any Git Repository (Live Mode)",
+                    badge: "Custom Repo",
+                    action: () => {
+                      setShowCommandPalette(false);
+                      setShowRepoModal(true);
+                    },
+                  },
+                  {
+                    icon: "📋",
+                    title: "Copy GitHub PR Settlement Markdown",
+                    badge: "Markdown",
+                    action: () => {
+                      setShowCommandPalette(false);
+                      copyMarkdown();
+                    },
+                  },
+                ]
+                  .filter((item) =>
+                    !commandPaletteQuery ||
+                    item.title.toLowerCase().includes(commandPaletteQuery.toLowerCase()) ||
+                    item.badge.toLowerCase().includes(commandPaletteQuery.toLowerCase())
+                  )
+                  .map((item, idx) => (
+                    <button
+                      key={idx}
+                      onClick={item.action}
+                      className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-800 flex items-center justify-between text-zinc-200 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{item.icon}</span>
+                        <span className="font-medium">{item.title}</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-zinc-500">{item.badge}</span>
+                    </button>
+                  ))}
               </div>
             </div>
           </div>

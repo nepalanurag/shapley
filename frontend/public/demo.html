@@ -1,0 +1,2590 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shapley &middot; Autonomous Revenue &amp; Attribution Console</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #090a0c;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.08), transparent 45%),
+        radial-gradient(circle at 100% 100%, rgba(99, 102, 241, 0.04), transparent 40%);
+      background-attachment: fixed;
+    }
+    code, pre, .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .modal-enter {
+      animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.97) translateY(8px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    /* Bencho Interactive Micro-Interactions */
+    .bencho-sweep {
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+      background-size: 200% 100%;
+      animation: benchoSweep 3s infinite linear;
+    }
+    @keyframes benchoSweep {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .glass-card {
+      background: rgba(17, 18, 21, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glass-card:hover {
+      border-color: rgba(255, 255, 255, 0.16);
+      transform: translateY(-1px);
+    }
+    .glow-blue {
+      box-shadow: 0 0 24px -4px rgba(59, 130, 246, 0.25);
+    }
+    .glow-emerald {
+      box-shadow: 0 0 24px -4px rgba(16, 185, 129, 0.25);
+    }
+    /* Bencho Drag Slider */
+    .slide-track {
+      touch-action: none;
+      user-select: none;
+    }
+  </style>
+</head>
+<body class="bg-[#090a0c] text-zinc-100 min-h-screen antialiased selection:bg-blue-500 selection:text-white">
+
+  <!-- Top Notification Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none bg-emerald-950 border border-emerald-800 text-emerald-200 text-xs px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    <span id="toast-msg">Copied to clipboard</span>
+  </div>
+
+  <!-- Top Navigation & Header Bar -->
+  <header class="sticky top-0 z-40 w-full border-b border-zinc-800/80 bg-[#090a0c]/90 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      
+      <!-- Brand Logo & Name -->
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-serif font-bold text-white shadow-lg shadow-blue-500/20 text-base select-none">
+          &phi;
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-base tracking-tight text-white">Shapley</span>
+          <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">Protocol v1.0</span>
+        </div>
+      </div>
+
+      <!-- Domain Navigation Tabs -->
+      <nav class="hidden md:flex items-center gap-1 bg-zinc-900 border border-zinc-800 p-1 rounded-xl text-xs font-medium">
+        <button onclick="switchView('results')" id="tab-results" class="px-3 py-1.5 rounded-lg text-white bg-zinc-800 shadow-sm transition-all flex items-center gap-1.5 font-semibold">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          Attribution Console
+        </button>
+        <button onclick="switchView('audit')" id="tab-audit" class="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 transition-all flex items-center gap-1.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          Game Theory Audit
+        </button>
+        <button onclick="switchView('workflows')" id="tab-workflows" class="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 transition-all flex items-center gap-1.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          Pipelines
+        </button>
+        <button onclick="switchView('agent')" id="tab-agent" class="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 transition-all flex items-center gap-1.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+          MCP Protocol
+        </button>
+      </nav>
+
+      <!-- Status & Primary Action Button -->
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <button onclick="openCommandPalette()" class="hidden lg:flex items-center gap-2 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800 px-2.5 py-1.5 rounded-lg text-xs font-mono transition-colors" title="Quick Actions (Press ⌘K)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <span>Search</span>
+          <kbd class="bg-zinc-800 border border-zinc-700 text-[10px] px-1.5 py-0.2 rounded text-zinc-300">⌘K</kbd>
+        </button>
+
+        <button onclick="openMerkleModal()" class="flex items-center gap-1.5 bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-mono hover:bg-emerald-900/50 transition-colors cursor-pointer" title="Inspect Cryptographic Merkle Root">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="hidden sm:inline">Merkle:</span>
+          <span class="font-bold text-white text-[11px] sm:text-xs">88643cd1...</span>
+          <span class="hidden md:inline text-[10px] text-emerald-400 bg-emerald-900/80 px-1 py-0.2 rounded font-sans font-semibold">Verified</span>
+        </button>
+
+        <button onclick="openPayoutModal()" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-lg transition-all shadow-md shadow-emerald-600/20 flex items-center gap-1.5 whitespace-nowrap">
+          <svg width="13" height="13" fill="currentColor" viewBox="0 0 24 24"><path d="M20.067 8.478c.492.88.556 2.014.3 3.327-.74 3.806-3.27 5.864-7.17 5.864h-1.63a.85.85 0 0 0-.84.717l-.872 5.534-.027.17a.85.85 0 0 1-.84.72h-3.4a.85.85 0 0 1-.84-.982l3.43-21.758a.85.85 0 0 1 .84-.718h6.444c2.81 0 4.887.618 5.753 2.164.55.98.636 2.09.28 3.398l-.02.08c-.28 1.04-.84 1.84-1.67 2.38z"/></svg>
+          <span class="hidden sm:inline">Disburse Batch</span>
+          <span class="sm:hidden">Disburse</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Sub-Navigation Bar -->
+    <div class="md:hidden bg-zinc-950 border-t border-zinc-800 px-4 py-2 flex items-center justify-between overflow-x-auto text-xs font-medium gap-2">
+      <div class="flex items-center gap-1">
+        <button onclick="switchView('results')" id="mob-tab-results" class="px-2.5 py-1 rounded-md text-white bg-zinc-800 font-semibold whitespace-nowrap">Console</button>
+        <button onclick="switchView('audit')" id="mob-tab-audit" class="px-2.5 py-1 rounded-md text-zinc-400 hover:text-white whitespace-nowrap">Audit</button>
+        <button onclick="switchView('workflows')" id="mob-tab-workflows" class="px-2.5 py-1 rounded-md text-zinc-400 hover:text-white whitespace-nowrap">Pipelines</button>
+        <button onclick="switchView('agent')" id="mob-tab-agent" class="px-2.5 py-1 rounded-md text-zinc-400 hover:text-white whitespace-nowrap">MCP</button>
+      </div>
+      <div class="flex items-center gap-0.5 bg-zinc-900 border border-zinc-800 p-0.5 rounded-lg text-[11px] font-mono">
+        <button id="mob-btn-demo" onclick="setAppMode('demo')" class="px-2 py-0.5 rounded text-white bg-blue-600 font-semibold">Demo</button>
+        <button id="mob-btn-live" onclick="setAppMode('live')" class="px-2 py-0.5 rounded text-zinc-400">Live</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- VIEW 1: ATTRIBUTION CONSOLE (DEFAULT ACTIVE WORKSPACE) -->
+  <main id="view-results" class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    
+    <!-- Workspace Command Header -->
+    <div class="pb-5 mb-6 border-b border-zinc-800 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+      <div>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Attribution &amp; Revenue Console</h1>
+            <span class="w-fit px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-mono font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              Exact-Penny Invariant (Hare-Niemeyer)
+            </span>
+          </div>
+
+          <!-- Desktop Mode Switcher -->
+          <div class="hidden md:flex items-center gap-1 bg-zinc-900 border border-zinc-800 p-0.5 rounded-lg text-xs font-mono">
+            <button id="btn-mode-demo" onclick="setAppMode('demo')" class="px-2.5 py-1 rounded-md text-white bg-blue-600 font-semibold transition-all flex items-center gap-1">
+              <span>✨</span> Demo Sandbox
+            </button>
+            <button id="btn-mode-live" onclick="setAppMode('live')" class="px-2.5 py-1 rounded-md text-zinc-400 hover:text-zinc-200 transition-all flex items-center gap-1">
+              <span>⚡</span> Live Production
+            </button>
+          </div>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-2 mt-2 text-xs text-zinc-400 font-mono">
+          <span class="text-zinc-500">Repository Context:</span>
+          <select id="repoSelector" onchange="handleRepoSelect(this.value)" class="bg-zinc-900 border border-zinc-700 text-blue-400 font-semibold px-2 py-0.5 rounded focus:outline-none cursor-pointer">
+            <option value="pallets/jinja">pallets/jinja (4 contributors)</option>
+            <option value="psf/black">psf/black (5 contributors)</option>
+            <option value="aio-libs/aiohttp">aio-libs/aiohttp (8 contributors)</option>
+            <option value="fastapi/fastapi">fastapi/fastapi (4 contributors)</option>
+            <option value="custom">+ Analyze Custom Repository...</option>
+          </select>
+          <button onclick="openCustomRepoModal()" class="px-2.5 py-0.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 rounded text-[11px] font-sans font-semibold transition-colors flex items-center gap-1 shadow-sm">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Analyze Any Repo
+          </button>
+          <span class="text-zinc-600 hidden sm:inline">&bull;</span>
+          <span id="repoStatsSummary">30 Commits &bull; 16 Coalitions</span>
+          <span class="text-zinc-600 hidden sm:inline">&bull;</span>
+          <span class="text-emerald-400 font-semibold flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="trackingBadge">Live Tracking</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Action Toolbar -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="copyPRMarkdown()" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg border border-zinc-700 flex items-center gap-1.5 transition-colors">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          Copy PR Markdown
+        </button>
+        <button onclick="copyPayoutJSON()" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg border border-zinc-700 flex items-center gap-1.5 transition-colors">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          Copy JSON
+        </button>
+        <button onclick="openActionModal()" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg border border-zinc-700 flex items-center gap-1.5 transition-colors">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          CI/CD Action YAML
+        </button>
+      </div>
+    </div>
+
+    <!-- Phased Milestone Escrow & Dynamic Lifecycle Tracker -->
+    <div class="bg-[#111215] border border-zinc-800 rounded-xl p-3.5 sm:p-5 mb-6 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3.5">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-blue-400 font-mono">Project Milestone Lifecycle</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-950/60 text-blue-300 border border-blue-800/60">Dynamic Tranches</span>
+          </div>
+          <p class="text-xs text-zinc-400 mt-0.5">Projects are living codebases: payouts update dynamically per milestone without modifying settled tranches.</p>
+        </div>
+        <div class="text-[11px] font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg self-start sm:self-auto">
+          Active Tranche: <span id="activeTrancheBadge" class="text-emerald-400 font-bold">$2,500.00 USD</span>
+        </div>
+      </div>
+
+      <!-- Milestone Tabs -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <button onclick="setMilestone('phase1')" id="mcard-phase1" class="text-left p-3 rounded-lg border transition-all bg-zinc-900/40 border-zinc-800 hover:border-zinc-700">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-bold text-white">Phase 1: Core AST</span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">Settled ($1k)</span>
+          </div>
+          <p class="text-[11px] text-zinc-400 truncate">Initial parser &amp; 30 commits</p>
+          <div class="text-[10px] text-zinc-500 font-mono mt-1">Disbursed Oct 10 &bull; Merkle Locked</div>
+        </button>
+
+        <button onclick="setMilestone('phase2')" id="mcard-phase2" class="text-left p-3 rounded-lg border transition-all bg-blue-950/30 border-blue-600/60 shadow-sm">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-bold text-white">Phase 2: Security &amp; AST</span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-900/60 text-blue-300 border border-blue-700 animate-pulse">Active ($2.5k)</span>
+          </div>
+          <p class="text-[11px] text-zinc-400 truncate">CVE patches &amp; test hardening</p>
+          <div class="text-[10px] text-blue-400 font-mono mt-1">Active Escrow &bull; 42 Commits</div>
+        </button>
+
+        <button onclick="setMilestone('phase3')" id="mcard-phase3" class="text-left p-3 rounded-lg border transition-all bg-zinc-900/40 border-zinc-800 hover:border-zinc-700">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-bold text-white">Phase 3: Scale &amp; MCP</span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">Upcoming ($5k)</span>
+          </div>
+          <p class="text-[11px] text-zinc-400 truncate">Chat bots &amp; multi-repo swarms</p>
+          <div class="text-[10px] text-zinc-500 font-mono mt-1">Planning &bull; Sprint 3 Scope</div>
+        </button>
+      </div>
+
+      <!-- Live Production Dashboard Card (Toggled when in Live Mode) -->
+      <div id="liveOpsPanel" class="hidden mt-4 pt-4 border-t border-zinc-800 animate-fade-in">
+        <div class="bg-zinc-950 rounded-xl p-4 border border-zinc-800/80">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-3 border-b border-zinc-800/60">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span class="text-xs font-bold text-white font-mono uppercase tracking-wider">Production Repository Watcher</span>
+              <span class="text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full">Webhook Listening</span>
+            </div>
+            <span class="text-[11px] text-zinc-400 font-mono">Last Synchronized: <span id="liveSyncTime" class="text-zinc-200">12 seconds ago</span></span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+            <div class="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
+              <span class="text-zinc-500 text-[10px] block">Tracked Git Ref</span>
+              <span class="text-white font-semibold" id="liveTrackedRef">refs/heads/main</span>
+            </div>
+            <div class="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
+              <span class="text-zinc-500 text-[10px] block">Verified Commits</span>
+              <span class="text-blue-400 font-semibold" id="liveCommitCount">42 Ingested</span>
+            </div>
+            <div class="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
+              <span class="text-zinc-500 text-[10px] block">PayPal Escrow Balance</span>
+              <span class="text-emerald-400 font-semibold" id="liveEscrowBalance">$2,500.00 USD</span>
+            </div>
+            <div class="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
+              <span class="text-zinc-500 text-[10px] block">Idempotency Key</span>
+              <span class="text-zinc-300 truncate block" id="liveIdempotency">sha256-d8f3a9e...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PayPal Multi-Stakeholder Custodial Escrow Vault -->
+    <div class="bg-gradient-to-r from-[#003087]/20 via-[#001c48]/30 to-zinc-950 border border-blue-600/40 rounded-xl p-4 sm:p-5 mb-6 shadow-lg shadow-blue-950/20">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 mb-4 border-b border-blue-900/40">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-base shadow-md shadow-blue-600/30">
+            &Pcy;
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-sm font-bold text-white">PayPal Custodial Escrow Vault</h3>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
+                🔒 Vault: ESCROW-PP-JINJA-02
+              </span>
+            </div>
+            <p class="text-xs text-zinc-300 mt-0.5">
+              Neutral regulated escrow holding milestone funds under PayPal Delayed Authorization Hold between Sponsor, Maintainers, and Contributors.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 self-start md:self-auto">
+          <span class="text-xs font-mono text-zinc-400 bg-zinc-900/90 border border-zinc-800 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            Escrow Hold: <strong class="text-emerald-400">$2,500.00 USD</strong>
+          </span>
+          <button onclick="openPayoutModal()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-all shadow-md shadow-emerald-700/30 flex items-center gap-1.5">
+            <span>🔓</span>
+            Authorize Release
+          </button>
+        </div>
+      </div>
+
+      <!-- The 3 Stakeholders Pipeline -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs mb-3">
+        <!-- Stakeholder 1: Funder / Sponsor -->
+        <div class="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800/80">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[10px] font-mono uppercase font-bold text-blue-400">1. Sponsor (Depositor)</span>
+            <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-1.5 py-0.2 rounded border border-emerald-800/80">&check; Authorized</span>
+          </div>
+          <span class="font-semibold text-white block">Open Source Capital Fund</span>
+          <span class="text-[11px] text-zinc-400 font-mono block">Auth ID: AUTH-PP-8829410-USD</span>
+          <p class="text-[10px] text-zinc-500 mt-1">Funds locked in escrow; non-retractable during active sprint.</p>
+        </div>
+
+        <!-- Stakeholder 2: Neutral Custodian -->
+        <div class="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800/80">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[10px] font-mono uppercase font-bold text-blue-400">2. Escrow Custodian</span>
+            <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-1.5 py-0.2 rounded border border-emerald-800/80">&check; In Custody</span>
+          </div>
+          <span class="font-semibold text-white block">PayPal Inc. (Delayed Capture)</span>
+          <span class="text-[11px] text-zinc-400 font-mono block">Disbursement Mode: DELAYED</span>
+          <p class="text-[10px] text-zinc-500 mt-1">Guarantees exact-penny release upon dual-quorum consensus.</p>
+        </div>
+
+        <!-- Stakeholder 3: Maintainer / Validators -->
+        <div class="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800/80">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[10px] font-mono uppercase font-bold text-blue-400">3. Maintainer Review</span>
+            <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-1.5 py-0.2 rounded border border-emerald-800/80">&check; Merkle Verified</span>
+          </div>
+          <span class="font-semibold text-white block">Pallets Review Board</span>
+          <span class="text-[11px] text-zinc-400 font-mono block">Signed by: armin@mitsuhiko.at</span>
+          <p class="text-[10px] text-zinc-500 mt-1">Validated AST marginal scores and commit cryptographic provenance.</p>
+        </div>
+      </div>
+
+      <!-- Challenge Window & Dispute Terms -->
+      <div class="bg-zinc-950/60 border border-zinc-800/80 rounded-lg p-2.5 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-zinc-400 gap-2">
+        <div class="flex items-center gap-2">
+          <span>⏱️</span>
+          <span><strong>48-Hour Dispute Challenge Window:</strong> Active (31h remaining &bull; 0 contested claims)</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-zinc-500 font-mono text-[10px]">Hare-Niemeyer Exact Cents: $0.00 Stranded Float</span>
+          <a href="#payoutModal" onclick="openPayoutModal(); return false;" class="text-blue-400 hover:underline font-mono text-[11px]">Inspect Escrow Contract &rarr;</a>
+        </div>
+      </div>
+
+      <!-- Bencho Interactive Slide-to-Confirm Escrow Release -->
+      <div class="mt-3 pt-3 border-t border-blue-900/30">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-2 text-xs">
+            <span class="text-emerald-400 font-bold font-mono">⚡ Bencho Slide-Confirm:</span>
+            <span class="text-zinc-400 text-[11px]">Drag thumb to right to authorize PayPal Escrow disbursement</span>
+          </div>
+
+          <div id="slideConfirmTrack" class="slide-track relative w-full sm:w-80 h-10 bg-zinc-950/90 border border-zinc-700/80 rounded-full overflow-hidden flex items-center select-none cursor-grab active:cursor-grabbing shadow-inner">
+            <div id="slideProgressFill" class="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-blue-600 via-emerald-600 to-emerald-500 opacity-40 transition-all pointer-events-none" style="width: 0%"></div>
+            <div id="slideThumbBtn" class="absolute left-1 top-1 bottom-1 w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white font-bold text-xs flex items-center justify-center shadow-md shadow-emerald-900/40 transition-transform">
+              &rarr;
+            </div>
+            <span id="slideActionLabel" class="w-full text-center text-[10px] font-semibold text-zinc-300 font-mono pointer-events-none pl-6 pr-2">
+              Slide to Authorize Release ($2.5k) ➔
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Semantic Contribution Synthesis Banner -->
+    <div class="bg-gradient-to-r from-blue-950/30 via-zinc-900 to-zinc-900 border border-blue-900/40 rounded-xl p-4 sm:p-5 mb-6 flex items-start gap-4">
+      <div class="w-9 h-9 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center flex-shrink-0 mt-0.5 font-bold font-mono text-xs">
+        AI
+      </div>
+      <div class="flex-1">
+        <div class="flex items-center justify-between mb-1">
+          <h3 class="text-xs font-bold text-blue-400 uppercase tracking-wider">
+            Gemini Semantic &amp; AST Physical Contribution Synthesis
+          </h3>
+          <span class="text-[11px] font-mono text-zinc-400">Confidence: 94.2%</span>
+        </div>
+        <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+          Analysis of 30 commits across 4 developers identified distinct archetypes. <strong class="text-white">Maya Chen</strong> introduced the core AST parser pipeline (highest marginal impact across coalitions). <strong class="text-white">Sara Ahmed</strong> resolved high-severity memory leak CVEs with tight, high-leverage diffs. <strong class="text-white">Tom Rivera&apos;s</strong> 2,400 lines were identified primarily as linter reformatting, adjusting his share from naive 50% down to 5.4%.
+        </p>
+      </div>
+    </div>
+
+    <!-- Visual Proof & Live Simulator Layout -->
+    <div class="grid lg:grid-cols-12 gap-6 mb-8">
+      
+      <!-- Visual Proof (Shapley vs. Naive Metric) -->
+      <div class="lg:col-span-7 bg-[#111215] border border-zinc-800 rounded-xl p-5 flex flex-col justify-between">
+        <div>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+            <div>
+              <h2 class="text-sm font-bold text-white">Visual Proof: Shapley vs. Naive Metric</h2>
+              <p class="text-xs text-zinc-400">Side-by-side comparison of fair game theory value vs raw lines of code</p>
+            </div>
+            <div class="flex items-center gap-3 text-[11px] self-start sm:self-auto">
+              <span class="flex items-center gap-1.5 text-blue-400 font-medium">
+                <span class="w-2.5 h-2.5 rounded-sm bg-blue-500 inline-block"></span> Shapley AI Share %
+              </span>
+              <span class="flex items-center gap-1.5 text-zinc-400">
+                <span class="w-2.5 h-2.5 rounded-sm bg-zinc-600 inline-block"></span> Naive LOC %
+              </span>
+            </div>
+          </div>
+
+          <!-- Comparison Bars -->
+          <div class="space-y-4 pt-1">
+            <!-- Maya -->
+            <div class="cursor-pointer hover:bg-zinc-900/60 p-2.5 rounded-lg border border-transparent hover:border-zinc-800 transition-all" onclick="openContributorModal('maya')">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs mb-1.5 gap-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="font-semibold text-zinc-200">Maya Chen</span>
+                  <span class="text-zinc-500 text-[11px]">(Core Parser Rewrite)</span>
+                  <span class="text-[10px] text-blue-400 hover:underline font-mono">Inspect &rarr;</span>
+                </div>
+                <div class="font-mono text-xs flex items-center gap-1.5 self-end sm:self-auto">
+                  <span class="text-blue-400 font-bold" id="bar-maya-pct">47.0%</span>
+                  <span class="text-zinc-500">vs 18.0%</span>
+                </div>
+              </div>
+              <div class="space-y-1">
+                <div class="h-2.5 rounded-full bg-zinc-800 overflow-hidden flex">
+                  <div class="bg-blue-500 h-full rounded-full" style="width: 47%"></div>
+                </div>
+                <div class="h-1.5 rounded-full bg-zinc-800 overflow-hidden flex">
+                  <div class="bg-zinc-600 h-full rounded-full" style="width: 18%"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sara -->
+            <div class="cursor-pointer hover:bg-zinc-900/60 p-2.5 rounded-lg border border-transparent hover:border-zinc-800 transition-all" onclick="openContributorModal('sara')">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs mb-1.5 gap-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="font-semibold text-zinc-200">Sara Ahmed</span>
+                  <span class="text-zinc-500 text-[11px]">(Security Patch &amp; CVE Fix)</span>
+                  <span class="text-[10px] text-blue-400 hover:underline font-mono">Inspect &rarr;</span>
+                </div>
+                <div class="font-mono text-xs flex items-center gap-1.5 self-end sm:self-auto">
+                  <span class="text-blue-400 font-bold" id="bar-sara-pct">31.6%</span>
+                  <span class="text-zinc-500">vs 7.0%</span>
+                </div>
+              </div>
+              <div class="space-y-1">
+                <div class="h-2.5 rounded-full bg-zinc-800 overflow-hidden flex">
+                  <div id="bar-sara-fill" class="bg-blue-500 h-full rounded-full transition-all duration-500" style="width: 31.6%"></div>
+                </div>
+                <div class="h-1.5 rounded-full bg-zinc-800 overflow-hidden flex">
+                  <div class="bg-zinc-600 h-full rounded-full" style="width: 7%"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- David -->
+            <div class="cursor-pointer hover:bg-zinc-900/60 p-2.5 rounded-lg border border-transparent hover:border-zinc-800 transition-all" onclick="openContributorModal('david')">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs mb-1.5 gap-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="font-semibold text-zinc-200">David Park</span>
+                  <span class="text-zinc-500 text-[11px]">(Test Suite &amp; E2E)</span>
+                  <span class="text-[10px] text-purple-400 bg-purple-950/60 px-1.5 py-0.2 rounded border border-purple-800/60 font-mono">AI Pilot</span>
+                  <span class="text-[10px] text-blue-400 hover:underline font-mono">Inspect &rarr;</span>
+                </div>
+                <div class="font-mono text-xs flex items-center gap-1.5 self-end sm:self-auto">
+                  <span class="text-blue-400 font-bold" id="bar-david-pct">16.0%</span>
+                  <span class="text-zinc-500">vs 25.0%</span>
+                </div>
+              </div>
+              <div class="space-y-1">
+                <div class="h-2.5 rounded-full bg-zinc-800 overflow-hidden flex">
+                  <div id="bar-david-fill" class="bg-blue-500 h-full rounded-full transition-all duration-500" style="width: 16%"></div>
+                </div>
+                <div class="h-1.5 rounded-full bg-zinc-800 overflow-hidden flex">
+                  <div class="bg-zinc-600 h-full rounded-full" style="width: 25%"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tom -->
+            <div class="cursor-pointer hover:bg-zinc-900/60 p-2.5 rounded-lg border border-transparent hover:border-zinc-800 transition-all" onclick="openContributorModal('tom')">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs mb-1.5 gap-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="font-semibold text-zinc-200">Tom Rivera</span>
+                  <span class="text-zinc-500 text-[11px]">(Linter Formatting)</span>
+                  <span class="text-[10px] text-amber-400 bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-800/60 font-mono">Prettier Bot</span>
+                  <span class="text-[10px] text-blue-400 hover:underline font-mono">Inspect &rarr;</span>
+                </div>
+                <div class="font-mono text-xs flex items-center gap-1.5 self-end sm:self-auto">
+                  <span class="text-blue-400 font-bold" id="bar-tom-pct">5.4%</span>
+                  <span class="text-zinc-500">vs 50.0%</span>
+                </div>
+              </div>
+              <div class="space-y-1">
+                <div class="h-2.5 rounded-full bg-zinc-800 overflow-hidden flex">
+                  <div id="bar-tom-fill" class="bg-blue-500 h-full rounded-full transition-all duration-500" style="width: 5.4%"></div>
+                </div>
+                <div class="h-1.5 rounded-full bg-zinc-800 overflow-hidden flex">
+                  <div class="bg-zinc-600 h-full rounded-full" style="width: 50%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-zinc-800 text-[11px] text-zinc-500 leading-relaxed">
+          <strong class="text-zinc-400">The Problem Solved:</strong> Under naive lines-of-code metrics, Tom Rivera would capture 50% ($500) for running Prettier. Shapley game theory allocates 47% to the core architect and 31.6% to the security engineer.
+        </div>
+      </div>
+
+      <!-- Right Column: Live Settlement & Pool Simulator -->
+      <div class="lg:col-span-5 bg-[#111215] border border-zinc-800 rounded-xl p-5 flex flex-col justify-between">
+        <div>
+          <h2 class="text-sm font-bold text-white mb-1">Live Bounty Settlement Simulator</h2>
+          <p class="text-xs text-zinc-400 mb-4">Adjust pool size to verify real-time exact-penny allocation</p>
+
+          <!-- Slider Widget -->
+          <div class="bg-zinc-950/80 border border-zinc-800 p-4 rounded-xl mb-4">
+            <div class="flex justify-between items-center text-xs mb-2">
+              <span class="text-zinc-400 font-medium">Bounty Pool Value:</span>
+              <span id="sliderValue" class="font-mono text-emerald-400 font-bold text-sm">$1,000.00 USD</span>
+            </div>
+            <input 
+              id="bountySlider"
+              type="range" 
+              min="100" 
+              max="10000" 
+              step="50" 
+              value="1000" 
+              oninput="updateDemoSlider(this.value)"
+              class="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            >
+            <div class="flex justify-between text-[10px] text-zinc-500 font-mono mt-1.5">
+              <span>$100 min</span>
+              <span>$5,000</span>
+              <span>$10,000 max</span>
+            </div>
+          </div>
+
+          <!-- Mathematical Guarantees -->
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between py-1 border-b border-zinc-800/60">
+              <span class="text-zinc-400">Total Bounty Pool:</span>
+              <span id="metricTotal" class="font-mono font-bold text-emerald-400">$1,000.00 USD</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-zinc-800/60">
+              <span class="text-zinc-400">Game Theory Efficiency:</span>
+              <span class="font-mono font-bold text-blue-400">&Sigma; &phi;&#7522; = 100.0% (Exact)</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-zinc-800/60">
+              <span class="text-zinc-400">Monotonicity Enforcement:</span>
+              <span class="font-mono text-emerald-400">&Delta;v &ge; 0 Verified (0 violations)</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-zinc-800/60">
+              <span class="text-zinc-400">PayPal Flat Batch Fee:</span>
+              <span class="font-mono text-zinc-300">$1.00 USD ($0.25 &times; 4 items)</span>
+            </div>
+            <div class="flex justify-between py-1">
+              <span class="text-zinc-400">Payment Engine:</span>
+              <span class="font-mono text-zinc-300">PayPal Payouts REST API v1</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Security Callout -->
+        <div class="mt-4 p-3 bg-zinc-950 rounded-lg border border-zinc-800 text-[11px] text-zinc-400">
+          <span class="text-emerald-400 font-bold">&bull; Security Guarantee:</span>
+          AI evaluates code syntax and AST nodes in an isolated sandbox. Exact-penny Hare-Niemeyer math guarantees zero rounding loss.
+        </div>
+      </div>
+    </div>
+
+    <!-- Contributor Attribution Table -->
+    <div class="bg-[#111215] border border-zinc-800 rounded-xl overflow-hidden mb-8">
+      <div class="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-bold text-white">Contributor Payout Distribution</h2>
+          <p class="text-xs text-zinc-400">Click any row or &quot;Inspect&quot; to review deep AST signals and coalition marginal deltas</p>
+        </div>
+        <span class="text-xs font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg">
+          4 Contributors
+        </span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-zinc-900/80 border-b border-zinc-800 text-zinc-400 font-semibold font-mono">
+            <tr>
+              <th class="py-3 px-4">Contributor</th>
+              <th class="py-3 px-4">Role / Focus</th>
+              <th class="py-3 px-4 text-center">Commits</th>
+              <th class="py-3 px-4 text-right">Lines (+/-)</th>
+              <th class="py-3 px-4 text-center">Shapley &phi;</th>
+              <th class="py-3 px-4 text-right">Fair Share %</th>
+              <th class="py-3 px-4 text-right">Calculated Payout</th>
+              <th class="py-3 px-4 text-center">Provenance &amp; AI Pilot</th>
+              <th class="py-3 px-4 text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-800/60 text-zinc-300">
+            <!-- Maya -->
+            <tr class="hover:bg-zinc-900/50 cursor-pointer transition-colors" onclick="openContributorModal('maya')">
+              <td class="py-3 px-4">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-xs font-mono">M</div>
+                  <div>
+                    <span class="font-semibold text-white block">Maya Chen</span>
+                    <span class="text-[11px] text-zinc-500 font-mono">maya.chen@jinja-dev.org</span>
+                  </div>
+                </div>
+              </td>
+              <td class="py-3 px-4 text-zinc-300">Core AST Parser Rewrite</td>
+              <td class="py-3 px-4 text-center font-mono">12</td>
+              <td class="py-3 px-4 text-right font-mono"><span class="text-emerald-400">+580</span> / <span class="text-rose-400">-120</span></td>
+              <td class="py-3 px-4 text-center font-mono font-bold text-blue-400">47.0</td>
+              <td class="py-3 px-4 text-right font-mono font-bold text-blue-400 text-sm">47.0%</td>
+              <td id="payout-maya" class="py-3 px-4 text-right font-mono font-bold text-emerald-400 text-sm">$470.00</td>
+              <td class="py-3 px-4 text-center">
+                <span class="bg-emerald-950/60 text-emerald-400 border border-emerald-800/80 px-2 py-0.5 rounded text-[10px] font-mono">GPG Verified</span>
+              </td>
+              <td class="py-3 px-4 text-center">
+                <button onclick="event.stopPropagation(); openContributorModal('maya')" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[11px] rounded border border-zinc-700 transition-colors">
+                  Inspect &rarr;
+                </button>
+              </td>
+            </tr>
+
+            <!-- Sara -->
+            <tr class="hover:bg-zinc-900/50 cursor-pointer transition-colors" onclick="openContributorModal('sara')">
+              <td class="py-3 px-4">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs font-mono">S</div>
+                  <div>
+                    <span class="font-semibold text-white block">Sara Ahmed</span>
+                    <span class="text-[11px] text-zinc-500 font-mono">sara.sec@gmail.com</span>
+                  </div>
+                </div>
+              </td>
+              <td class="py-3 px-4 text-zinc-300">Security Patch &amp; CVE Memory Fix</td>
+              <td class="py-3 px-4 text-center font-mono">5</td>
+              <td class="py-3 px-4 text-right font-mono"><span class="text-emerald-400">+195</span> / <span class="text-rose-400">-85</span></td>
+              <td class="py-3 px-4 text-center font-mono font-bold text-blue-400">31.6</td>
+              <td class="py-3 px-4 text-right font-mono font-bold text-blue-400 text-sm">31.6%</td>
+              <td id="payout-sara" class="py-3 px-4 text-right font-mono font-bold text-emerald-400 text-sm">$316.00</td>
+              <td class="py-3 px-4 text-center">
+                <span class="bg-emerald-950/60 text-emerald-400 border border-emerald-800/80 px-2 py-0.5 rounded text-[10px] font-mono">SSH Verified</span>
+              </td>
+              <td class="py-3 px-4 text-center">
+                <button onclick="event.stopPropagation(); openContributorModal('sara')" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[11px] rounded border border-zinc-700 transition-colors">
+                  Inspect &rarr;
+                </button>
+              </td>
+            </tr>
+
+            <!-- David -->
+            <tr class="hover:bg-zinc-900/50 cursor-pointer transition-colors" onclick="openContributorModal('david')">
+              <td class="py-3 px-4">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs font-mono">D</div>
+                  <div>
+                    <span class="font-semibold text-white block">David Park</span>
+                    <span class="text-[11px] text-zinc-500 font-mono">dpark.qa@corp.net</span>
+                  </div>
+                </div>
+              </td>
+              <td class="py-3 px-4 text-zinc-300">Test Suite &amp; E2E Testing</td>
+              <td class="py-3 px-4 text-center font-mono">9</td>
+              <td class="py-3 px-4 text-right font-mono"><span class="text-emerald-400">+420</span> / <span class="text-rose-400">-90</span></td>
+              <td class="py-3 px-4 text-center font-mono font-bold text-blue-400">16.0</td>
+              <td class="py-3 px-4 text-right font-mono font-bold text-blue-400 text-sm">16.0%</td>
+              <td id="payout-david" class="py-3 px-4 text-right font-mono font-bold text-emerald-400 text-sm">$160.00</td>
+              <td class="py-3 px-4 text-center">
+                <span class="bg-emerald-950/60 text-emerald-400 border border-emerald-800/80 px-2 py-0.5 rounded text-[10px] font-mono">GPG Verified</span>
+              </td>
+              <td class="py-3 px-4 text-center">
+                <button onclick="event.stopPropagation(); openContributorModal('david')" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[11px] rounded border border-zinc-700 transition-colors">
+                  Inspect &rarr;
+                </button>
+              </td>
+            </tr>
+
+            <!-- Tom -->
+            <tr class="hover:bg-zinc-900/50 cursor-pointer transition-colors" onclick="openContributorModal('tom')">
+              <td class="py-3 px-4">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs font-mono">T</div>
+                  <div>
+                    <span class="font-semibold text-white block">Tom Rivera</span>
+                    <span class="text-[11px] text-zinc-500 font-mono">tom.rivera@dev.io</span>
+                  </div>
+                </div>
+              </td>
+              <td class="py-3 px-4 text-zinc-300">Linter &amp; Whitespace Formatting</td>
+              <td class="py-3 px-4 text-center font-mono">4</td>
+              <td class="py-3 px-4 text-right font-mono"><span class="text-emerald-400">+2,400</span> / <span class="text-rose-400">-1,800</span></td>
+              <td class="py-3 px-4 text-center font-mono font-bold text-blue-400">5.4</td>
+              <td class="py-3 px-4 text-right font-mono font-bold text-blue-400 text-sm">5.4%</td>
+              <td id="payout-tom" class="py-3 px-4 text-right font-mono font-bold text-emerald-400 text-sm">$54.00</td>
+              <td class="py-3 px-4 text-center">
+                <span class="bg-amber-950/60 text-amber-400 border border-amber-800/80 px-2 py-0.5 rounded text-[10px] font-mono">Unsigned</span>
+              </td>
+              <td class="py-3 px-4 text-center">
+                <button onclick="event.stopPropagation(); openContributorModal('tom')" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[11px] rounded border border-zinc-700 transition-colors">
+                  Inspect &rarr;
+                </button>
+              </td>
+            </tr>
+          </tbody>
+          <tfoot class="bg-zinc-900 font-bold border-t border-zinc-800 text-xs">
+            <tr>
+              <td colspan="5" class="py-3 px-4 text-right text-zinc-400 font-mono">Conserved Total:</td>
+              <td class="py-3 px-4 text-right font-mono text-blue-400 text-sm">100.0%</td>
+              <td id="payout-total" class="py-3 px-4 text-right font-mono text-emerald-400 text-sm">$1,000.00</td>
+              <td></td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- AI Co-Authorship & Human Pilot Legal Disambiguation Callout -->
+      <div class="p-4 bg-zinc-950/70 border-t border-zinc-800 text-xs">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+            <span class="font-bold text-white font-mono uppercase tracking-wider text-[11px]">Human Pilot &amp; AI Co-Authorship Protocol</span>
+            <span class="px-2 py-0.2 rounded text-[10px] font-mono bg-purple-950 text-purple-300 border border-purple-800">RFC 2822 Trailer Verified</span>
+          </div>
+          <span class="text-[11px] font-mono text-zinc-500">Legal Precedent: AI Agent Cannot Hold Bank Accounts</span>
+        </div>
+        <p class="text-zinc-400 text-[11px] leading-relaxed">
+          When developers push code generated by <code class="text-purple-300">Claude 3.5 Sonnet</code>, Cursor, or Copilot (via <code class="text-zinc-300">Co-authored-by: Claude &lt;noreply@anthropic.com&gt;</code>), 
+          Shapley attributes financial disburse to the <strong>Human Pilot</strong> who authored the prompt, integrated the architecture, added unit tests, and GPG-signed the commit. 
+          Unattended autonomous bots (e.g. Prettier bots, Dependabot) are quarantined from human payout pools, eliminating sybil dilution.
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <!-- VIEW 2: GAME THEORY AUDIT & COALITION MATRIX -->
+  <main id="view-audit" class="hidden max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <div class="pb-5 mb-6 border-b border-zinc-800 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-white tracking-tight">How Shapley Determines Fair Shares</h1>
+        <p class="text-xs text-zinc-400 mt-1">Common-sense intuition for everyone &middot; Rigorous Nobel Prize game theory for auditors</p>
+      </div>
+      
+      <!-- Interactive Explainer Mode Toggle -->
+      <div class="flex items-center gap-2 bg-zinc-900 p-1 rounded-xl border border-zinc-800 text-xs">
+        <button id="btn-audit-simple" onclick="switchAuditMode('simple')" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold transition-all flex items-center gap-1.5 shadow-sm">
+          <span>💡</span> Plain English (For Everyone)
+        </button>
+        <button id="btn-audit-math" onclick="switchAuditMode('math')" class="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 font-medium transition-all flex items-center gap-1.5">
+          <span>🔬</span> Math Proofs &amp; Coalitions
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 1: PLAIN ENGLISH EXPLAINER (ACTIVE BY DEFAULT) -->
+    <div id="audit-simple" class="space-y-6">
+      
+      <!-- Hero Metaphor Card: The Missing Teammate Test -->
+      <div class="bg-gradient-to-r from-blue-950/40 via-zinc-900 to-zinc-900 border border-blue-900/40 rounded-2xl p-6 sm:p-7">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center flex-shrink-0 text-2xl select-none">
+            ⚽️
+          </div>
+          <div class="flex-1">
+            <h2 class="text-base sm:text-lg font-bold text-white mb-2">
+              The Core Idea: The &ldquo;Missing Teammate&rdquo; Test
+            </h2>
+            <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed mb-4">
+              Imagine a championship soccer team. How do you measure a player&apos;s true worth? You don&apos;t just count how many miles they ran—you look at how the team performs <strong>with them</strong> versus <strong>without them</strong>.
+            </p>
+            <div class="grid sm:grid-cols-3 gap-3 pt-2 text-xs">
+              <div class="bg-zinc-950/70 border border-zinc-800 p-3.5 rounded-xl">
+                <span class="text-purple-400 font-bold block mb-1">Maya Chen (Architect)</span>
+                <span class="text-zinc-400 leading-tight block">The star striker who scored the winning goal. If Maya sits out, the engine doesn&apos;t run.</span>
+              </div>
+              <div class="bg-zinc-950/70 border border-zinc-800 p-3.5 rounded-xl">
+                <span class="text-emerald-400 font-bold block mb-1">Sara Ahmed (Security)</span>
+                <span class="text-zinc-400 leading-tight block">The goalkeeper who stopped 3 penalty kicks. Only 280 lines of code, but prevented disaster.</span>
+              </div>
+              <div class="bg-zinc-950/70 border border-zinc-800 p-3.5 rounded-xl">
+                <span class="text-amber-400 font-bold block mb-1">Tom Rivera (Formatter)</span>
+                <span class="text-zinc-400 leading-tight block">Handed out 2,400 water bottles. Helpful maintenance, but the team wouldn&apos;t lose without it.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real World Comparison: The 2,400-Line Formatter vs 5-Line Bug Fix -->
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- The Broken Old Way -->
+        <div class="bg-[#111215] border border-rose-950/60 rounded-2xl p-6 relative">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="w-6 h-6 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center text-xs font-bold">&times;</span>
+            <h3 class="text-sm font-bold text-rose-400 uppercase tracking-wider font-mono">The Flawed Old Way (Lines of Code)</h3>
+          </div>
+          <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+            Traditional bounty platforms simply count lines added or deleted. Whoever makes the biggest git diff takes the largest paycheck:
+          </p>
+          <div class="space-y-3 font-mono text-xs">
+            <div class="bg-zinc-950 p-3 rounded-xl border border-zinc-800 flex justify-between items-center">
+              <div>
+                <span class="text-white font-bold block">Tom Rivera (Formatting)</span>
+                <span class="text-[11px] text-zinc-500 font-sans">Ran Prettier on 2,400 lines</span>
+              </div>
+              <span class="text-rose-400 font-bold text-sm">$500.00 (50.0%)</span>
+            </div>
+            <div class="bg-zinc-950 p-3 rounded-xl border border-zinc-800 flex justify-between items-center">
+              <div>
+                <span class="text-white font-bold block">Sara Ahmed (Security Patch)</span>
+                <span class="text-[11px] text-zinc-500 font-sans">Patched zero-day in 280 lines</span>
+              </div>
+              <span class="text-rose-400 font-bold text-sm">$70.00 (7.0%)</span>
+            </div>
+          </div>
+          <div class="mt-4 p-3 rounded-xl bg-rose-950/20 border border-rose-900/40 text-[11px] text-rose-300">
+            <strong>Verdict:</strong> Unfair. Rewards automated formatting bots and penalizes deep engineering problem-solvers.
+          </div>
+        </div>
+
+        <!-- The Shapley Way -->
+        <div class="bg-[#111215] border border-emerald-950/60 rounded-2xl p-6 relative">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">&check;</span>
+            <h3 class="text-sm font-bold text-emerald-400 uppercase tracking-wider font-mono">The Shapley Way (True Added Value)</h3>
+          </div>
+          <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+            We simulate every team coalition. Your payout equals the average capability improvement you brought when you contributed:
+          </p>
+          <div class="space-y-3 font-mono text-xs">
+            <div class="bg-zinc-950 p-3 rounded-xl border border-zinc-800 flex justify-between items-center">
+              <div>
+                <span class="text-white font-bold block">Sara Ahmed (Security Patch)</span>
+                <span class="text-[11px] text-zinc-500 font-sans">High-leverage CVE resolution</span>
+              </div>
+              <span class="text-emerald-400 font-bold text-sm">$316.00 (31.6%)</span>
+            </div>
+            <div class="bg-zinc-950 p-3 rounded-xl border border-zinc-800 flex justify-between items-center">
+              <div>
+                <span class="text-white font-bold block">Tom Rivera (Formatting)</span>
+                <span class="text-[11px] text-zinc-500 font-sans">Accurate compensation for style</span>
+              </div>
+              <span class="text-emerald-400 font-bold text-sm">$54.00 (5.4%)</span>
+            </div>
+          </div>
+          <div class="mt-4 p-3 rounded-xl bg-emerald-950/20 border border-emerald-900/40 text-[11px] text-emerald-300">
+            <strong>Verdict:</strong> Fair. Sara is properly rewarded as an MVP, while Tom is compensated honestly without robbing teammates.
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 Simple Rules Anyone Can Understand -->
+      <div class="bg-[#111215] border border-zinc-800 rounded-2xl p-6">
+        <h3 class="text-sm font-bold text-white mb-4">How Shapley Guarantees Fairness in 3 Simple Steps</h3>
+        <div class="grid sm:grid-cols-3 gap-4 text-xs">
+          <div class="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+            <div class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 font-mono font-bold flex items-center justify-center mb-2">1</div>
+            <h4 class="font-bold text-white mb-1">We Filter the Noise</h4>
+            <p class="text-zinc-400 leading-relaxed text-[11px]">
+              AI parses the code syntax to ignore whitespace, comments, minified bundles, and copy-paste boilerplate.
+            </p>
+          </div>
+          <div class="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 font-mono font-bold flex items-center justify-center mb-2">2</div>
+            <h4 class="font-bold text-white mb-1">We Run &lsquo;What-If&rsquo; Simulations</h4>
+            <p class="text-zinc-400 leading-relaxed text-[11px]">
+              We test all possible combinations of teammates to see how much capability jumps when each person is included.
+            </p>
+          </div>
+          <div class="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+            <div class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 font-mono font-bold flex items-center justify-center mb-2">3</div>
+            <h4 class="font-bold text-white mb-1">Exact-Penny Cash Payout</h4>
+            <p class="text-zinc-400 leading-relaxed text-[11px]">
+              100% of the funds are transferred via PayPal REST API with zero rounding loss, zero favoritism, and full transparency.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: MATHEMATICAL PROOFS & COALITION MATRIX (FOR AUDITORS) -->
+    <div id="audit-math" class="hidden space-y-6">
+      
+      <!-- Mathematical Formula Display Card -->
+      <div class="bg-[#111215] border border-zinc-800 rounded-xl p-6 text-xs text-zinc-300">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-sm font-semibold text-white">Shapley Characteristic Function &amp; Axiomatic Foundation</h3>
+          <span class="text-[11px] font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded">
+            Lloyd S. Shapley (1953) &middot; Nobel Memorial Prize
+          </span>
+        </div>
+        <p class="text-zinc-400 mb-4 leading-relaxed">
+          Every coalition subset <span class="font-mono text-blue-400 font-semibold">S &sube; N</span> receives an objective capability score <span class="font-mono text-emerald-400 font-semibold">v(S) &isin; [0, 100]</span> scored by Gemini based on four weighted criteria: Complexity, Impact, Originality, and Unblocking. Marginal contributions are calculated as <span class="font-mono text-blue-300 font-semibold">v(S &cup; &#123;i&#125;) &minus; v(S)</span>.
+        </p>
+
+        <!-- Styled Math Box -->
+        <div class="bg-zinc-950 p-4 rounded-xl border border-zinc-800 flex items-center justify-center overflow-x-auto select-none mb-4">
+          <div class="flex items-center gap-3 font-serif text-sm sm:text-base text-zinc-200 py-1">
+            <span class="text-blue-400 font-bold italic text-lg sm:text-xl">&phi;<sub>i</sub></span>
+            <span class="text-zinc-400 text-lg">&equals;</span>
+            <div class="flex items-center gap-1.5">
+              <div class="flex flex-col items-center">
+                <span class="text-xs text-zinc-500 font-sans tracking-tighter">S &sube; N \ &#123;i&#125;</span>
+                <span class="text-xl text-blue-400 font-sans">&sum;</span>
+              </div>
+              <div class="inline-flex flex-col items-center text-center px-1 font-sans text-xs sm:text-sm">
+                <span class="border-b border-zinc-600 px-2 pb-0.5 font-mono text-blue-300">
+                  |S|! &middot; (n &minus; |S| &minus; 1)!
+                </span>
+                <span class="pt-0.5 font-mono text-zinc-400">n!</span>
+              </div>
+              <span class="text-zinc-400 text-lg sm:text-xl">&times;</span>
+              <div class="flex items-center gap-1 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg font-mono text-xs text-emerald-400">
+                <span>v(S &cup; &#123;i&#125;) &minus; v(S)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid sm:grid-cols-4 gap-3 text-xs">
+          <div class="bg-zinc-900 border border-zinc-800 p-3 rounded-lg">
+            <span class="font-bold text-white block mb-0.5">1. Efficiency</span>
+            <span class="font-mono text-blue-400 text-[11px] block">&Sigma; &phi;&#7522; = 100%</span>
+            <span class="text-[10px] text-zinc-400">Total bounty distributed with 0 leakage.</span>
+          </div>
+          <div class="bg-zinc-900 border border-zinc-800 p-3 rounded-lg">
+            <span class="font-bold text-white block mb-0.5">2. Symmetry</span>
+            <span class="font-mono text-blue-400 text-[11px] block">&phi;&#7522; = &phi;&#11388; if equal</span>
+            <span class="text-[10px] text-zinc-400">Equal marginal impact yields equal share.</span>
+          </div>
+          <div class="bg-zinc-900 border border-zinc-800 p-3 rounded-lg">
+            <span class="font-bold text-white block mb-0.5">3. Dummy Player</span>
+            <span class="font-mono text-blue-400 text-[11px] block">&phi;&#7522; = 0 if no value</span>
+            <span class="text-[10px] text-zinc-400">Zero marginal utility yields zero bounty.</span>
+          </div>
+          <div class="bg-zinc-900 border border-zinc-800 p-3 rounded-lg">
+            <span class="font-bold text-white block mb-0.5">4. Monotonicity</span>
+            <span class="font-mono text-emerald-400 text-[11px] block">v(S &cup; &#123;i&#125;) &ge; v(S)</span>
+            <span class="text-[10px] text-zinc-400">Strictly enforced against LLM regressions.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 16 Coalitions Evaluation Grid -->
+      <div class="bg-[#111215] border border-zinc-800 rounded-xl overflow-hidden mb-8">
+        <div class="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-bold text-white">Full Coalition Evaluation Matrix (N=4, 2<sup>4</sup>=16)</h2>
+            <p class="text-xs text-zinc-400">Objective capability scoring across all subset permutations</p>
+          </div>
+          <span class="text-xs font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg">
+            Exact All-Subsets Method
+          </span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-zinc-900/80 border-b border-zinc-800 text-zinc-400 font-semibold font-mono">
+              <tr>
+                <th class="py-2.5 px-4">Subset S</th>
+                <th class="py-2.5 px-4">Members</th>
+                <th class="py-2.5 px-4">v(S) Score</th>
+                <th class="py-2.5 px-4">Confidence</th>
+                <th class="py-2.5 px-4">Qualitative Reasoning</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-800/60 text-zinc-300 font-mono text-xs">
+              <tr><td class="py-2.5 px-4 text-zinc-500">&empty;</td><td class="py-2.5 px-4 text-zinc-500">None</td><td class="py-2.5 px-4 font-bold text-zinc-400">0.0</td><td class="py-2.5 px-4">1.00</td><td class="py-2.5 px-4 font-sans text-zinc-400">Empty set has zero capability.</td></tr>
+              <tr><td class="py-2.5 px-4 text-blue-400">{Maya}</td><td class="py-2.5 px-4 font-sans text-white">Maya Chen</td><td class="py-2.5 px-4 font-bold text-emerald-400">72.0</td><td class="py-2.5 px-4">0.92</td><td class="py-2.5 px-4 font-sans text-zinc-300">Core AST parser rewrite provides the foundational architectural backbone.</td></tr>
+              <tr><td class="py-2.5 px-4 text-blue-400">{David}</td><td class="py-2.5 px-4 font-sans text-white">David Park</td><td class="py-2.5 px-4 font-bold text-emerald-400">35.0</td><td class="py-2.5 px-4">0.85</td><td class="py-2.5 px-4 font-sans text-zinc-300">Utility functions and test harness provide basic execution scaffolding.</td></tr>
+              <tr><td class="py-2.5 px-4 text-blue-400">{Sara}</td><td class="py-2.5 px-4 font-sans text-white">Sara Ahmed</td><td class="py-2.5 px-4 font-bold text-emerald-400">58.0</td><td class="py-2.5 px-4">0.88</td><td class="py-2.5 px-4 font-sans text-zinc-300">Resolves memory leak CVE with tight, high-leverage patch.</td></tr>
+              <tr><td class="py-2.5 px-4 text-blue-400">{Tom}</td><td class="py-2.5 px-4 font-sans text-white">Tom Rivera</td><td class="py-2.5 px-4 font-bold text-amber-400">12.0</td><td class="py-2.5 px-4">0.95</td><td class="py-2.5 px-4 font-sans text-zinc-400">Documentation updates and formatting touchups without core logic changes.</td></tr>
+              <tr><td class="py-2.5 px-4 text-blue-400">{Maya, David}</td><td class="py-2.5 px-4 font-sans text-white">Maya, David</td><td class="py-2.5 px-4 font-bold text-emerald-400">78.0</td><td class="py-2.5 px-4">0.90</td><td class="py-2.5 px-4 font-sans text-zinc-300">Core parser backed by utilities creates functional pipeline.</td></tr>
+              <tr><td class="py-2.5 px-4 text-blue-400">{Maya, Sara}</td><td class="py-2.5 px-4 font-sans text-white">Maya, Sara</td><td class="py-2.5 px-4 font-bold text-emerald-400">85.0</td><td class="py-2.5 px-4">0.91</td><td class="py-2.5 px-4 font-sans text-zinc-300">Parser rewrite hardened with security CVE fixes. High synergy.</td></tr>
+              <tr><td class="py-2.5 px-4 text-blue-400">{David, Sara}</td><td class="py-2.5 px-4 font-sans text-white">David, Sara</td><td class="py-2.5 px-4 font-bold text-emerald-400">62.0</td><td class="py-2.5 px-4">0.87</td><td class="py-2.5 px-4 font-sans text-zinc-300">Functional utilities and security fixes but lacks new parser engine.</td></tr>
+              <tr><td class="py-2.5 px-4 text-blue-400">{Maya, David, Sara}</td><td class="py-2.5 px-4 font-sans text-white">Maya, David, Sara</td><td class="py-2.5 px-4 font-bold text-emerald-400">92.0</td><td class="py-2.5 px-4">0.93</td><td class="py-2.5 px-4 font-sans text-zinc-300">Near-complete production release. Robust architecture, tests, and security.</td></tr>
+              <tr class="bg-blue-950/20"><td class="py-2.5 px-4 text-blue-300 font-bold">{All 4}</td><td class="py-2.5 px-4 font-sans text-white font-bold">Maya, Sara, David, Tom</td><td class="py-2.5 px-4 font-bold text-emerald-400">95.0</td><td class="py-2.5 px-4 font-bold">0.94</td><td class="py-2.5 px-4 font-sans text-zinc-200">Grand Coalition: complete tested codebase with full documentation.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- VIEW 3: ARCHITECTURE & PIPELINES -->
+  <main id="view-workflows" class="hidden max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <div class="pb-5 mb-6 border-b border-zinc-800 flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-white tracking-tight">System Architecture &amp; Workflows</h1>
+        <p class="text-xs text-zinc-400 mt-1">Dual-track operational pipelines for Maintainers and Autonomous Agent Swarms</p>
+      </div>
+      <button onclick="switchView('results')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors">
+        &larr; Back to Console
+      </button>
+    </div>
+
+    <!-- Plain English Workflow Header Card -->
+    <div class="bg-gradient-to-r from-blue-950/30 via-zinc-900 to-zinc-900 border border-blue-900/40 rounded-2xl p-6 mb-8">
+      <h2 class="text-base font-bold text-white mb-1">How It Works in 4 Steps (No Math Degree Required)</h2>
+      <p class="text-xs text-zinc-400 mb-5 leading-relaxed">
+        From raw GitHub commit activity to fair, automated payouts in developers&apos; digital wallets:
+      </p>
+      <div class="grid sm:grid-cols-4 gap-3 text-xs">
+        <div class="bg-zinc-950 p-3.5 rounded-xl border border-zinc-800">
+          <span class="text-blue-400 font-bold block mb-1">1. Connect &amp; Clean</span>
+          <span class="text-zinc-400 text-[11px] leading-tight block">We inspect the real code changes, stripping out whitespace and auto-linter noise.</span>
+        </div>
+        <div class="bg-zinc-950 p-3.5 rounded-xl border border-zinc-800">
+          <span class="text-emerald-400 font-bold block mb-1">2. Simulate Teams</span>
+          <span class="text-zinc-400 text-[11px] leading-tight block">We evaluate what happens with and without each teammate on the project.</span>
+        </div>
+        <div class="bg-zinc-950 p-3.5 rounded-xl border border-zinc-800">
+          <span class="text-purple-400 font-bold block mb-1">3. Calculate Fair Share</span>
+          <span class="text-zinc-400 text-[11px] leading-tight block">Cooperative game theory determines everyone&apos;s true contribution down to the penny.</span>
+        </div>
+        <div class="bg-zinc-950 p-3.5 rounded-xl border border-zinc-800">
+          <span class="text-amber-400 font-bold block mb-1">4. 1-Click Payout</span>
+          <span class="text-zinc-400 text-[11px] leading-tight block">Maintainer reviews and clicks once to disburse funds directly via PayPal REST API.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pipeline A: Maintainer Pipeline -->
+    <div class="mb-10">
+      <h2 class="text-sm font-bold uppercase tracking-wider text-blue-400 mb-4 font-mono">
+        Pipeline A: Open Source Maintainer Attribution &amp; PayPal Settlement
+      </h2>
+      <div class="grid md:grid-cols-4 gap-4">
+        <div class="bg-[#111215] border border-zinc-800 rounded-xl p-4">
+          <div class="text-xs font-mono text-blue-400 mb-1">01 / Ingestion</div>
+          <h3 class="text-sm font-bold text-white mb-2">AST &amp; Diff Quarantine</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Extracts commits, parses diffs, isolates comments from executable code, and verifies GPG signatures.
+          </p>
+        </div>
+        <div class="bg-[#111215] border border-zinc-800 rounded-xl p-4">
+          <div class="text-xs font-mono text-blue-400 mb-1">02 / Evaluation</div>
+          <h3 class="text-sm font-bold text-white mb-2">Hybrid Scorer</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Blends 30% AST physical signals (tests, cyclomatic branches) with 70% Gemini semantic capability scoring.
+          </p>
+        </div>
+        <div class="bg-[#111215] border border-zinc-800 rounded-xl p-4">
+          <div class="text-xs font-mono text-blue-400 mb-1">03 / Proofs</div>
+          <h3 class="text-sm font-bold text-white mb-2">Axiomatic Audit</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Computes Shapley values, guarantees exact-penny conservation (Hare-Niemeyer), and builds Merkle tree.
+          </p>
+        </div>
+        <div class="bg-[#111215] border border-zinc-800 rounded-xl p-4">
+          <div class="text-xs font-mono text-blue-400 mb-1">04 / Disbursal</div>
+          <h3 class="text-sm font-bold text-white mb-2">PayPal Payouts REST</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Submits signed idempotent batch transfer via PayPal Payouts API. Zero penny rounding leakage.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pipeline B: Agent Swarm Pipeline -->
+    <div>
+      <h2 class="text-sm font-bold uppercase tracking-wider text-emerald-400 mb-4 font-mono">
+        Pipeline B: Autonomous Agent Swarm &amp; MCP Protocol
+      </h2>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="bg-[#111215] border border-zinc-800 rounded-xl p-4">
+          <div class="text-xs font-mono text-emerald-400 mb-1">Layer 1 / Autonomous Orchestration</div>
+          <h3 class="text-sm font-bold text-white mb-2">Multi-Agent Swarm</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Specialized agents collaborate on tasks (Architect, Security Auditor, Test Engineer, Doc Writer).
+          </p>
+        </div>
+        <div class="bg-[#111215] border border-zinc-800 rounded-xl p-4">
+          <div class="text-xs font-mono text-emerald-400 mb-1">Layer 2 / Marginal Pricing</div>
+          <h3 class="text-sm font-bold text-white mb-2">Shapley Pricing Engine</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Each agent&apos;s contribution is priced according to marginal capability increase, preventing freeloader exploitation.
+          </p>
+        </div>
+        <div class="bg-[#111215] border border-zinc-800 rounded-xl p-4">
+          <div class="text-xs font-mono text-emerald-400 mb-1">Layer 3 / Machine Settlement</div>
+          <h3 class="text-sm font-bold text-white mb-2">Programmatic Payouts</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Agents receive micro-disbursals to authenticated PayPal digital wallets upon successful release execution.
+          </p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- VIEW 4: AGENTIC MCP PROTOCOL -->
+  <main id="view-agent" class="hidden max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <div class="pb-5 mb-6 border-b border-zinc-800 flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-white tracking-tight">Model Context Protocol (MCP) Server</h1>
+        <p class="text-xs text-zinc-400 mt-1">Standardized JSON-RPC interface for Claude Code, Cursor, and Autonomous Agent Swarms</p>
+      </div>
+      <button onclick="switchView('results')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors">
+        &larr; Back to Console
+      </button>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-6">
+      <div class="bg-[#111215] border border-zinc-800 rounded-xl p-5">
+        <h2 class="text-sm font-bold text-white mb-2">Configuration (`claude_desktop_config.json`)</h2>
+        <p class="text-xs text-zinc-400 mb-4">Connect any MCP-compliant AI assistant to evaluate repos and disburse bounties:</p>
+        <pre class="bg-zinc-950 p-4 rounded-xl text-xs font-mono text-zinc-300 border border-zinc-800 overflow-x-auto leading-relaxed">{
+  "mcpServers": {
+    "shapley": {
+      "command": "python3",
+      "args": ["-m", "backend.mcp_server"],
+      "env": {
+        "PAYPAL_CLIENT_ID": "...",
+        "PAYPAL_CLIENT_SECRET": "...",
+        "GEMINI_API_KEY": "..."
+      }
+    }
+  }
+}</pre>
+      </div>
+
+      <div class="bg-[#111215] border border-zinc-800 rounded-xl p-5">
+        <h2 class="text-sm font-bold text-white mb-2">Exposed MCP Tool Endpoints</h2>
+        <ul class="space-y-3 text-xs font-mono">
+          <li class="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800">
+            <span class="text-blue-400 font-bold">shapley_evaluate_attribution</span>
+            <span class="block text-zinc-400 text-[11px] font-sans mt-0.5">Calculates Shapley fair share percentages across contributors for a git range.</span>
+          </li>
+          <li class="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800">
+            <span class="text-blue-400 font-bold">shapley_verify_audit_proof</span>
+            <span class="block text-zinc-400 text-[11px] font-sans mt-0.5">Verifies offline cryptographic Merkle audit receipts.</span>
+          </li>
+          <li class="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800">
+            <span class="text-blue-400 font-bold">shapley_execute_payout</span>
+            <span class="block text-zinc-400 text-[11px] font-sans mt-0.5">Executes verified PayPal batch payout with replay protection.</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Team Chat App Webhook Integrator (Slack, Discord, Telegram, WhatsApp) -->
+    <div class="mt-8 bg-[#111215] border border-zinc-800 rounded-xl p-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-zinc-800">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-base">💬</span>
+            <h2 class="text-sm font-bold text-white">Team Chat App Webhook Notifications</h2>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">Live Simulator</span>
+          </div>
+          <p class="text-xs text-zinc-400 mt-0.5">Post real-time milestone standings, fair-share leaderboards, and payout approvals directly into Slack, Discord, Telegram, or WhatsApp.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5">
+          <button onclick="toggleChatPlatform('slack')" id="btn-chat-slack" class="px-2.5 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold font-mono flex items-center gap-1.5 transition-colors">
+            <span>Slack</span>
+          </button>
+          <button onclick="toggleChatPlatform('discord')" id="btn-chat-discord" class="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-semibold font-mono flex items-center gap-1.5 transition-colors">
+            <span>Discord</span>
+          </button>
+          <button onclick="toggleChatPlatform('telegram')" id="btn-chat-telegram" class="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-semibold font-mono flex items-center gap-1.5 transition-colors">
+            <span>✈️ Telegram</span>
+          </button>
+          <button onclick="toggleChatPlatform('whatsapp')" id="btn-chat-whatsapp" class="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-semibold font-mono flex items-center gap-1.5 transition-colors">
+            <span>💬 WhatsApp</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Slack Simulated Card -->
+      <div id="slackPreviewCard" class="bg-zinc-950 border border-zinc-800 rounded-xl p-4 max-w-xl mx-auto space-y-3 font-sans text-xs">
+        <div class="flex items-center gap-2 pb-2 border-b border-zinc-800/80">
+          <div class="w-6 h-6 rounded-md bg-blue-600 text-white flex items-center justify-center font-bold text-xs">&phi;</div>
+          <span class="font-bold text-white">Shapley Bot</span>
+          <span class="text-[10px] text-zinc-500 font-mono">APP 12:42 PM</span>
+        </div>
+        <div class="space-y-2">
+          <h4 class="text-sm font-bold text-blue-400">⚖️ Shapley Milestone Update: pallets/jinja</h4>
+          <div class="grid grid-cols-2 gap-2 text-[11px] font-mono bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
+            <div><span class="text-zinc-500">Active Phase:</span> <span class="text-white font-semibold">Phase 2: Security &amp; AST</span></div>
+            <div><span class="text-zinc-500">Tranche Pool:</span> <span class="text-emerald-400 font-semibold">$2,500.00 USD</span></div>
+            <div><span class="text-zinc-500">Merkle Root:</span> <span class="text-zinc-300">88643cd1b4...</span></div>
+            <div><span class="text-zinc-500">Audit Status:</span> <span class="text-emerald-400">Passed (0 Violations)</span></div>
+          </div>
+          <div class="text-xs space-y-1">
+            <span class="text-zinc-400 font-medium block">Current Team Standings:</span>
+            <div class="text-zinc-300 font-mono text-[11px] space-y-0.5">
+              <div>&bull; <strong>Sara Ahmed</strong>: <strong>42.6%</strong> ($1,065.00) — Security Patch Lead</div>
+              <div>&bull; <strong>Maya Chen</strong>: <strong>38.4%</strong> ($960.00) — AST Parser Architect</div>
+              <div>&bull; <strong>David Park</strong>: <strong>15.0%</strong> ($375.00) 🤖 <em>(Human Pilot / Claude Co-Authored)</em></div>
+              <div>&bull; <strong>Tom Rivera</strong>: <strong>4.0%</strong> ($100.00) — Automated Linter</div>
+            </div>
+          </div>
+          <div class="pt-2 flex flex-wrap gap-2">
+            <button onclick="copySlackJSON()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 transition-colors">
+              <span>💳</span> Copy Slack Block Kit JSON
+            </button>
+            <button onclick="copyAuditJSON()" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-semibold transition-colors">
+              🔍 View Merkle Proof
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Discord Simulated Card -->
+      <div id="discordPreviewCard" class="hidden bg-[#2f3136] border-l-4 border-indigo-500 rounded-r-xl p-4 max-w-xl mx-auto space-y-2 text-xs text-white">
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-sm text-indigo-400">⚖️ Shapley Attribution Update: pallets/jinja</span>
+        </div>
+        <p class="text-[11px] text-zinc-300">Dynamic game-theoretic contributions evaluated with exact-penny conservation.</p>
+        <div class="grid grid-cols-3 gap-2 text-[11px] font-mono py-2">
+          <div><span class="text-zinc-400 block text-[10px]">🎯 Active Phase</span>Phase 2</div>
+          <div><span class="text-zinc-400 block text-[10px]">💰 Tranche Pool</span>$2,500.00</div>
+          <div><span class="text-zinc-400 block text-[10px]">🔒 Merkle Root</span>88643cd1...</div>
+        </div>
+        <div class="pt-2 border-t border-zinc-700 text-[11px] font-mono space-y-1">
+          <span class="text-zinc-400 block text-[10px] uppercase font-sans font-bold">📊 Fair Share Leaderboard</span>
+          <div><strong>Sara Ahmed</strong>: <code>42.6%</code> — <strong>$1,065.00</strong></div>
+          <div><strong>Maya Chen</strong>: <code>38.4%</code> — <strong>$960.00</strong></div>
+          <div><strong>David Park</strong>: <code>15.0%</code> — <strong>$375.00</strong> 🤖 (AI Pilot)</div>
+          <div><strong>Tom Rivera</strong>: <code>4.0%</code> — <strong>$100.00</strong></div>
+        </div>
+        <div class="pt-2">
+          <button onclick="copyDiscordJSON()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 transition-colors">
+            <span>👾</span> Copy Discord Webhook Embed JSON
+          </button>
+        </div>
+      </div>
+
+      <!-- Telegram Simulated Card -->
+      <div id="telegramPreviewCard" class="hidden bg-[#182533] border border-[#2b5278]/60 rounded-xl p-4 max-w-xl mx-auto space-y-3 text-xs text-white shadow-xl">
+        <div class="flex items-center justify-between pb-2 border-b border-[#242f3d]">
+          <div class="flex items-center gap-2">
+            <div class="w-6 h-6 rounded-full bg-sky-500 text-white flex items-center justify-center font-bold text-xs">✈️</div>
+            <div class="flex items-center gap-1.5">
+              <span class="font-bold text-white text-xs">Shapley Protocol Bot</span>
+              <span class="text-[10px] bg-sky-500/20 text-sky-400 px-1.5 py-0.2 rounded font-mono">bot</span>
+            </div>
+          </div>
+          <span class="text-[10px] text-zinc-400 font-mono">12:42 PM</span>
+        </div>
+        <div class="space-y-2 font-sans text-xs">
+          <div class="font-bold text-sky-400 text-sm">⚖️ Shapley Milestone Update: <code class="bg-[#111923] text-zinc-200 px-1 py-0.5 rounded font-mono text-xs">pallets/jinja</code></div>
+          <div class="text-zinc-200 space-y-1">
+            <div>🎯 <strong>Active Phase:</strong> Phase 2: Security &amp; AST</div>
+            <div>💰 <strong>Tranche Pool:</strong> $2,500.00 USD</div>
+            <div>🔒 <strong>Merkle Proof:</strong> <code class="bg-[#111923] text-sky-300 px-1 py-0.5 rounded font-mono text-[11px]">88643cd1b4...</code></div>
+            <div>✅ <strong>Audit:</strong> Passed (Exact-Penny Invariant)</div>
+          </div>
+          <div class="pt-1">
+            <span class="font-bold text-zinc-300 block mb-1">📊 Contributor Fair Shares:</span>
+            <div class="space-y-0.5 font-mono text-[11px] text-zinc-200 bg-[#111923] p-2.5 rounded-lg border border-[#242f3d]">
+              <div>• <strong>Sara Ahmed</strong>: <code class="text-emerald-400">42.6%</code> ($1,065.00)</div>
+              <div>• <strong>Maya Chen</strong>: <code class="text-emerald-400">38.4%</code> ($960.00)</div>
+              <div>• <strong>David Park</strong>: <code class="text-emerald-400">15.0%</code> ($375.00) 🤖 <em>(AI Pilot)</em></div>
+              <div>• <strong>Tom Rivera</strong>: <code class="text-emerald-400">4.0%</code> ($100.00)</div>
+            </div>
+          </div>
+          <p class="text-[10px] text-zinc-400 italic">Disbursed deterministically via PayPal REST Engine</p>
+          
+          <!-- Telegram Inline Keyboard Action Buttons -->
+          <div class="grid grid-cols-2 gap-2 pt-2">
+            <button class="bg-[#2b5278] hover:bg-[#32618d] text-white py-2 px-3 rounded-lg text-xs font-semibold text-center transition-colors shadow-sm">
+              💳 Review &amp; Disburse Batch
+            </button>
+            <button class="bg-[#2b5278] hover:bg-[#32618d] text-white py-2 px-3 rounded-lg text-xs font-semibold text-center transition-colors shadow-sm">
+              🔍 Verify Merkle Root
+            </button>
+          </div>
+          <div class="pt-2">
+            <button onclick="copyTelegramJSON()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 transition-colors">
+              <span>✈️</span> Copy Telegram Bot API JSON
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- WhatsApp Simulated Card -->
+      <div id="whatsappPreviewCard" class="hidden bg-[#0b141a] border border-[#202c33] rounded-xl p-4 max-w-xl mx-auto space-y-3 text-xs text-white shadow-xl">
+        <div class="flex items-center justify-between pb-2 border-b border-[#202c33]">
+          <div class="flex items-center gap-2">
+            <div class="w-6 h-6 rounded-full bg-[#00a884] text-white flex items-center justify-center font-bold text-xs">💬</div>
+            <div class="flex items-center gap-1.5">
+              <span class="font-bold text-white text-xs">WhatsApp Business Cloud</span>
+              <span class="text-[10px] bg-[#00a884]/20 text-[#00a884] px-1.5 py-0.2 rounded font-mono">Verified</span>
+            </div>
+          </div>
+          <span class="text-[10px] text-zinc-400 font-mono">Cloud API v19.0</span>
+        </div>
+
+        <!-- WhatsApp Chat Message Bubble -->
+        <div class="bg-[#1f2c34] rounded-2xl rounded-tl-sm p-3.5 space-y-2 border border-[#2a3942] relative">
+          <div class="font-bold text-[#00a884] text-xs">⚖️ Shapley Milestone: pallets/jinja</div>
+          <div class="text-zinc-200 text-xs space-y-1">
+            <p>Milestone Update for <strong>pallets/jinja</strong> (Phase 2: Security &amp; AST):</p>
+            <p>💰 <strong>Pool:</strong> $2,500.00 USD</p>
+            <p>🔒 <strong>Merkle Root:</strong> <code class="bg-[#111b21] px-1 py-0.5 rounded font-mono text-[11px] text-emerald-300">88643cd1b4...</code></p>
+          </div>
+          <div class="pt-1">
+            <span class="font-semibold text-zinc-300 block mb-0.5">Fair Share Standings:</span>
+            <div class="space-y-0.5 text-zinc-300 font-mono text-[11px]">
+              <div>• Sara Ahmed: 42.6% ($1,065.00)</div>
+              <div>• Maya Chen: 38.4% ($960.00)</div>
+              <div>• David Park: 15.0% ($375.00) 🤖 (AI Pilot)</div>
+              <div>• Tom Rivera: 4.0% ($100.00)</div>
+            </div>
+          </div>
+          <div class="text-[11px] text-emerald-400 pt-0.5">Exact-penny Hare-Niemeyer conservation verified.</div>
+          
+          <div class="flex items-center justify-between text-[10px] text-zinc-400 pt-2 border-t border-[#2a3942]">
+            <span>Shapley Protocol • Automated Settlement</span>
+            <span class="flex items-center gap-1 font-mono">12:42 PM <span class="text-sky-400 font-bold">✓✓</span></span>
+          </div>
+
+          <!-- WhatsApp Interactive Quick Reply Buttons -->
+          <div class="space-y-1.5 pt-2 border-t border-[#2a3942]">
+            <button class="w-full bg-[#202c33] hover:bg-[#2a3942] text-[#00a884] font-semibold py-2 px-3 rounded-lg text-xs text-center border border-[#2a3942] transition-colors flex items-center justify-center gap-1.5">
+              <span>💳</span> Approve Payout
+            </button>
+            <button class="w-full bg-[#202c33] hover:bg-[#2a3942] text-[#00a884] font-semibold py-2 px-3 rounded-lg text-xs text-center border border-[#2a3942] transition-colors flex items-center justify-center gap-1.5">
+              <span>🔍</span> Audit Merkle Root
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-1">
+          <button onclick="copyWhatsAppJSON()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 transition-colors">
+            <span>💬</span> Copy WhatsApp Cloud API JSON
+          </button>
+        </div>
+      </div>
+    </div>
+    </div>
+  </main>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: CONTRIBUTOR FORENSIC INSPECTION (CENTERED, SLEEK)    -->
+  <!-- ============================================================ -->
+  <div id="contributorModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" onclick="closeContributorModal()"></div>
+    
+    <!-- Modal Dialog Content -->
+    <div class="relative bg-[#111215] border border-zinc-700/80 rounded-2xl p-6 max-w-xl w-full shadow-2xl modal-enter max-h-[90vh] overflow-y-auto">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-4 mb-4 border-b border-zinc-800">
+        <div class="flex items-center gap-3">
+          <div id="modalAvatar" class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold font-mono"></div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 id="modalName" class="text-base font-bold text-white"></h2>
+              <span id="modalRoleBadge" class="text-[10px] font-mono px-2 py-0.5 rounded-full border"></span>
+            </div>
+            <p id="modalEmail" class="text-xs font-mono text-zinc-400 mt-0.5"></p>
+          </div>
+        </div>
+        <button onclick="closeContributorModal()" class="text-zinc-400 hover:text-white p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-lg transition-colors">&times;</button>
+      </div>
+
+      <!-- Provenance & Signature Status -->
+      <div id="modalProvenance" class="mb-4 p-3 rounded-xl border text-xs"></div>
+
+      <!-- Physical AST Signals Grid -->
+      <div class="bg-zinc-950 border border-zinc-800 rounded-xl p-4 mb-4">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3 font-mono">Physical AST Code Signals</h3>
+        <div class="grid grid-cols-3 gap-2 text-center text-xs font-mono">
+          <div class="bg-zinc-900/90 p-2.5 rounded-lg border border-zinc-800">
+            <span class="text-zinc-500 block text-[10px] mb-0.5">Lines Modified</span>
+            <span id="modalLines" class="font-bold text-zinc-200 text-sm"></span>
+          </div>
+          <div class="bg-zinc-900/90 p-2.5 rounded-lg border border-zinc-800">
+            <span class="text-zinc-500 block text-[10px] mb-0.5">Tests Added</span>
+            <span id="modalTests" class="font-bold text-emerald-400 text-sm"></span>
+          </div>
+          <div class="bg-zinc-900/90 p-2.5 rounded-lg border border-zinc-800">
+            <span class="text-zinc-500 block text-[10px] mb-0.5">AST Branches</span>
+            <span id="modalBranches" class="font-bold text-blue-400 text-sm"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Marginal Coalition Contributions -->
+      <div class="mb-4">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2 font-mono">Marginal Coalition Contributions &Delta;v</h3>
+        <div id="modalCoalitions" class="space-y-2 text-xs font-mono"></div>
+      </div>
+
+      <!-- Attribution Rationale Box -->
+      <div class="bg-zinc-900/70 border border-zinc-800 rounded-xl p-4 text-xs mb-5">
+        <h3 class="font-semibold text-zinc-200 mb-1">Attribution Rationale:</h3>
+        <p id="modalRationale" class="text-zinc-400 leading-relaxed text-[11px]"></p>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="flex justify-end pt-3 border-t border-zinc-800">
+        <button onclick="closeContributorModal()" class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg transition-colors">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: CRYPTOGRAPHIC MERKLE RECEIPT INSPECTOR               -->
+  <!-- ============================================================ -->
+  <div id="merkleModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" onclick="closeMerkleModal()"></div>
+    <div class="relative bg-[#111215] border border-zinc-700/80 rounded-2xl p-6 max-w-xl w-full shadow-2xl modal-enter">
+      <div class="flex items-center justify-between pb-3 mb-4 border-b border-zinc-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Cryptographic Merkle Audit Proof</h3>
+            <p class="text-[11px] text-zinc-400 font-mono">RFC-6962 SHA-256 Tamper-Evident Ledger</p>
+          </div>
+        </div>
+        <button onclick="closeMerkleModal()" class="text-zinc-400 hover:text-white p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-base transition-colors">&times;</button>
+      </div>
+
+      <div class="space-y-3 text-xs font-mono mb-4">
+        <div class="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800">
+          <span class="text-zinc-500 block text-[10px]">Merkle Root (RFC-6962 SHA-256)</span>
+          <span class="text-emerald-400 font-bold break-all select-all">88643cd1b43fdaec0e1ed417cf98f835d55e389c4555c5a39628d5ff98ef69fc</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800">
+            <span class="text-zinc-500 block text-[10px]">Evaluated Leaves</span>
+            <span class="text-zinc-200 font-bold">16 Coalitions</span>
+          </div>
+          <div class="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800">
+            <span class="text-zinc-500 block text-[10px]">Head Commit SHA</span>
+            <span class="text-zinc-200 font-bold">d8f3a9e (v3.1.2)</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="text-xs text-zinc-400 mb-2">Offline Third-Party Verification Command:</p>
+      <pre class="bg-zinc-950 p-3 rounded-lg text-xs font-mono text-zinc-300 border border-zinc-800 overflow-x-auto mb-4 select-all">python3 verify_audit_proof.py shapley_audit_receipt.json</pre>
+
+      <div class="flex justify-end gap-2">
+        <button onclick="copyAuditJSON()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors">
+          Copy JSON Receipt
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: PAYPAL BATCH EXECUTION                               -->
+  <!-- ============================================================ -->
+  <!-- ============================================================ -->
+  <!-- MODAL: PAYPAL MULTI-STAKEHOLDER ESCROW RELEASE               -->
+  <!-- ============================================================ -->
+  <div id="payoutModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" onclick="closePayoutModal()"></div>
+    <div class="relative bg-[#111215] border border-blue-600/40 rounded-2xl p-6 max-w-xl w-full shadow-2xl modal-enter max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-zinc-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-base shadow-md shadow-blue-600/30">
+            &Pcy;
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              PayPal Custodial Escrow Settlement
+              <span class="text-[10px] font-mono px-2 py-0.2 rounded bg-blue-950 text-blue-300 border border-blue-800">Neutral Escrow</span>
+            </h3>
+            <p class="text-[11px] text-zinc-400 font-mono">Vault ID: ESCROW-PP-JINJA-02 &bull; Delayed Authorization Hold</p>
+          </div>
+        </div>
+        <button onclick="closePayoutModal()" class="text-zinc-400 hover:text-white p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-base transition-colors">&times;</button>
+      </div>
+
+      <!-- Multi-Stakeholder Escrow Triad Status -->
+      <div class="grid grid-cols-3 gap-2 text-xs mb-3 font-mono">
+        <div class="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800">
+          <span class="text-[10px] text-zinc-500 block">Sponsor Deposit</span>
+          <span class="text-emerald-400 font-semibold block text-[11px]">&check; Authorized</span>
+          <span class="text-[10px] text-zinc-400 truncate block">OpenSource Fund</span>
+        </div>
+        <div class="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800">
+          <span class="text-[10px] text-zinc-500 block">Neutral Custodian</span>
+          <span class="text-blue-400 font-semibold block text-[11px]">&check; PayPal In Custody</span>
+          <span class="text-[10px] text-zinc-400 truncate block">Delayed Capture</span>
+        </div>
+        <div class="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800">
+          <span class="text-[10px] text-zinc-500 block">Maintainer Quorum</span>
+          <span class="text-emerald-400 font-semibold block text-[11px]">&check; Merkle Signed</span>
+          <span class="text-[10px] text-zinc-400 truncate block">Pallets Lead</span>
+        </div>
+      </div>
+
+      <!-- Financial Accounting -->
+      <div class="space-y-3 mb-4 text-xs">
+        <div class="bg-zinc-950 p-3 rounded-lg border border-zinc-800 space-y-1.5 font-mono">
+          <div class="flex justify-between text-zinc-400">
+            <span>Escrow Tranche Locked:</span>
+            <span id="modalPoolAmount" class="text-white font-bold">$2,500.00 USD</span>
+          </div>
+          <div class="flex justify-between text-zinc-400">
+            <span>Verified Beneficiaries:</span>
+            <span class="text-white">4 Contributors (Exact-Penny Hare-Niemeyer)</span>
+          </div>
+          <div class="flex justify-between text-zinc-400">
+            <span>PayPal Flat Batch Fee:</span>
+            <span class="text-zinc-300">$1.00 USD ($0.25 &times; 4 items)</span>
+          </div>
+          <div class="flex justify-between text-zinc-400">
+            <span>Stranded Float / Remainder:</span>
+            <span class="text-emerald-400 font-bold">$0.00 USD (Conserved)</span>
+          </div>
+          <div class="flex justify-between pt-1 border-t border-zinc-800 text-emerald-400 font-bold">
+            <span>Total Debited from Escrow:</span>
+            <span id="modalTotalDebited">$2,501.00 USD</span>
+          </div>
+        </div>
+
+        <div class="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800/80 text-[11px] text-zinc-400 space-y-1">
+          <div class="flex items-center justify-between">
+            <span><strong>Dispute Challenge Window:</strong> Active (31h remaining)</span>
+            <span class="text-emerald-400 font-mono text-[10px]">0 Disputes Filed</span>
+          </div>
+          <p class="text-[10px] text-zinc-500">
+            PayPal acts as a neutral fiduciary. Upon confirmation, funds held in the delayed authorization account are disbursed to verified contributor PayPal emails.
+          </p>
+        </div>
+      </div>
+
+      <div id="modalButtons" class="flex gap-2">
+        <button onclick="closePayoutModal()" class="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg transition-colors">
+          Cancel
+        </button>
+        <button onclick="simulatePayoutExecution()" class="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors font-mono shadow-md shadow-emerald-700/30 flex items-center justify-center gap-1.5">
+          <span>🔓</span> Confirm &amp; Release Escrow
+        </button>
+      </div>
+
+      <div id="modalExecuting" class="hidden text-center py-4 space-y-2">
+        <div class="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <p class="text-xs text-zinc-300 font-mono">Releasing funds from PayPal Escrow Hold to verified contributor wallets...</p>
+      </div>
+
+      <div id="modalSuccess" class="hidden text-center py-4 space-y-2">
+        <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto text-sm font-bold">&check;</div>
+        <h4 class="text-sm font-bold text-white">PayPal Escrow Tranche Disbursed!</h4>
+        <p class="text-xs font-mono text-emerald-400">Vault Settlement ID: PAYPAL_ESCROW_RELEASE_8829410</p>
+        <p class="text-[11px] text-zinc-400">Exact-penny funds disbursed to 4 contributors with zero float leakage.</p>
+        <button onclick="closePayoutModal()" class="mt-2 px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs rounded-lg transition-colors">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: BENCHO QUICK COMMAND PALETTE (CMD+K)                  -->
+  <!-- ============================================================ -->
+  <div id="commandPaletteModal" class="fixed inset-0 z-50 flex items-start justify-center pt-24 p-4 hidden">
+    <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" onclick="closeCommandPalette()"></div>
+    <div class="relative bg-[#111215] border border-zinc-700/80 rounded-2xl max-w-xl w-full shadow-2xl modal-enter overflow-hidden font-sans">
+      <div class="flex items-center gap-3 px-4 py-3 border-b border-zinc-800">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-400"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input 
+          id="cmdPaletteInput"
+          type="text" 
+          placeholder="Search actions, contributors, milestones, webhooks..." 
+          class="w-full bg-transparent text-sm text-white placeholder-zinc-500 focus:outline-none font-mono"
+          oninput="filterCommandPalette(this.value)"
+        >
+        <kbd class="text-[10px] font-mono bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-700">ESC</kbd>
+      </div>
+
+      <div id="cmdPaletteResults" class="p-2 max-h-80 overflow-y-auto space-y-1 text-xs">
+        <button onclick="openPayoutModal(); closeCommandPalette();" class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-800 flex items-center justify-between text-zinc-200 transition-colors">
+          <div class="flex items-center gap-2">
+            <span class="text-emerald-400">🔓</span>
+            <span class="font-medium">Authorize PayPal Escrow Release ($2,500.00)</span>
+          </div>
+          <span class="text-[10px] font-mono text-zinc-500">Milestone 2</span>
+        </button>
+
+        <button onclick="openMerkleModal(); closeCommandPalette();" class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-800 flex items-center justify-between text-zinc-200 transition-colors">
+          <div class="flex items-center gap-2">
+            <span class="text-blue-400">🔍</span>
+            <span class="font-medium">Verify Cryptographic Merkle Root</span>
+          </div>
+          <span class="text-[10px] font-mono text-zinc-500">RFC 6962 Proof</span>
+        </button>
+
+        <button onclick="switchView('agent'); toggleChatPlatform('telegram'); closeCommandPalette();" class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-800 flex items-center justify-between text-zinc-200 transition-colors">
+          <div class="flex items-center gap-2">
+            <span>✈️</span>
+            <span class="font-medium">Telegram Bot Webhook Simulator</span>
+          </div>
+          <span class="text-[10px] font-mono text-zinc-500">MCP Tool</span>
+        </button>
+
+        <button onclick="switchView('agent'); toggleChatPlatform('whatsapp'); closeCommandPalette();" class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-800 flex items-center justify-between text-zinc-200 transition-colors">
+          <div class="flex items-center gap-2">
+            <span>💬</span>
+            <span class="font-medium">WhatsApp Cloud API Interactive Message</span>
+          </div>
+          <span class="text-[10px] font-mono text-zinc-500">MCP Tool</span>
+        </button>
+
+        <button onclick="switchView('audit'); switchAuditMode('simple'); closeCommandPalette();" class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-800 flex items-center justify-between text-zinc-200 transition-colors">
+          <div class="flex items-center gap-2">
+            <span>💡</span>
+            <span class="font-medium">Plain English Game Theory Explainer</span>
+          </div>
+          <span class="text-[10px] font-mono text-zinc-500">Nobel Intuition</span>
+        </button>
+
+        <button onclick="switchView('audit'); switchAuditMode('math'); closeCommandPalette();" class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-800 flex items-center justify-between text-zinc-200 transition-colors">
+          <div class="flex items-center gap-2">
+            <span>🔬</span>
+            <span class="font-medium">Axiomatic Math Proofs &amp; Marginal Deltas</span>
+          </div>
+          <span class="text-[10px] font-mono text-zinc-500">16 Coalitions</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: GITHUB ACTION CI/CD WORKFLOW                         -->
+  <!-- ============================================================ -->
+  <div id="actionModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" onclick="closeActionModal()"></div>
+    <div class="relative bg-[#111215] border border-zinc-700/80 rounded-2xl p-6 max-w-xl w-full shadow-2xl modal-enter">
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-zinc-800">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          Automate via GitHub Actions
+        </h3>
+        <button onclick="closeActionModal()" class="text-zinc-400 hover:text-white p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-base transition-colors">&times;</button>
+      </div>
+      <p class="text-xs text-zinc-400 mb-3">
+        Place in <code class="text-blue-300 font-mono">.github/workflows/shapley.yml</code> to disburse upon release tags:
+      </p>
+      <pre class="bg-zinc-950 p-3.5 rounded-lg text-xs font-mono text-zinc-300 border border-zinc-800 overflow-x-auto leading-relaxed mb-4">name: Shapley Release Bounty
+on:
+  release:
+    types: [published]
+
+jobs:
+  distribute:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calculate Shapley Shares & Payout
+        run: |
+          python3 -m backend.cli audit ${{ github.repository }} --total 1000</pre>
+      <div class="flex justify-end gap-2">
+        <button onclick="showToast('Workflow YAML copied to clipboard!'); closeActionModal();" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors">
+          Copy Workflow YAML
+        </button>
+      </div>
+    </div>
+  <!-- ============================================================ -->
+  <!-- MODAL: ANALYZE CUSTOM GITHUB REPOSITORY                     -->
+  <!-- ============================================================ -->
+  <div id="customRepoModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" onclick="closeCustomRepoModal()"></div>
+    <div class="relative bg-[#111215] border border-zinc-700/80 rounded-2xl p-6 max-w-xl w-full shadow-2xl modal-enter">
+      <div class="flex items-center justify-between pb-3 mb-4 border-b border-zinc-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Analyze Any GitHub Repository</h3>
+            <p class="text-[11px] text-zinc-400">Evaluate public or private open source repositories</p>
+          </div>
+        </div>
+        <button onclick="closeCustomRepoModal()" class="text-zinc-400 hover:text-white p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-base transition-colors">&times;</button>
+      </div>
+
+      <div id="customRepoForm" class="space-y-4 text-xs">
+        <div>
+          <label class="block text-zinc-300 font-medium mb-1.5">GitHub Repository URL or owner/repo</label>
+          <input 
+            id="customRepoInput" 
+            type="text" 
+            placeholder="e.g. tiangolo/fastapi, astral-sh/uv, or https://github.com/owner/repo" 
+            class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-zinc-100 placeholder-zinc-500 font-mono text-xs focus:outline-none focus:border-blue-500"
+          >
+        </div>
+
+        <div>
+          <span class="text-zinc-400 block mb-1.5">Popular Test Repositories:</span>
+          <div class="flex flex-wrap gap-1.5">
+            <button onclick="fillCustomRepo('fastapi/fastapi')" class="px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono text-[11px] transition-colors">fastapi/fastapi</button>
+            <button onclick="fillCustomRepo('astral-sh/uv')" class="px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono text-[11px] transition-colors">astral-sh/uv</button>
+            <button onclick="fillCustomRepo('encode/httpx')" class="px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono text-[11px] transition-colors">encode/httpx</button>
+            <button onclick="fillCustomRepo('tiangolo/sqlmodel')" class="px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono text-[11px] transition-colors">tiangolo/sqlmodel</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-zinc-300 font-medium mb-1.5">Bounty Pool (USD)</label>
+            <input 
+              id="customPoolInput" 
+              type="number" 
+              value="2500" 
+              class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-zinc-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+            >
+          </div>
+          <div>
+            <label class="block text-zinc-300 font-medium mb-1.5">Commit Scope / Tag</label>
+            <input 
+              id="customScopeInput" 
+              type="text" 
+              value="v0.1.0...HEAD" 
+              class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-zinc-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+            >
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-zinc-800 flex justify-end gap-2">
+          <button onclick="closeCustomRepoModal()" class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg transition-colors">
+            Cancel
+          </button>
+          <button onclick="startCustomAnalysis()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5">
+            <span>🚀</span> Start AI Attribution Analysis
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Loading Simulation Screen -->
+      <div id="customRepoLoading" class="hidden py-6 text-center space-y-4">
+        <div class="w-9 h-9 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <div>
+          <h4 class="text-sm font-bold text-white mb-1" id="loadingStageTitle">Analyzing Repository Graph...</h4>
+          <p class="text-xs font-mono text-zinc-400" id="loadingStageDetail">Fetching git commit history and parsing AST diffs...</p>
+        </div>
+        <div class="max-w-xs mx-auto bg-zinc-950 p-3 rounded-lg border border-zinc-800 text-[11px] font-mono text-zinc-400 space-y-1.5 text-left">
+          <div id="cstep1" class="text-blue-400">&bull; [1/4] Cloning git commit tree...</div>
+          <div id="cstep2" class="text-zinc-600">&bull; [2/4] AST quarantine: Isolating logic diffs...</div>
+          <div id="cstep3" class="text-zinc-600">&bull; [3/4] Gemini scoring 16 coalition subsets...</div>
+          <div id="cstep4" class="text-zinc-600">&bull; [4/4] Calculating exact-penny Shapley split...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- Client-Side State Machine & Interactions                     -->
+  <!-- ============================================================ -->
+  <script>
+    // ============================================================
+    // APPLICATION STATE: MILESTONES, REPOS & MODES
+    // ============================================================
+    let currentAppMode = "demo"; // "demo" or "live"
+    let currentMilestoneId = "phase2";
+    
+    const MILESTONES_DATA = {
+      phase1: {
+        id: "phase1",
+        name: "Phase 1: Core AST Engine",
+        status: "SETTLED",
+        poolUsd: 1000.0,
+        commitsCount: 30,
+        merkleRoot: "88643cd1b43fdaec0e1ed417cf98f835d55e389c4555c5a39628d5ff98ef69fc",
+        shares: { maya: 47.0, sara: 31.6, david: 16.0, tom: 5.4 },
+        payouts: { maya: 470.00, sara: 316.00, david: 160.00, tom: 54.00 }
+      },
+      phase2: {
+        id: "phase2",
+        name: "Phase 2: Security Hardening & Concurrency",
+        status: "ACTIVE",
+        poolUsd: 2500.0,
+        commitsCount: 42,
+        merkleRoot: "3c98af010e92fa17cb756a11e405d55e389c4555c5a39628d5ff98ef69fc12ab",
+        shares: { sara: 42.6, maya: 38.4, david: 15.0, tom: 4.0 },
+        payouts: { sara: 1065.00, maya: 960.00, david: 375.00, tom: 100.00 }
+      },
+      phase3: {
+        id: "phase3",
+        name: "Phase 3: Production Scale & MCP Swarms",
+        status: "UPCOMING",
+        poolUsd: 5000.0,
+        commitsCount: 65,
+        merkleRoot: "Pending Ingestion",
+        shares: { maya: 40.0, sara: 35.0, david: 20.0, tom: 5.0 },
+        payouts: { maya: 2000.00, sara: 1750.00, david: 1000.00, tom: 250.00 }
+      }
+    };
+
+    function setAppMode(mode) {
+      currentAppMode = mode;
+      const demoBtn = document.getElementById("btn-mode-demo");
+      const liveBtn = document.getElementById("btn-mode-live");
+      const mobDemoBtn = document.getElementById("mob-btn-demo");
+      const mobLiveBtn = document.getElementById("mob-btn-live");
+      const liveOpsPanel = document.getElementById("liveOpsPanel");
+      const trackingBadge = document.getElementById("trackingBadge");
+
+      if (mode === "live") {
+        if (demoBtn) demoBtn.className = "px-2.5 py-1 rounded-md text-zinc-400 hover:text-zinc-200 transition-all flex items-center gap-1";
+        if (liveBtn) liveBtn.className = "px-2.5 py-1 rounded-md text-white bg-emerald-600 font-semibold transition-all flex items-center gap-1 shadow-sm";
+        if (mobDemoBtn) mobDemoBtn.className = "px-2 py-0.5 rounded text-zinc-400";
+        if (mobLiveBtn) mobLiveBtn.className = "px-2 py-0.5 rounded text-white bg-emerald-600 font-semibold";
+        if (liveOpsPanel) liveOpsPanel.classList.remove("hidden");
+        if (trackingBadge) {
+          trackingBadge.innerText = "Production Webhook Active";
+          trackingBadge.className = "text-emerald-400 font-semibold";
+        }
+        showToast("Switched to Live Production Ops Mode — Uncluttered, Active Repo Tracking");
+      } else {
+        if (demoBtn) demoBtn.className = "px-2.5 py-1 rounded-md text-white bg-blue-600 font-semibold transition-all flex items-center gap-1";
+        if (liveBtn) liveBtn.className = "px-2.5 py-1 rounded-md text-zinc-400 hover:text-zinc-200 transition-all flex items-center gap-1";
+        if (mobDemoBtn) mobDemoBtn.className = "px-2 py-0.5 rounded text-white bg-blue-600 font-semibold";
+        if (mobLiveBtn) mobLiveBtn.className = "px-2 py-0.5 rounded text-zinc-400";
+        if (liveOpsPanel) liveOpsPanel.classList.add("hidden");
+        if (trackingBadge) {
+          trackingBadge.innerText = "Sandbox Active";
+          trackingBadge.className = "text-blue-400 font-semibold";
+        }
+        showToast("Switched to Demo Sandbox Mode");
+      }
+    }
+
+    function setMilestone(phaseId) {
+      currentMilestoneId = phaseId;
+      const m = MILESTONES_DATA[phaseId];
+      if (!m) return;
+
+      // Update Card Styling
+      ["phase1", "phase2", "phase3"].forEach(id => {
+        const card = document.getElementById(`mcard-${id}`);
+        if (!card) return;
+        if (id === phaseId) {
+          card.className = "text-left p-3 rounded-lg border transition-all bg-blue-950/40 border-blue-500 shadow-md";
+        } else {
+          card.className = "text-left p-3 rounded-lg border transition-all bg-zinc-900/40 border-zinc-800 hover:border-zinc-700";
+        }
+      });
+
+      // Update Active Tranche Badge
+      const trancheBadge = document.getElementById("activeTrancheBadge");
+      if (trancheBadge) trancheBadge.innerText = `$${m.poolUsd.toLocaleString('en-US', {minimumFractionDigits: 2})} USD (${m.status})`;
+
+      // Update Slider Value
+      const slider = document.getElementById("bountySlider");
+      if (slider) {
+        slider.value = m.poolUsd;
+        updateDemoSlider(m.poolUsd);
+      }
+
+      // Update Comparison Bars percentages
+      if (m.shares.maya !== undefined) {
+        document.getElementById("bar-maya-pct").innerText = `${m.shares.maya.toFixed(1)}%`;
+        document.getElementById("bar-maya-fill").style.width = `${m.shares.maya}%`;
+      }
+      if (m.shares.sara !== undefined) {
+        document.getElementById("bar-sara-pct").innerText = `${m.shares.sara.toFixed(1)}%`;
+        document.getElementById("bar-sara-fill").style.width = `${m.shares.sara}%`;
+      }
+      if (m.shares.david !== undefined) {
+        document.getElementById("bar-david-pct").innerText = `${m.shares.david.toFixed(1)}%`;
+        document.getElementById("bar-david-fill").style.width = `${m.shares.david}%`;
+      }
+      if (m.shares.tom !== undefined) {
+        document.getElementById("bar-tom-pct").innerText = `${m.shares.tom.toFixed(1)}%`;
+        document.getElementById("bar-tom-fill").style.width = `${m.shares.tom}%`;
+      }
+
+      // Update Stats Summary
+      const summary = document.getElementById("repoStatsSummary");
+      if (summary) summary.innerText = `${m.commitsCount} Commits • 16 Coalitions • ${m.name}`;
+
+      showToast(`Loaded ${m.name}: $${m.poolUsd} USD pool`);
+    }
+
+    function toggleChatPlatform(plat) {
+      const sCard = document.getElementById("slackPreviewCard");
+      const dCard = document.getElementById("discordPreviewCard");
+      const tCard = document.getElementById("telegramPreviewCard");
+      const wCard = document.getElementById("whatsappPreviewCard");
+      const sBtn = document.getElementById("btn-chat-slack");
+      const dBtn = document.getElementById("btn-chat-discord");
+      const tBtn = document.getElementById("btn-chat-telegram");
+      const wBtn = document.getElementById("btn-chat-whatsapp");
+
+      [sCard, dCard, tCard, wCard].forEach(c => c && c.classList.add("hidden"));
+      [sBtn, dBtn, tBtn, wBtn].forEach(b => {
+        if (b) b.className = "px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-semibold font-mono flex items-center gap-1.5 transition-colors";
+      });
+
+      if (plat === "discord") {
+        if (dCard) dCard.classList.remove("hidden");
+        if (dBtn) dBtn.className = "px-2.5 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold font-mono flex items-center gap-1.5 shadow-md shadow-indigo-900/30";
+      } else if (plat === "telegram") {
+        if (tCard) tCard.classList.remove("hidden");
+        if (tBtn) tBtn.className = "px-2.5 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-semibold font-mono flex items-center gap-1.5 shadow-md shadow-sky-900/30";
+      } else if (plat === "whatsapp") {
+        if (wCard) wCard.classList.remove("hidden");
+        if (wBtn) wBtn.className = "px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold font-mono flex items-center gap-1.5 shadow-md shadow-emerald-900/30";
+      } else {
+        if (sCard) sCard.classList.remove("hidden");
+        if (sBtn) sBtn.className = "px-2.5 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold font-mono flex items-center gap-1.5 shadow-md shadow-blue-900/30";
+      }
+    }
+
+    function copySlackJSON() {
+      const payload = {
+        "text": "Shapley Milestone Update: pallets/jinja (Phase 2)",
+        "blocks": [
+          {"type": "header", "text": {"type": "plain_text", "text": "⚖️ Shapley Milestone Update: pallets/jinja"}},
+          {"type": "section", "fields": [
+            {"type": "mrkdwn", "text": "*Active Phase:*\nPhase 2: Security & AST"},
+            {"type": "mrkdwn", "text": "*Tranche Pool:*\n$2,500.00 USD"}
+          ]},
+          {"type": "actions", "elements": [
+            {"type": "button", "text": {"type": "plain_text", "text": "💳 Review & Disburse Batch"}, "style": "primary", "url": "https://shapley.onrender.com/results"}
+          ]}
+        ]
+      };
+      navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+      showToast("Slack Block Kit JSON copied to clipboard!");
+    }
+
+    function copyDiscordJSON() {
+      const payload = {
+        "embeds": [{
+          "title": "⚖️ Shapley Attribution Update: pallets/jinja",
+          "description": "Dynamic game-theoretic contributions evaluated with exact-penny conservation.",
+          "color": 3447003,
+          "fields": [
+            {"name": "🎯 Active Phase", "value": "Phase 2: Security & AST", "inline": true},
+            {"name": "💰 Tranche Pool", "value": "$2,500.00 USD", "inline": true}
+          ]
+        }]
+      };
+      navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+      showToast("Discord Webhook Embed JSON copied to clipboard!");
+    }
+
+    function copyTelegramJSON() {
+      const payload = {
+        "chat_id": "@shapley_updates",
+        "text": "<b>⚖️ Shapley Milestone Update: <code>pallets/jinja</code></b>\n\n🎯 <b>Active Phase:</b> Phase 2: Security & AST\n💰 <b>Tranche Pool:</b> $2,500.00 USD\n🔒 <b>Merkle Proof:</b> <code>88643cd1b4...</code>\n✅ <b>Audit:</b> Passed (Exact-Penny Invariant)\n\n📊 <b>Contributor Fair Shares:</b>\n• <b>Sara Ahmed</b>: <code>42.6%</code> ($1,065.00)\n• <b>Maya Chen</b>: <code>38.4%</code> ($960.00)\n• <b>David Park</b>: <code>15.0%</code> ($375.00) 🤖 <i>(AI Pilot)</i>\n• <b>Tom Rivera</b>: <code>4.0%</code> ($100.00)\n\n<i>Disbursed deterministically via PayPal REST Engine</i>",
+        "parse_mode": "HTML",
+        "disable_web_page_preview": false,
+        "reply_markup": {
+          "inline_keyboard": [
+            [
+              {"text": "💳 Review & Disburse Batch", "url": "https://shapley.onrender.com/results?demo=true"},
+              {"text": "🔍 Verify Merkle Root", "url": "https://shapley.onrender.com/results?demo=true&view=audit"}
+            ]
+          ]
+        }
+      };
+      navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+      showToast("Telegram Bot API payload copied to clipboard!");
+    }
+
+    function copyWhatsAppJSON() {
+      const payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": "+1234567890",
+        "type": "interactive",
+        "interactive": {
+          "type": "button",
+          "header": {
+            "type": "text",
+            "text": "⚖️ Shapley Milestone: pallets/jinja"
+          },
+          "body": {
+            "text": "Milestone Update for *pallets/jinja* (Phase 2: Security & AST):\n\n💰 *Pool:* $2,500.00 USD\n🔒 *Merkle Root:* `88643cd1b4...`\n\n*Fair Share Standings:*\n• Sara Ahmed: 42.6% ($1,065.00)\n• Maya Chen: 38.4% ($960.00)\n• David Park: 15.0% ($375.00) 🤖 (AI Pilot)\n• Tom Rivera: 4.0% ($100.00)\n\nExact-penny Hare-Niemeyer conservation verified."
+          },
+          "footer": {
+            "text": "Shapley Protocol • Automated Settlement"
+          },
+          "action": {
+            "buttons": [
+              {
+                "type": "reply",
+                "reply": {
+                  "id": "btn_approve_payout",
+                  "title": "💳 Approve Payout"
+                }
+              },
+              {
+                "type": "reply",
+                "reply": {
+                  "id": "btn_verify_audit",
+                  "title": "🔍 Audit Merkle"
+                }
+              }
+            ]
+          }
+        }
+      };
+      navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+      showToast("WhatsApp Cloud API JSON copied to clipboard!");
+    }
+
+    const CONTRIBUTORS_DATA = {
+      maya: {
+        name: "Maya Chen",
+        email: "maya.chen@jinja-dev.org",
+        role: "Core AST Parser Rewrite",
+        avatarBg: "bg-purple-500/20 text-purple-400",
+        roleBadge: "bg-purple-950/60 text-purple-300 border-purple-800",
+        signature: { status: "verified", text: "GPG Verified (Key 0x4A1F82B3)" },
+        lines: "+580 / -120",
+        testsAdded: "14 test cases",
+        branches: "12 branches",
+        coalitionMarginals: [
+          { coalition: "v({Maya}) - v(&empty;)", delta: "+72.0", note: "Foundational AST architecture" },
+          { coalition: "v({Sara, Maya}) - v({Sara})", delta: "+27.0", note: "Pairs with memory leak patch" },
+          { coalition: "v({David, Maya}) - v({David})", delta: "+43.0", note: "Enables utility test suite" },
+          { coalition: "v({All 4}) - v({Sara, David, Tom})", delta: "+30.0", note: "Grand coalition anchor" }
+        ],
+        rationale: "Maya wrote the foundational AST parser rewrite. Without her work, other components had nothing to attach to. Shapley awards her 47.0% ($470.00) vs 18% under naive LOC."
+      },
+      sara: {
+        name: "Sara Ahmed",
+        email: "sara.sec@gmail.com",
+        role: "Security Patch & CVE Memory Leak Fix",
+        avatarBg: "bg-emerald-500/20 text-emerald-400",
+        roleBadge: "bg-emerald-950/60 text-emerald-300 border-emerald-800",
+        signature: { status: "verified", text: "SSH Key Verified (Ed25519)" },
+        lines: "+195 / -85",
+        testsAdded: "6 regression tests",
+        branches: "8 branches",
+        coalitionMarginals: [
+          { coalition: "v({Sara}) - v(&empty;)", delta: "+58.0", note: "High-leverage memory vulnerability patch" },
+          { coalition: "v({Maya, Sara}) - v({Maya})", delta: "+13.0", note: "Secures core parser rewrite" },
+          { coalition: "v({David, Sara}) - v({David})", delta: "+27.0", note: "Protects utility suite from leaks" }
+        ],
+        rationale: "Sara's diff was only 280 lines (+195 / -85), which naive LOC severely penalizes at 7.0%. However, her patch fixed a critical CVE memory leak. Shapley correctly allocates 31.6% ($316.00)."
+      },
+      david: {
+        name: "David Park",
+        email: "dpark.qa@corp.net",
+        role: "Test Suite & E2E Testing Infrastructure",
+        avatarBg: "bg-blue-500/20 text-blue-400",
+        roleBadge: "bg-blue-950/60 text-blue-300 border-blue-800",
+        signature: { status: "verified", text: "GPG Verified (Key 0x9B2C44F1)" },
+        lines: "+420 / -90",
+        testsAdded: "32 unit tests",
+        branches: "4 branches",
+        coalitionMarginals: [
+          { coalition: "v({David}) - v(&empty;)", delta: "+35.0", note: "Unit testing foundation" },
+          { coalition: "v({Maya, David}) - v({Maya})", delta: "+6.0", note: "Validates AST parser" },
+          { coalition: "v({Sara, David}) - v({Sara})", delta: "+4.0", note: "Tests CVE boundaries" }
+        ],
+        rationale: "David built extensive end-to-end tests (+420 lines). Shapley balances his test volume against core logic rewrites, settling at 16.0% ($160.00)."
+      },
+      tom: {
+        name: "Tom Rivera",
+        email: "tom.rivera@dev.io",
+        role: "Linter & Whitespace Formatting Touchup",
+        avatarBg: "bg-amber-500/20 text-amber-400",
+        roleBadge: "bg-amber-950/60 text-amber-300 border-amber-800",
+        signature: { status: "unsigned", text: "Unsigned Commit (No GPG Signature)" },
+        lines: "+2,400 / -1,800",
+        testsAdded: "0 tests",
+        branches: "0 branches",
+        coalitionMarginals: [
+          { coalition: "v({Tom}) - v(&empty;)", delta: "+12.0", note: "Documentation touchup" },
+          { coalition: "v({Maya, Tom}) - v({Maya})", delta: "+2.0", note: "Formatting touchup on parser" },
+          { coalition: "v({Sara, Tom}) - v({Sara})", delta: "+2.0", note: "Formatting touchup on security patch" }
+        ],
+        rationale: "Tom modified 2,400 lines by running Prettier linter formatting. Under naive LOC metrics, Tom would capture 50% ($500). Shapley AST quarantine recognized zero semantic or branching logic, allocating an appropriate 5.4% ($54.00)."
+      }
+    };
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').innerText = msg;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2500);
+    }
+
+    function switchView(viewName) {
+      const views = ['results', 'audit', 'workflows', 'agent'];
+      views.forEach(v => {
+        const el = document.getElementById('view-' + v);
+        const tab = document.getElementById('tab-' + v);
+        if (el) el.classList.add('hidden');
+        if (tab) {
+          tab.className = 'px-3 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 transition-all flex items-center gap-1.5 font-normal';
+        }
+      });
+
+      const activeEl = document.getElementById('view-' + viewName);
+      const activeTab = document.getElementById('tab-' + viewName);
+      if (activeEl) activeEl.classList.remove('hidden');
+      if (activeTab) {
+        activeTab.className = 'px-3 py-1.5 rounded-lg text-white bg-zinc-800 shadow-sm transition-all flex items-center gap-1.5 font-semibold';
+      }
+    }
+
+    function switchAuditMode(mode) {
+      const simpleDiv = document.getElementById('audit-simple');
+      const mathDiv = document.getElementById('audit-math');
+      const btnSimple = document.getElementById('btn-audit-simple');
+      const btnMath = document.getElementById('btn-audit-math');
+
+      if (mode === 'simple') {
+        simpleDiv.classList.remove('hidden');
+        mathDiv.classList.add('hidden');
+        btnSimple.className = 'px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold transition-all flex items-center gap-1.5 shadow-sm';
+        btnMath.className = 'px-3 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 font-medium transition-all flex items-center gap-1.5';
+      } else {
+        simpleDiv.classList.add('hidden');
+        mathDiv.classList.remove('hidden');
+        btnMath.className = 'px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold transition-all flex items-center gap-1.5 shadow-sm';
+        btnSimple.className = 'px-3 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 font-medium transition-all flex items-center gap-1.5';
+      }
+    }
+
+    function updateDemoSlider(val) {
+      const amount = parseFloat(val);
+      const formatted = '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (document.getElementById('sliderValue')) document.getElementById('sliderValue').innerText = formatted + ' USD';
+      if (document.getElementById('metricTotal')) document.getElementById('metricTotal').innerText = formatted + ' USD';
+      if (document.getElementById('payout-total')) document.getElementById('payout-total').innerText = formatted;
+      if (document.getElementById('modalPoolAmount')) document.getElementById('modalPoolAmount').innerText = formatted + ' USD';
+      if (document.getElementById('modalTotalDebited')) document.getElementById('modalTotalDebited').innerText = '$' + (amount + 1.00).toFixed(2) + ' USD';
+
+      const maya = (amount * 0.470).toFixed(2);
+      const sara = (amount * 0.316).toFixed(2);
+      const david = (amount * 0.160).toFixed(2);
+      const tom = (amount * 0.054).toFixed(2);
+
+      if (document.getElementById('payout-maya')) document.getElementById('payout-maya').innerText = '$' + Number(maya).toLocaleString('en-US', { minimumFractionDigits: 2 });
+      if (document.getElementById('payout-sara')) document.getElementById('payout-sara').innerText = '$' + Number(sara).toLocaleString('en-US', { minimumFractionDigits: 2 });
+      if (document.getElementById('payout-david')) document.getElementById('payout-david').innerText = '$' + Number(david).toLocaleString('en-US', { minimumFractionDigits: 2 });
+      if (document.getElementById('payout-tom')) document.getElementById('payout-tom').innerText = '$' + Number(tom).toLocaleString('en-US', { minimumFractionDigits: 2 });
+    }
+
+    function openContributorModal(id) {
+      const data = CONTRIBUTORS_DATA[id];
+      if (!data) return;
+
+      const avatar = document.getElementById('modalAvatar');
+      avatar.className = `w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold font-mono ${data.avatarBg}`;
+      avatar.innerText = data.name.charAt(0);
+
+      document.getElementById('modalName').innerText = data.name;
+      document.getElementById('modalEmail').innerText = data.email;
+
+      const badge = document.getElementById('modalRoleBadge');
+      badge.className = `text-[10px] font-mono px-2 py-0.5 rounded-full border ${data.roleBadge}`;
+      badge.innerText = data.role;
+
+      const prov = document.getElementById('modalProvenance');
+      if (data.signature.status === 'verified') {
+        prov.className = 'mb-4 p-3 rounded-xl border bg-emerald-950/40 border-emerald-800/80 text-emerald-300 text-xs flex items-center justify-between';
+        prov.innerHTML = `<span><strong>Signature:</strong> ${data.signature.text}</span><span class="bg-emerald-900/60 px-2 py-0.5 rounded text-[10px] font-mono">&check; Authentic</span>`;
+      } else {
+        prov.className = 'mb-4 p-3 rounded-xl border bg-amber-950/40 border-amber-800/80 text-amber-300 text-xs flex items-center justify-between';
+        prov.innerHTML = `<span><strong>Signature:</strong> ${data.signature.text}</span><span class="bg-amber-900/60 px-2 py-0.5 rounded text-[10px] font-mono">Unverified</span>`;
+      }
+
+      document.getElementById('modalLines').innerText = data.lines;
+      document.getElementById('modalTests').innerText = data.testsAdded;
+      document.getElementById('modalBranches').innerText = data.branches;
+
+      const coalitionsContainer = document.getElementById('modalCoalitions');
+      coalitionsContainer.innerHTML = '';
+      data.coalitionMarginals.forEach(cm => {
+        const row = document.createElement('div');
+        row.className = 'bg-zinc-950 p-2.5 rounded-lg border border-zinc-800 flex justify-between items-center';
+        row.innerHTML = `<div><span class="text-zinc-300 font-semibold block">${cm.coalition}</span><span class="text-zinc-500 text-[10px] font-sans">${cm.note}</span></div><span class="text-emerald-400 font-bold">${cm.delta}</span>`;
+        coalitionsContainer.appendChild(row);
+      });
+
+      document.getElementById('modalRationale').innerText = data.rationale;
+
+      document.getElementById('contributorModal').classList.remove('hidden');
+    }
+
+    function closeContributorModal() {
+      document.getElementById('contributorModal').classList.add('hidden');
+    }
+
+    function openMerkleModal() {
+      document.getElementById('merkleModal').classList.remove('hidden');
+    }
+    function closeMerkleModal() {
+      document.getElementById('merkleModal').classList.add('hidden');
+    }
+
+    function openActionModal() {
+      document.getElementById('actionModal').classList.remove('hidden');
+    }
+    function closeActionModal() {
+      document.getElementById('actionModal').classList.add('hidden');
+    }
+
+    function openPayoutModal() {
+      document.getElementById('payoutModal').classList.remove('hidden');
+      document.getElementById('modalButtons').classList.remove('hidden');
+      document.getElementById('modalExecuting').classList.add('hidden');
+      document.getElementById('modalSuccess').classList.add('hidden');
+    }
+    function closePayoutModal() {
+      document.getElementById('payoutModal').classList.add('hidden');
+    }
+
+    function simulatePayoutExecution() {
+      document.getElementById('modalButtons').classList.add('hidden');
+      document.getElementById('modalExecuting').classList.remove('hidden');
+      setTimeout(() => {
+        document.getElementById('modalExecuting').classList.add('hidden');
+        document.getElementById('modalSuccess').classList.remove('hidden');
+      }, 1000);
+    }
+
+    function handleRepoSelect(val) {
+      if (val === 'custom') {
+        openCustomRepoModal();
+      } else {
+        switchRepoPreset(val);
+      }
+    }
+
+    function openCustomRepoModal() {
+      document.getElementById('customRepoModal').classList.remove('hidden');
+      document.getElementById('customRepoForm').classList.remove('hidden');
+      document.getElementById('customRepoLoading').classList.add('hidden');
+    }
+
+    function closeCustomRepoModal() {
+      document.getElementById('customRepoModal').classList.add('hidden');
+    }
+
+    function fillCustomRepo(name) {
+      document.getElementById('customRepoInput').value = name;
+    }
+
+    function switchRepoPreset(val) {
+      showToast('Switched repository context to ' + val);
+    }
+
+    function startCustomAnalysis() {
+      const input = document.getElementById('customRepoInput').value.trim() || 'fastapi/fastapi';
+      const cleanRepo = input.replace('https://github.com/', '').replace(/\/$/, '');
+      const poolAmount = parseFloat(document.getElementById('customPoolInput').value) || 2500;
+
+      // Switch to loading animation
+      document.getElementById('customRepoForm').classList.add('hidden');
+      document.getElementById('customRepoLoading').classList.remove('hidden');
+
+      const s1 = document.getElementById('cstep1');
+      const s2 = document.getElementById('cstep2');
+      const s3 = document.getElementById('cstep3');
+      const s4 = document.getElementById('cstep4');
+
+      s1.className = 'text-blue-400 font-semibold';
+      s2.className = 'text-zinc-600';
+      s3.className = 'text-zinc-600';
+      s4.className = 'text-zinc-600';
+
+      setTimeout(() => {
+        s1.className = 'text-emerald-400 font-semibold';
+        s2.className = 'text-blue-400 font-semibold';
+        document.getElementById('loadingStageTitle').innerText = 'AST Diff Isolation & Sandbox Quarantine...';
+        document.getElementById('loadingStageDetail').innerText = 'Verifying 0 prompt injection vectors in commit diffs...';
+      }, 500);
+
+      setTimeout(() => {
+        s2.className = 'text-emerald-400 font-semibold';
+        s3.className = 'text-blue-400 font-semibold';
+        document.getElementById('loadingStageTitle').innerText = 'Gemini Scoring Coalition Subsets...';
+        document.getElementById('loadingStageDetail').innerText = 'Evaluating capability jumps across 16 combinations...';
+      }, 1000);
+
+      setTimeout(() => {
+        s3.className = 'text-emerald-400 font-semibold';
+        s4.className = 'text-blue-400 font-semibold';
+        document.getElementById('loadingStageTitle').innerText = 'Solving Exact-Penny Shapley Shares...';
+        document.getElementById('loadingStageDetail').innerText = 'Verifying Hare-Niemeyer conservation and Merkle root...';
+      }, 1500);
+
+      setTimeout(() => {
+        closeCustomRepoModal();
+
+        // Update selector
+        const selector = document.getElementById('repoSelector');
+        let exists = false;
+        for (let i = 0; i < selector.options.length; i++) {
+          if (selector.options[i].value === cleanRepo) {
+            selector.selectedIndex = i;
+            exists = true;
+            break;
+          }
+        }
+        if (!exists) {
+          const opt = document.createElement('option');
+          opt.value = cleanRepo;
+          opt.innerText = `${cleanRepo} (Active Analysis)`;
+          selector.insertBefore(opt, selector.options[selector.options.length - 1]);
+          selector.value = cleanRepo;
+        }
+
+        // Update Slider
+        const slider = document.getElementById('bountySlider');
+        if (slider) {
+          slider.value = poolAmount;
+          updateDemoSlider(poolAmount);
+        }
+
+        document.getElementById('repoStatsSummary').innerText = `42 Commits • 16 Coalitions • Scope: ${cleanRepo}`;
+        showToast(`Analysis Complete: Successfully evaluated ${cleanRepo}!`);
+      }, 2000);
+    }
+
+    function copyPRMarkdown() {
+      const slider = document.getElementById('bountySlider');
+      const amount = slider ? parseFloat(slider.value) : 1000;
+      const maya = (amount * 0.470).toFixed(2);
+      const sara = (amount * 0.316).toFixed(2);
+      const david = (amount * 0.160).toFixed(2);
+      const tom = (amount * 0.054).toFixed(2);
+
+      const md = `### ⚖️ Shapley Fair Revenue Distribution
+**Repository:** \`pallets/jinja\` | **Bounty Pool:** $${amount.toFixed(2)} USD | **Axiomatic Audit:** Passed (100% Efficiency, 0 Monotonicity Violations)
+**Merkle Root:** \`88643cd1b43fdaec0e1ed417cf98f835d55e389c4555c5a39628d5ff98ef69fc\`
+
+| Contributor | Focus / Impact | Fair Share % | Calculated Payout | Provenance |
+| :--- | :--- | :---: | :---: | :---: |
+| **Maya Chen** | Core AST Parser Rewrite | **47.0%** | **$${maya}** | GPG Verified |
+| **Sara Ahmed** | Security Patch & CVE Fix | **31.6%** | **$${sara}** | SSH Verified |
+| **David Park** | Test Suite & E2E Testing | **16.0%** | **$${david}** | GPG Verified |
+| **Tom Rivera** | Linter & Formatting | **5.4%** | **$${tom}** | Unsigned |
+
+> *Settlement verified using Hare-Niemeyer exact-penny conservation. Disbursed via PayPal Payouts REST API.*`;
+
+      navigator.clipboard.writeText(md);
+      showToast('GitHub PR Markdown table copied!');
+    }
+
+    function copyPayoutJSON() {
+      const demoShares = {
+        repo: "pallets/jinja",
+        total_payout_usd: 1000.0,
+        shares: [
+          { name: "Maya Chen", share_pct: 47.0, payout_usd: 470.0, email: "maya.chen@jinja-dev.org", signature: "verified" },
+          { name: "Sara Ahmed", share_pct: 31.6, payout_usd: 316.0, email: "sara.sec@gmail.com", signature: "verified" },
+          { name: "David Park", share_pct: 16.0, payout_usd: 160.0, email: "dpark.qa@corp.net", signature: "verified" },
+          { name: "Tom Rivera", share_pct: 5.4, payout_usd: 54.0, email: "tom.rivera@dev.io", signature: "unsigned" }
+        ]
+      };
+      navigator.clipboard.writeText(JSON.stringify(demoShares, null, 2));
+      showToast('Payout JSON copied to clipboard!');
+    }
+
+    function copyAuditJSON() {
+      const audit = {
+        repo: "pallets/jinja",
+        commit_head: "d8f3a9e",
+        merkle_root: "88643cd1b43fdaec0e1ed417cf98f835d55e389c4555c5a39628d5ff98ef69fc",
+        coalitions_evaluated: 16,
+        efficiency_sum_pct: 100.0,
+        monotonicity_violations: 0,
+        method: "exact_all_coalitions"
+      };
+      navigator.clipboard.writeText(JSON.stringify(audit, null, 2));
+      showToast('Audit JSON copied to clipboard!');
+    }
+
+    // --- Bencho UI Micro-Interactions & Haptics ---
+    let audioCtx = null;
+    function playHaptic(freq = 600, duration = 0.04, type = 'sine') {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        if (!audioCtx) audioCtx = new AudioContext();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        // Silently ignore if audio blocked or unavailable
+      }
+    }
+
+    // Command Palette Controller
+    function openCommandPalette() {
+      const modal = document.getElementById('commandPaletteModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      const input = document.getElementById('cmdPaletteInput');
+      if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 50);
+        filterCommandPalette('');
+      }
+      playHaptic(750, 0.05, 'triangle');
+    }
+
+    function closeCommandPalette() {
+      const modal = document.getElementById('commandPaletteModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function filterCommandPalette(q) {
+      const query = (q || '').toLowerCase().trim();
+      const resultsContainer = document.getElementById('cmdPaletteResults');
+      if (!resultsContainer) return;
+      const items = resultsContainer.querySelectorAll('button');
+      items.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        if (!query || text.includes(query)) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+
+    // Keyboard Shortcuts (⌘K / Ctrl+K and ESC)
+    window.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        const modal = document.getElementById('commandPaletteModal');
+        if (modal && !modal.classList.contains('hidden')) {
+          closeCommandPalette();
+        } else {
+          openCommandPalette();
+        }
+      } else if (e.key === 'Escape') {
+        closeCommandPalette();
+        closePayoutModal();
+        closeCustomRepoModal();
+        if (typeof closeMerkleModal === 'function') closeMerkleModal();
+      }
+    });
+
+    // Bencho Slide-to-Confirm Drag Handler
+    let isDraggingSlide = false;
+    let slideStartX = 0;
+    let isSlideAuthorized = false;
+
+    function initSlideConfirm() {
+      const track = document.getElementById('slideConfirmTrack');
+      const thumb = document.getElementById('slideThumbBtn');
+      const fill = document.getElementById('slideProgressFill');
+      const label = document.getElementById('slideActionLabel');
+      if (!track || !thumb) return;
+
+      const getMaxDrag = () => track.clientWidth - thumb.clientWidth - 8;
+
+      const updatePosition = (x) => {
+        const maxDrag = getMaxDrag();
+        let boundedX = Math.max(0, Math.min(x, maxDrag));
+        const pct = maxDrag > 0 ? (boundedX / maxDrag) : 0;
+        thumb.style.transform = `translateX(${boundedX}px)`;
+        if (fill) fill.style.width = `${Math.min(100, Math.round(pct * 100))}%`;
+
+        if (pct >= 0.82 && !isSlideAuthorized) {
+          isSlideAuthorized = true;
+          isDraggingSlide = false;
+          thumb.style.transform = `translateX(${maxDrag}px)`;
+          if (fill) fill.style.width = '100%';
+          thumb.innerHTML = '✓';
+          thumb.className = 'absolute left-1 top-1 bottom-1 w-8 h-8 rounded-full bg-emerald-500 text-white font-bold text-xs flex items-center justify-center shadow-lg shadow-emerald-500/50 transition-transform';
+          if (label) {
+            label.innerHTML = '<span class="text-emerald-400 font-bold">✓ Escrow Tranche Disbursed ($2,500.00)</span>';
+          }
+          playHaptic(880, 0.1, 'sine');
+          setTimeout(() => playHaptic(1174, 0.15, 'sine'), 120);
+          showToast('PayPal Escrow Tranche Authorized & Disbursed!');
+          setTimeout(() => {
+            openPayoutModal();
+          }, 350);
+        }
+      };
+
+      const onStart = (clientX) => {
+        if (isSlideAuthorized) return;
+        isDraggingSlide = true;
+        slideStartX = clientX - (thumb.offsetLeft - 4);
+        thumb.classList.remove('transition-transform');
+        if (fill) fill.classList.remove('transition-all');
+        playHaptic(440, 0.03, 'sine');
+      };
+
+      const onMove = (clientX) => {
+        if (!isDraggingSlide || isSlideAuthorized) return;
+        const x = clientX - slideStartX;
+        updatePosition(x);
+      };
+
+      const onEnd = () => {
+        if (!isDraggingSlide) return;
+        isDraggingSlide = false;
+        if (!isSlideAuthorized) {
+          thumb.classList.add('transition-transform');
+          if (fill) fill.classList.add('transition-all');
+          thumb.style.transform = 'translateX(0px)';
+          if (fill) fill.style.width = '0%';
+          playHaptic(330, 0.04, 'sine');
+        }
+      };
+
+      thumb.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        onStart(e.clientX);
+      });
+      window.addEventListener('mousemove', (e) => {
+        if (isDraggingSlide) onMove(e.clientX);
+      });
+      window.addEventListener('mouseup', () => {
+        if (isDraggingSlide) onEnd();
+      });
+
+      thumb.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches[0]) onStart(e.touches[0].clientX);
+      }, { passive: true });
+      window.addEventListener('touchmove', (e) => {
+        if (isDraggingSlide && e.touches && e.touches[0]) onMove(e.touches[0].clientX);
+      }, { passive: true });
+      window.addEventListener('touchend', () => {
+        if (isDraggingSlide) onEnd();
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initSlideConfirm();
+      const urlParams = new URLSearchParams(window.location.search);
+      const view = urlParams.get('view');
+      if (view) switchView(view);
+      const chat = urlParams.get('chat');
+      if (chat) toggleChatPlatform(chat);
+      const modal = urlParams.get('modal');
+      if (modal === 'payout' || modal === 'escrow') openPayoutModal();
+      if (modal === 'palette' || modal === 'command') openCommandPalette();
+    });
+  </script>
+</body>
+</html>

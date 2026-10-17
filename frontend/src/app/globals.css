@@ -1,8 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #090a0c;
+  --foreground: #ededed;
+  --card: #111215;
+  --card-border: rgba(255, 255, 255, 0.08);
+  --accent-blue: #3b82f6;
+  --accent-emerald: #10b981;
 }
 
 @theme inline {
@@ -12,15 +16,62 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
+  background-color: #090a0c;
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.08), transparent 45%),
+    radial-gradient(circle at 100% 100%, rgba(99, 102, 241, 0.04), transparent 40%);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+}
+
+/* Bencho & shadcn/ui Inspired Micro-Interactions */
+.glass-panel {
+  background: rgba(17, 18, 21, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.bencho-sweep {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+  background-size: 200% 100%;
+  animation: benchoSweep 3s infinite linear;
+}
+
+@keyframes benchoSweep {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.btn-interactive {
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-interactive:active {
+  transform: scale(0.98);
+}
+
+.glow-blue {
+  box-shadow: 0 0 24px -4px rgba(59, 130, 246, 0.25);
+}
+
+.glow-emerald {
+  box-shadow: 0 0 24px -4px rgba(16, 185, 129, 0.25);
+}
+
+.modal-enter {
+  animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: scale(0.97) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
