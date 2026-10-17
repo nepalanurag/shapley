@@ -496,14 +496,6 @@ def github_repos(session_id: str, per_page: int = 30):
     ]}
 
 
-@app.post("/api/github/disconnect")
-def github_disconnect(session_id: str):
-    """Revoke the OAuth session."""
-    with _oauth_lock:
-        _oauth_sessions.pop(session_id, None)
-    return {"disconnected": True}
-
-
 # --------------------------------------------------------------------------
 # SPONSOR COMMAND CENTER & PAYPAL ORDERS V2 ESCROW ENDPOINTS
 # --------------------------------------------------------------------------
@@ -517,18 +509,19 @@ def get_sponsor_portfolio(sponsor_id: str = "open-source-capital"):
 
 
 @app.get("/api/sponsor/invoice")
-def get_sponsor_invoice(sponsor_id: str = "open-source-capital"):
+@app.post("/api/sponsor/invoice")
+def get_sponsor_invoice(sponsor_id: str = "open-source-capital", req: Optional[Dict[str, Any]] = None):
     """Return official GAAP/IRS-compliant grant expense statement."""
     return escrow_manager.generate_sponsor_invoice(sponsor_id)
 
 
 class CreateEscrowOrderRequest(BaseModel):
-    repo_url: str
-    phase_id: str = "phase2"
-    pool_usd: float = 2500.00
-    sponsor_email: str = "sponsor@opensource-fund.org"
-    sponsor_name: str = "Open Source Capital Fund"
-    merkle_root: str = "3c98af010e92fa17cb756a11e405d55e389c4555c5a39628d5ff98ef69fc12ab"
+    repo_url: str = Field(..., description="Target repository slug")
+    pool_usd: float = Field(..., gt=0, description="Escrow bounty pool in USD")
+    phase_id: str = Field("phase1", description="Milestone phase identifier")
+    sponsor_email: Optional[str] = Field(None, description="Sponsor contact email")
+    sponsor_name: Optional[str] = Field(None, description="Sponsor organization name")
+    merkle_root: Optional[str] = Field(None, description="RFC 6962 SHA-256 Merkle root")
 
 
 @app.post("/api/escrow/order")
@@ -536,8 +529,8 @@ def create_escrow_order(req: CreateEscrowOrderRequest):
     """Create a PayPal Orders v2 Authorization Hold for non-custodial milestone escrow."""
     return escrow_manager.create_orders_v2_authorization(
         repo_url=req.repo_url,
-        phase_id=req.phase_id,
         pool_usd=req.pool_usd,
+        phase_id=req.phase_id,
         sponsor_email=req.sponsor_email,
         sponsor_name=req.sponsor_name,
         merkle_root=req.merkle_root
@@ -641,9 +634,14 @@ def claim_contributor_payout(req: ContributorClaimRequest):
 
 
 @app.get("/api/pot/validate")
-def validate_hackathon_pot(pot_id: str = "HACKATHON-2026-Q4-JINJA"):
+def validate_hackathon_pot(
+    pot_id: Optional[str] = None,
+    hackathon_id: Optional[str] = None,
+    expected_pool_usd: Optional[float] = None,
+):
     """Verify cryptographic solvency and PayPal authorization hold for a hackathon/grant pot."""
-    cert = pot_validator.validate_pot(pot_id)
+    target_id = pot_id or hackathon_id or "HACKATHON-2026-Q4-JINJA"
+    cert = pot_validator.validate_pot(target_id)
     return {"status": "SUCCESS", "pot": cert}
 
 

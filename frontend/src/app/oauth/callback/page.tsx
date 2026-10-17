@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 function CallbackContent() {
   const params = useSearchParams();
@@ -41,7 +41,7 @@ function CallbackContent() {
   }, [params, router]);
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center">
+    <main className="min-h-screen bg-[#0c0d0e] text-zinc-100 flex items-center justify-center font-mono">
       <div className="text-center animate-rise">
         {error ? (
           <>
@@ -55,7 +55,7 @@ function CallbackContent() {
           </>
         ) : (
           <>
-            <div className="w-12 h-12 mx-auto mb-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+            <div className="w-10 h-10 mx-auto mb-4 rounded-full border-2 border-zinc-700 border-t-zinc-200 animate-spin" />
             <p className="text-zinc-400">Connecting your GitHub account...</p>
           </>
         )}

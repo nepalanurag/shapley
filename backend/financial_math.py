@@ -10,8 +10,20 @@ Mathematical Invariants:
   2. Non-negativity: for all i, payout_cents_i >= 0
   3. Dummy Player Isolation: if share_pct_i == 0, payout_cents_i == 0
 """
+import hashlib
 from decimal import Decimal, ROUND_DOWN, ROUND_HALF_EVEN
 from typing import Dict, List, Tuple, Any
+
+
+def generate_idempotency_key(prefix: str, *components: Any) -> str:
+    """Derive a deterministic, collision-resistant idempotency key via SHA-256.
+
+    Format: {prefix}_{hash[:24]}
+    Binds transaction state to prevent duplicate orders, holds, or disbursements.
+    """
+    raw = ":".join(str(c) for c in components)
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    return f"{prefix}_{digest[:24]}"
 
 
 def usd_to_cents(amount_usd: float | Decimal | str) -> int:

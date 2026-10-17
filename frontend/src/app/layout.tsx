@@ -1,22 +1,17 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import "./motion.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const monoFont = JetBrains_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Shapley — Fair Revenue Splits",
-  description: "AI evaluates contributions, game theory calculates fair shares, PayPal executes payouts.",
+  title: "Shapley — Game-Theoretic Revenue Ledger",
+  description: "Cooperative game theory calculates exact-penny marginal contributions; PayPal Orders v2 executes escrow.",
   icons: { icon: "/icon.svg" },
 };
 
@@ -28,72 +23,68 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      className={`${monoFont.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-zinc-950 text-zinc-100">
-        {/* Sticky Top Navbar */}
-        <header className="sticky top-0 z-40 w-full border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md">
-          <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-bold text-white shadow-md shadow-blue-500/20 text-sm group-hover:scale-105 transition-transform">
+      <body className="min-h-full flex flex-col bg-[#0c0d0e] text-[#ededed]">
+        {/* Top Ledger Header */}
+        <header className="sticky top-0 z-40 w-full border-b border-[#1e2024] bg-[#0c0d0e]">
+          <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="w-7 h-7 bg-[#16181d] border border-[#262930] flex items-center justify-center font-mono font-bold text-white text-xs">
                 φ
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-base tracking-tight text-white">Shapley</span>
-                <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
-                  Protocol v1.0
+                <span className="font-bold text-sm tracking-tight text-[#ededed]">Shapley</span>
+                <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 bg-[#121316] text-[#8a8f98] border border-[#1e2024]">
+                  Ledger v1.0
                 </span>
               </div>
             </Link>
 
-            <nav className="flex items-center gap-4 text-xs font-medium">
-              <Link href="/" className="text-zinc-300 hover:text-white transition-colors">
+            <nav className="flex items-center gap-4 text-xs font-mono">
+              <Link href="/" className="text-[#8a8f98] hover:text-[#ededed] transition-colors">
                 Analyze
               </Link>
-              <Link href="/results?demo=true" className="text-zinc-300 hover:text-white transition-colors">
-                Live Demo
+              <Link href="/results?demo=true" className="text-[#8a8f98] hover:text-[#ededed] transition-colors">
+                Ledger Demo
               </Link>
-              <Link href="/audit?demo=true" className="text-zinc-300 hover:text-white transition-colors">
-                Audit Trail
+              <Link href="/audit?demo=true" className="text-[#8a8f98] hover:text-[#ededed] transition-colors">
+                Merkle Audit
               </Link>
               <a
                 href="https://github.com/nepalanurag/shapley"
                 target="_blank"
-                rel="noreferrer"
-                className="hidden sm:flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 transition-colors"
+                rel="noopener noreferrer"
+                className="text-[#8a8f98] hover:text-[#ededed] transition-colors"
               >
-                GitHub
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                  <polyline points="15 3 21 3 21 9"></polyline>
-                  <line x1="10" y1="14" x2="21" y2="3"></line>
-                </svg>
+                Source
               </a>
-              <div className="hidden md:flex items-center gap-2 text-[11px] text-zinc-400 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                PayPal Sandbox Ready
-              </div>
             </nav>
           </div>
         </header>
 
-        <div className="flex-1">
-          {children}
-        </div>
+        {/* Content Area */}
+        <div className="flex-1">{children}</div>
 
-        {/* Global Footer */}
-        <footer className="border-t border-zinc-800/80 bg-zinc-950 py-8 text-xs text-zinc-500">
+        {/* Solid Ledger Footer */}
+        <footer className="w-full border-t border-[#1e2024] bg-[#0c0d0e] py-6 text-xs text-[#8a8f98] font-mono">
           <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-zinc-400">Shapley</span>
-              <span>•</span>
-              <span>Fair Open-Source & Multi-Agent Revenue Splits</span>
+              <span className="text-[#ededed] font-bold">Shapley Protocol</span>
+              <span>·</span>
+              <span>PayPal Orders v2 Escrow &amp; Payouts v1</span>
+              <span>·</span>
+              <span>RFC 6962 Merkle Tree</span>
             </div>
-            <div className="flex items-center gap-4 text-zinc-400">
-              <span>Autonomous Revenue Infrastructure</span>
-              <span>•</span>
-              <a href="https://github.com/nepalanurag/shapley" target="_blank" rel="noreferrer" className="hover:text-zinc-200 underline">
-                GitHub Repo
+            <div className="flex items-center gap-4">
+              <span>Hare-Niemeyer $0.00 Dust Conservation</span>
+              <a
+                href="https://github.com/nepalanurag/shapley"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-[#ededed] underline underline-offset-4"
+              >
+                GitHub
               </a>
             </div>
           </div>

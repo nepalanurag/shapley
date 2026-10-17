@@ -31,16 +31,19 @@ GridModuleRegistry.registerModules([GridAllCommunityModule]);
 ChartModuleRegistry.registerModules([ChartAllCommunityModule]);
 
 const darkTheme = themeQuartz.withParams({
-  backgroundColor: "#18181b",
-  foregroundColor: "#f4f4f5",
-  headerBackgroundColor: "#27272a",
-  oddRowBackgroundColor: "#1c1c1f",
-  borderColor: "#3f3f46",
+  backgroundColor: "#0c0d0e",
+  foregroundColor: "#ededed",
+  headerBackgroundColor: "#121316",
+  oddRowBackgroundColor: "#0f1012",
+  borderColor: "#1e2024",
+  headerFontFamily: "var(--font-mono)",
+  cellFontFamily: "var(--font-mono)",
+  accentColor: "#2563eb",
 });
 
 export default function ResultsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-zinc-950" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#0c0d0e]" />}>
       <ResultsContent />
     </Suspense>
   );
@@ -54,7 +57,7 @@ function ResultsContent() {
   const [showPotModal, setShowPotModal] = useState(false);
   const appOrigin = typeof window !== "undefined" && window.location.origin
     ? window.location.origin
-    : (process.env.NEXT_PUBLIC_APP_URL || "https://shapley.onrender.com");
+    : (process.env.NEXT_PUBLIC_APP_URL || "http://127.0.0.1:3000");
   const [data, setData] = useState<AnalysisResult | null>(null);
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
@@ -200,7 +203,7 @@ function ResultsContent() {
   const copyMarkdown = () => {
     if (!data) return;
     const lines = [
-      `### ⚖️ Fair Revenue Split for ${data.repo}`,
+      `### Shapley Fair Revenue Settlement: ${data.repo}`,
       `**Total Pool:** $${currentTotal.toFixed(2)} USD · Calculated via Shapley Cooperative Game Theory`,
       "",
       "| Contributor | GitHub Commits | Lines Changed | Shapley Marginal Share % | Payout (USD) |",
@@ -480,7 +483,7 @@ function ResultsContent() {
           xKey: "contributor",
           yKey: "aiShare",
           yName: "AI Shapley Fair %",
-          fill: "#3b82f6",
+          fill: "#2563eb",
           itemStyler: (params: any) => {
             if (!selectedContributor) return {};
             const isMatch = params.datum.contributor === selectedContributor.name;
@@ -517,7 +520,7 @@ function ResultsContent() {
           xKey: "contributor",
           yKey: "linesShare",
           yName: "Lines Changed % (Naive LOC)",
-          fill: "#52525b",
+          fill: "#3f3f46",
           itemStyler: (params: any) => {
             if (!selectedContributor) return {};
             const isMatch = params.datum.contributor === selectedContributor.name;
@@ -546,11 +549,11 @@ function ResultsContent() {
         position: "top",
         item: {
           label: {
-            color: "#e4e4e7",
+            color: "#ededed",
           },
         },
       },
-      background: { fill: "#18181b" },
+      background: { fill: "#0c0d0e" },
     };
   }, [data, selectedContributor, displayedContributors]);
 
@@ -647,9 +650,9 @@ function ResultsContent() {
 
   if (status === "loading" || status === "ingesting" || status === "scoring" || status === "computing_shapley" || status === "queued") {
     return (
-      <main className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center">
+      <main className="min-h-screen bg-[#0c0d0e] text-zinc-100 flex items-center justify-center font-mono">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-zinc-700 border-t-zinc-200 mx-auto mb-4"></div>
           <p className="text-zinc-400">
             {status === "loading" ? "Loading..." :
              status === "queued" ? "Queued..." :
@@ -691,46 +694,46 @@ function ResultsContent() {
         </div>
 
         {/* Persona Switcher Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 bg-zinc-900/90 border border-zinc-800 rounded-xl mb-6 shadow-sm">
-          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-zinc-950 rounded-lg text-xs font-mono">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-1.5 bg-[#121316] border border-[#1e2024] rounded-xl mb-6">
+          <div className="flex flex-wrap items-center gap-1 p-0.5 bg-[#0c0d0e] rounded-lg text-xs font-mono border border-[#1e2024]">
             <button
               onClick={() => setCurrentPersona("lead")}
-              className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-md transition-colors ${
                 currentPersona === "lead"
-                  ? "bg-zinc-800 text-white font-semibold shadow-sm"
+                  ? "bg-[#1e2024] text-white font-semibold"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
-              <span>🛠️</span> Team Lead (Attribution Ledger)
+              Team Lead
             </button>
             <button
               onClick={() => setCurrentPersona("sponsor")}
-              className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-md transition-colors ${
                 currentPersona === "sponsor"
-                  ? "bg-blue-600 text-white font-semibold shadow-sm"
+                  ? "bg-[#1e2024] text-white font-semibold"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
-              <span>💼</span> Business Sponsor (PayPal Escrow)
+              Business Sponsor
             </button>
             <button
               onClick={() => setCurrentPersona("member")}
-              className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-md transition-colors ${
                 currentPersona === "member"
-                  ? "bg-emerald-600 text-white font-semibold shadow-sm"
+                  ? "bg-[#1e2024] text-white font-semibold"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
-              <span>💻</span> Contributor (W-8BEN Payout Setup)
+              Contributor
             </button>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowPotModal(true)}
-              className="px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-emerald-400 text-xs font-mono flex items-center gap-2 transition-colors shadow-sm"
+              className="px-3 py-1.5 rounded-lg bg-[#0c0d0e] hover:bg-zinc-900 border border-[#1e2024] text-emerald-400 text-xs font-mono flex items-center gap-2 transition-colors"
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               Hackathon Pot Solvency ($2,500)
             </button>
           </div>
@@ -782,7 +785,7 @@ function ResultsContent() {
               onClick={() => setShowChatModal(true)}
               className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
             >
-              <span>💬</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
               Chat Alerts
             </button>
             <button
@@ -809,7 +812,7 @@ function ResultsContent() {
             </button>
             <button
               onClick={() => setShowRepoModal(true)}
-              className="bg-blue-600/20 hover:bg-blue-600/30 px-3.5 py-2 rounded-lg text-xs font-semibold border border-blue-500/40 flex items-center gap-1.5 transition-colors text-blue-300"
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
               Analyze Any Repo
@@ -823,25 +826,23 @@ function ResultsContent() {
 
         {/* Executive Summary Card */}
         {data.summary && (
-          <div className="bg-gradient-to-r from-blue-950/40 via-zinc-900 to-zinc-900 border border-blue-900/40 rounded-xl p-5 mb-8 flex items-start gap-4 animate-rise">
-            <div className="w-9 h-9 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-              </svg>
+          <div className="bg-[#121316] border border-[#1e2024] rounded-xl p-5 mb-8 flex items-start gap-4 animate-rise">
+            <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center flex-shrink-0 mt-0.5 font-mono text-xs font-bold">
+              AI
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between mb-1">
-                <h3 className="text-xs font-semibold text-blue-400 uppercase tracking-wider">
+                <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider font-mono">
                   AI Contribution Synthesis
                 </h3>
                 <button
                   onClick={() => setShowMath(!showMath)}
-                  className="text-xs text-blue-400 hover:text-blue-300 font-medium underline flex items-center gap-1"
+                  className="text-xs text-zinc-400 hover:text-white font-mono underline flex items-center gap-1"
                 >
-                  {showMath ? "Hide How It Works" : "💡 How Fair Shares Are Calculated (Plain English)"}
+                  {showMath ? "Hide Methodology" : "Methodology & Axiomatic Proofs"}
                 </button>
               </div>
-              <p className="text-sm text-zinc-300 leading-relaxed">
+              <p className="text-sm text-zinc-300 leading-relaxed font-mono">
                 {data.summary}
               </p>
             </div>
@@ -850,35 +851,35 @@ function ResultsContent() {
 
         {/* Game Theory Explainer Dropdown */}
         {showMath && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8 text-sm text-zinc-300 animate-rise shadow-lg">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-zinc-800">
-              <h4 className="font-semibold text-zinc-100 flex items-center gap-2">
-                <span className="w-5 h-5 rounded bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-serif font-bold">
+          <div className="bg-[#121316] border border-[#1e2024] rounded-xl p-6 mb-8 text-sm text-zinc-300 animate-rise shadow-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-[#1e2024]">
+              <h4 className="font-semibold text-zinc-100 flex items-center gap-2 font-mono">
+                <span className="w-5 h-5 rounded bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center text-xs font-serif font-bold">
                   &phi;
                 </span>
                 How Shapley Calculates Fair Shares
               </h4>
               
-              <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs">
+              <div className="flex items-center gap-1 bg-[#0c0d0e] p-1 rounded-lg border border-[#1e2024] text-xs font-mono">
                 <button
                   onClick={() => setExplainerTab("simple")}
                   className={`px-3 py-1 rounded-md transition-all font-medium ${
                     explainerTab === "simple"
-                      ? "bg-blue-600 text-white font-semibold shadow-sm"
+                      ? "bg-[#1e2024] text-white font-semibold"
                       : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
-                  💡 Plain English
+                  Plain English
                 </button>
                 <button
                   onClick={() => setExplainerTab("math")}
                   className={`px-3 py-1 rounded-md transition-all font-medium ${
                     explainerTab === "math"
-                      ? "bg-blue-600 text-white font-semibold shadow-sm"
+                      ? "bg-[#1e2024] text-white font-semibold"
                       : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
-                  🔬 Math Proofs
+                  Math Proofs
                 </button>
               </div>
             </div>
@@ -886,26 +887,26 @@ function ResultsContent() {
             {explainerTab === "simple" ? (
               <div className="space-y-5 text-xs">
                 {/* The Missing Teammate Analogy */}
-                <div className="bg-zinc-950/80 border border-zinc-800/90 rounded-xl p-4">
+                <div className="bg-[#0c0d0e] border border-[#1e2024] rounded-xl p-4 font-mono">
                   <h5 className="font-bold text-white text-sm mb-1.5 flex items-center gap-2">
-                    <span>⚽️</span> The &ldquo;Missing Teammate&rdquo; Test
+                    The Marginal Contribution Axiom
                   </h5>
                   <p className="text-zinc-300 leading-relaxed">
-                    Think of a software project like a sports team. How do you measure a player&apos;s real value? Not by how many miles they ran, but by how the team performs <strong>with them</strong> versus <strong>without them</strong>.
+                    Software engineering is cooperative. How do you measure an engineer&apos;s real value? Not by typing speed or lines committed, but by how the team performs <strong>with them</strong> versus <strong>without them</strong>.
                   </p>
                 </div>
 
                 {/* Real-World Contrast: Lines of Code vs True Impact */}
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="bg-zinc-950/60 border border-rose-900/30 rounded-xl p-4">
-                    <span className="text-rose-400 font-bold block mb-1 font-mono text-[11px]">&times; The Flawed Old Way (Lines of Code)</span>
+                  <div className="bg-[#0c0d0e] border border-rose-950/50 rounded-xl p-4 font-mono">
+                    <span className="text-rose-400 font-bold block mb-1 text-[11px]">&times; Naive Lines of Code Metric</span>
                     <p className="text-zinc-400 leading-relaxed mb-2">
                       If an engineer runs an automated linter (Prettier) to reformat 2,400 lines of whitespace, naive systems award them 50% of the entire bounty pool.
                     </p>
                     <span className="text-zinc-500 text-[10px]">Result: Rewards spam, punishes real engineering.</span>
                   </div>
-                  <div className="bg-zinc-950/60 border border-emerald-900/30 rounded-xl p-4">
-                    <span className="text-emerald-400 font-bold block mb-1 font-mono text-[11px]">&check; The Shapley Way (Cooperative Value)</span>
+                  <div className="bg-[#0c0d0e] border border-emerald-950/50 rounded-xl p-4 font-mono">
+                    <span className="text-emerald-400 font-bold block mb-1 text-[11px]">&check; Shapley Cooperative Value</span>
                     <p className="text-zinc-400 leading-relaxed mb-2">
                       We simulate all combinations of team members. If your 5-line security patch turns a broken, vulnerable release into a rock-solid product, you are paid as an MVP.
                     </p>
@@ -913,19 +914,19 @@ function ResultsContent() {
                   </div>
                 </div>
 
-                {/* 3 Simple Rules */}
-                <div className="grid sm:grid-cols-3 gap-3 pt-1">
-                  <div className="bg-zinc-800/30 border border-zinc-800 p-3 rounded-lg">
-                    <span className="font-semibold text-white block mb-0.5">1. Noise Filtering</span>
-                    <span className="text-zinc-400 text-[11px] leading-tight block">AI parses code syntax to ignore whitespace and reformatting.</span>
+                {/* 3 Core Rules Pipeline */}
+                <div className="flex flex-col sm:flex-row items-stretch divide-y sm:divide-y-0 sm:divide-x divide-[#1e2024] border border-[#1e2024] bg-[#0c0d0e] rounded-xl overflow-hidden text-xs font-mono">
+                  <div className="flex-1 p-3.5">
+                    <span className="font-semibold text-white block mb-0.5">01 · Noise Filtering</span>
+                    <span className="text-zinc-400 text-[11px] leading-tight block">AST syntax parsing isolates semantic logic from whitespace and formatting.</span>
                   </div>
-                  <div className="bg-zinc-800/30 border border-zinc-800 p-3 rounded-lg">
-                    <span className="font-semibold text-white block mb-0.5">2. &lsquo;What-If&rsquo; Simulations</span>
-                    <span className="text-zinc-400 text-[11px] leading-tight block">Tests team capability jumps when each person is included.</span>
+                  <div className="flex-1 p-3.5">
+                    <span className="font-semibold text-white block mb-0.5">02 · Counterfactual Valuation</span>
+                    <span className="text-zinc-400 text-[11px] leading-tight block">Evaluates marginal capability deltas across all 2^(N-1) subsets.</span>
                   </div>
-                  <div className="bg-zinc-800/30 border border-zinc-800 p-3 rounded-lg">
-                    <span className="font-semibold text-white block mb-0.5">3. PayPal Payout</span>
-                    <span className="text-zinc-400 text-[11px] leading-tight block">Funds disburse directly to developers with $0.00 rounding loss.</span>
+                  <div className="flex-1 p-3.5">
+                    <span className="font-semibold text-white block mb-0.5">03 · Exact Settlement</span>
+                    <span className="text-zinc-400 text-[11px] leading-tight block">Funds disburse via PayPal with 100% exact-penny financial conservation.</span>
                   </div>
                 </div>
               </div>
@@ -1017,7 +1018,7 @@ function ResultsContent() {
                   step="50"
                   value={currentTotal}
                   onChange={(e) => setAdjustedAmount(parseFloat(e.target.value))}
-                  className="w-full accent-blue-500 bg-zinc-800 h-1.5 rounded-lg cursor-pointer"
+                  className="w-full accent-zinc-200 bg-zinc-800 h-1.5 rounded-lg cursor-pointer"
                 />
                 <div className="flex justify-between text-[10px] text-zinc-500 mt-1.5 font-mono">
                   <span>$100 min</span>
@@ -1094,35 +1095,35 @@ function ResultsContent() {
         </div>
 
         {/* Phased Milestone & AI Co-Authorship Protocol Notice */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 mb-3 border-b border-zinc-800/80">
+        <div className="bg-[#121316] border border-[#1e2024] rounded-xl p-5 mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 mb-3 border-b border-[#1e2024]">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-purple-400"></span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
               <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
                 Human Pilot &amp; AI Co-Authorship Attribution Rule
               </h3>
-              <span className="text-[10px] font-mono bg-purple-950 text-purple-300 border border-purple-800 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-mono bg-[#0c0d0e] text-zinc-300 border border-[#1e2024] px-2 py-0.5 rounded">
                 RFC 2822 Trailer Provenance
               </span>
             </div>
-            <span className="text-[11px] font-mono text-zinc-500">Legal: AI Agent Cannot Hold Bank Accounts</span>
+            <span className="text-[11px] font-mono text-zinc-500">Legal: AI Agents Route to Maintainer Wallets</span>
           </div>
-          <p className="text-zinc-400 text-xs leading-relaxed mb-3">
-            When developers push commits generated with Claude, Cursor, Copilot, or Cline (e.g. <code className="text-purple-300 bg-zinc-950 px-1 py-0.5 rounded font-mono text-[11px]">Co-authored-by: Claude &lt;noreply@anthropic.com&gt;</code>), 
-            Shapley attributes financial disburse to the <strong>Human Pilot</strong> who authored the prompt, reviewed the code, validated the unit test suite, and GPG-signed the commit.
+          <p className="text-zinc-400 text-xs leading-relaxed mb-3 font-mono">
+            When developers push commits generated with Claude, Cursor, Copilot, or Cline (e.g. <code className="text-zinc-200 bg-[#0c0d0e] px-1 py-0.5 rounded border border-[#1e2024]">Co-authored-by: Claude &lt;noreply@anthropic.com&gt;</code>), 
+            Shapley attributes financial disburse to the <strong>Human Pilot</strong> who authored the prompt, reviewed the code, validated the test suite, and GPG-signed the commit.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
-            <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800/80">
+          <div className="flex flex-col sm:flex-row items-stretch divide-y sm:divide-y-0 sm:divide-x divide-[#1e2024] border border-[#1e2024] bg-[#0c0d0e] rounded-xl overflow-hidden text-xs font-mono">
+            <div className="flex-1 p-3">
               <span className="text-zinc-500 block text-[10px]">Human Pilot Leverage</span>
-              <span className="text-white">Full Financial Disbursement</span>
+              <span className="text-white font-semibold">100% Direct Disbursement</span>
             </div>
-            <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800/80">
+            <div className="flex-1 p-3">
               <span className="text-zinc-500 block text-[10px]">Synthetic Code Quarantine</span>
-              <span className="text-blue-400">AST Filters Boilerplate</span>
+              <span className="text-zinc-300 font-semibold">AST Filters Boilerplate</span>
             </div>
-            <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800/80">
-              <span className="text-zinc-500 block text-[10px]">Autonomous Bots</span>
-              <span className="text-emerald-400">Project Maintenance Escrow</span>
+            <div className="flex-1 p-3">
+              <span className="text-zinc-500 block text-[10px]">Autonomous Agent Bounties</span>
+              <span className="text-emerald-400 font-semibold">PayPal Escrow Custody</span>
             </div>
           </div>
         </div>
@@ -1226,7 +1227,7 @@ jobs:
                     navigator.clipboard.writeText(`name: Shapley Release Bounty\non:\n  release:\n    types: [published]\n\njobs:\n  distribute:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Calculate Shapley Shares & Payout\n        run: |\n          curl -X POST ${appOrigin}/api/agent/evaluate \\\n            -H "Content-Type: application/json" \\\n            -d '{"repo_url": "${data.repo}", "total_amount": ${currentTotal}}'`);
                     alert("GitHub Action YAML copied to clipboard!");
                   }}
-                  className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                  className="bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
                 >
                   Copy Workflow YAML
                 </button>
@@ -1242,12 +1243,14 @@ jobs:
               className="absolute inset-0 bg-black/70 modal-backdrop"
               onClick={() => setShowChatModal(false)}
             />
-            <div className="relative bg-zinc-900 border border-zinc-700 rounded-xl p-6 max-w-2xl w-full modal-content max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between pb-3 mb-4 border-b border-zinc-800">
+            <div className="relative bg-[#121316] border border-[#1e2024] rounded-xl p-6 max-w-2xl w-full modal-content max-h-[90vh] overflow-y-auto font-mono">
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#1e2024]">
                 <div className="flex items-center gap-2.5">
-                  <span className="text-xl">💬</span>
+                  <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center font-mono text-xs font-bold">
+                    WEB
+                  </div>
                   <div>
-                    <h3 className="text-base font-bold text-white">Team Chat Alerts &amp; Webhooks</h3>
+                    <h3 className="text-base font-bold text-white font-sans">Team Chat Alerts &amp; Webhooks</h3>
                     <p className="text-xs text-zinc-400">Post milestone digests directly to Telegram, WhatsApp, Slack, or Discord</p>
                   </div>
                 </div>
@@ -1255,50 +1258,50 @@ jobs:
               </div>
 
               {/* Platform Selector Tabs */}
-              <div className="flex flex-wrap items-center gap-2 mb-4">
+              <div className="flex flex-wrap items-center gap-2 mb-4 text-xs font-mono">
                 <button
                   type="button"
                   onClick={() => setChatPlatform("telegram")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
                     chatPlatform === "telegram"
-                      ? "bg-sky-600 text-white shadow-md shadow-sky-900/30"
-                      : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                      ? "bg-[#1e2024] text-white border border-zinc-600"
+                      : "bg-[#0c0d0e] hover:bg-zinc-800 text-zinc-400 border border-[#1e2024]"
                   }`}
                 >
-                  <span>✈️</span> Telegram Bot
+                  Telegram Bot
                 </button>
                 <button
                   type="button"
                   onClick={() => setChatPlatform("whatsapp")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
                     chatPlatform === "whatsapp"
-                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-900/30"
-                      : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                      ? "bg-[#1e2024] text-white border border-zinc-600"
+                      : "bg-[#0c0d0e] hover:bg-zinc-800 text-zinc-400 border border-[#1e2024]"
                   }`}
                 >
-                  <span>💬</span> WhatsApp Cloud
+                  WhatsApp Cloud
                 </button>
                 <button
                   type="button"
                   onClick={() => setChatPlatform("slack")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
                     chatPlatform === "slack"
-                      ? "bg-blue-600 text-white shadow-md shadow-blue-900/30"
-                      : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                      ? "bg-[#1e2024] text-white border border-zinc-600"
+                      : "bg-[#0c0d0e] hover:bg-zinc-800 text-zinc-400 border border-[#1e2024]"
                   }`}
                 >
-                  <span>⚡</span> Slack Block Kit
+                  Slack Block Kit
                 </button>
                 <button
                   type="button"
                   onClick={() => setChatPlatform("discord")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
                     chatPlatform === "discord"
-                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/30"
-                      : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                      ? "bg-[#1e2024] text-white border border-zinc-600"
+                      : "bg-[#0c0d0e] hover:bg-zinc-800 text-zinc-400 border border-[#1e2024]"
                   }`}
                 >
-                  <span>👾</span> Discord Embed
+                  Discord Embed
                 </button>
               </div>
 
@@ -1308,112 +1311,20 @@ jobs:
                   <span>Standard REST Webhook Payload ({chatPlatform}):</span>
                   <span className="font-mono text-[11px] text-zinc-500">JSON-RPC 2.0 / MCP Compatible</span>
                 </div>
-                <pre className="bg-zinc-950 p-4 rounded-xl text-xs font-mono text-zinc-200 border border-zinc-800 overflow-x-auto max-h-72 leading-relaxed select-all">
-                  {JSON.stringify(
-                    chatPlatform === "telegram"
-                      ? {
-                          chat_id: "@shapley_updates",
-                          text: `<b>⚖️ Shapley Milestone: <code>${data.repo}</code></b>\n\n💰 <b>Bounty Pool:</b> $${currentTotal.toFixed(2)} USD\n🔒 <b>Merkle Root:</b> <code>88643cd1b4...</code>\n\n📊 <b>Standings:</b>\n` +
-                            displayedContributors.map((c) => `• <b>${c.name}</b>: <code>${c.share_pct.toFixed(1)}%</code> ($${c.payout_usd.toFixed(2)})`).join("\n"),
-                          parse_mode: "HTML",
-                          reply_markup: {
-                            inline_keyboard: [
-                              [
-                                { text: "💳 Disburse Payouts", url: `${appOrigin}/results` },
-                                { text: "🔍 Merkle Audit", url: `${appOrigin}/audit` }
-                              ]
-                            ]
-                          }
-                        }
-                      : chatPlatform === "whatsapp"
-                      ? {
-                          messaging_product: "whatsapp",
-                          recipient_type: "individual",
-                          to: "+1234567890",
-                          type: "interactive",
-                          interactive: {
-                            type: "button",
-                            header: { type: "text", text: `⚖️ Shapley Milestone: ${data.repo}` },
-                            body: {
-                              text: `Milestone for *${data.repo}*:\n💰 *Pool:* $${currentTotal.toFixed(2)} USD\n\n*Fair Shares:*\n` +
-                                displayedContributors.map((c) => `• ${c.name}: ${c.share_pct.toFixed(1)}% ($${c.payout_usd.toFixed(2)})`).join("\n")
-                            },
-                            action: {
-                              buttons: [
-                                { type: "reply", reply: { id: "btn_approve_payout", title: "💳 Approve Payout" } },
-                                { type: "reply", reply: { id: "btn_verify_audit", title: "🔍 Audit Merkle" } }
-                              ]
-                            }
-                          }
-                        }
-                      : chatPlatform === "discord"
-                      ? {
-                          embeds: [
-                            {
-                              title: `⚖️ Shapley Attribution: ${data.repo}`,
-                              description: "Axiomatic game-theoretic fair revenue sharing.",
-                              color: 3447003,
-                              fields: [
-                                { name: "💰 Total Pool", value: `$${currentTotal.toFixed(2)} USD`, inline: true },
-                                { name: "🔒 Merkle Proof", value: "88643cd1b4...", inline: true },
-                                {
-                                  name: "📊 Leaderboard",
-                                  value: displayedContributors.map((c) => `**${c.name}**: \`${c.share_pct.toFixed(1)}%\` ($${c.payout_usd.toFixed(2)})`).join("\n")
-                                }
-                              ]
-                            }
-                          ]
-                        }
-                      : {
-                          text: `Shapley Milestone Update: ${data.repo}`,
-                          blocks: [
-                            { type: "header", text: { type: "plain_text", text: `⚖️ Shapley Milestone: ${data.repo}` } },
-                            {
-                              type: "section",
-                              fields: [
-                                { type: "mrkdwn", text: `*Bounty Pool:*\n$${currentTotal.toFixed(2)} USD` },
-                                { type: "mrkdwn", text: `*Merkle Root:*\n\`88643cd1b4...\`` }
-                              ]
-                            },
-                            {
-                              type: "section",
-                              text: {
-                                type: "mrkdwn",
-                                text: "*Fair Share Standings:*\n" +
-                                  displayedContributors.map((c) => `• *${c.name}*: *${c.share_pct.toFixed(1)}%* ($${c.payout_usd.toFixed(2)})`).join("\n")
-                              }
-                            }
-                          ]
-                        },
-                    null,
-                    2
-                  )}
-                </pre>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-zinc-800">
-                <button
-                  type="button"
-                  onClick={() => setShowChatModal(false)}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg transition-colors"
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
+                <pre className="bg-[#0c0d0e] p-4 rounded-xl text-xs font-mono text-zinc-200 border border-[#1e2024] overflow-x-auto max-h-72 leading-relaxed select-all">
+                  {(() => {
                     const payload =
                       chatPlatform === "telegram"
                         ? {
                             chat_id: "@shapley_updates",
-                            text: `<b>⚖️ Shapley Milestone: <code>${data.repo}</code></b>\n\n💰 <b>Bounty Pool:</b> $${currentTotal.toFixed(2)} USD\n🔒 <b>Merkle Root:</b> <code>88643cd1b4...</code>\n\n📊 <b>Standings:</b>\n` +
+                            text: `<b>Shapley Milestone: <code>${data.repo}</code></b>\n\n<b>Bounty Pool:</b> $${currentTotal.toFixed(2)} USD\n<b>Merkle Root:</b> <code>88643cd1b4...</code>\n\n<b>Standings:</b>\n` +
                               displayedContributors.map((c) => `• <b>${c.name}</b>: <code>${c.share_pct.toFixed(1)}%</code> ($${c.payout_usd.toFixed(2)})`).join("\n"),
                             parse_mode: "HTML",
                             reply_markup: {
                               inline_keyboard: [
                                 [
-                                  { text: "💳 Disburse Payouts", url: `${appOrigin}/results` },
-                                  { text: "🔍 Merkle Audit", url: `${appOrigin}/audit` }
+                                  { text: "Disburse Payouts", url: `${appOrigin}/results` },
+                                  { text: "Merkle Audit", url: `${appOrigin}/audit` }
                                 ]
                               ]
                             }
@@ -1426,15 +1337,15 @@ jobs:
                             type: "interactive",
                             interactive: {
                               type: "button",
-                              header: { type: "text", text: `⚖️ Shapley Milestone: ${data.repo}` },
+                              header: { type: "text", text: `Shapley Milestone: ${data.repo}` },
                               body: {
-                                text: `Milestone for *${data.repo}*:\n💰 *Pool:* $${currentTotal.toFixed(2)} USD\n\n*Fair Shares:*\n` +
+                                text: `Milestone for *${data.repo}*:\n*Pool:* $${currentTotal.toFixed(2)} USD\n\n*Fair Shares:*\n` +
                                   displayedContributors.map((c) => `• ${c.name}: ${c.share_pct.toFixed(1)}% ($${c.payout_usd.toFixed(2)})`).join("\n")
                               },
                               action: {
                                 buttons: [
-                                  { type: "reply", reply: { id: "btn_approve_payout", title: "💳 Approve Payout" } },
-                                  { type: "reply", reply: { id: "btn_verify_audit", title: "🔍 Audit Merkle" } }
+                                  { type: "reply", reply: { id: "btn_approve_payout", title: "Approve Payout" } },
+                                  { type: "reply", reply: { id: "btn_verify_audit", title: "Audit Merkle" } }
                                 ]
                               }
                             }
@@ -1443,14 +1354,14 @@ jobs:
                         ? {
                             embeds: [
                               {
-                                title: `⚖️ Shapley Attribution: ${data.repo}`,
+                                title: `Shapley Attribution: ${data.repo}`,
                                 description: "Axiomatic game-theoretic fair revenue sharing.",
                                 color: 3447003,
                                 fields: [
-                                  { name: "💰 Total Pool", value: `$${currentTotal.toFixed(2)} USD`, inline: true },
-                                  { name: "🔒 Merkle Proof", value: "88643cd1b4...", inline: true },
+                                  { name: "Total Pool", value: `$${currentTotal.toFixed(2)} USD`, inline: true },
+                                  { name: "Merkle Proof", value: "88643cd1b4...", inline: true },
                                   {
-                                    name: "📊 Leaderboard",
+                                    name: "Leaderboard",
                                     value: displayedContributors.map((c) => `**${c.name}**: \`${c.share_pct.toFixed(1)}%\` ($${c.payout_usd.toFixed(2)})`).join("\n")
                                   }
                                 ]
@@ -1460,7 +1371,99 @@ jobs:
                         : {
                             text: `Shapley Milestone Update: ${data.repo}`,
                             blocks: [
-                              { type: "header", text: { type: "plain_text", text: `⚖️ Shapley Milestone: ${data.repo}` } },
+                              { type: "header", text: { type: "plain_text", text: `Shapley Milestone: ${data.repo}` } },
+                              {
+                                type: "section",
+                                fields: [
+                                  { type: "mrkdwn", text: `*Bounty Pool:*\n$${currentTotal.toFixed(2)} USD` },
+                                  { type: "mrkdwn", text: `*Merkle Root:*\n\`88643cd1b4...\`` }
+                                ]
+                              },
+                              {
+                                type: "section",
+                                text: {
+                                  type: "mrkdwn",
+                                  text: "*Fair Share Standings:*\n" +
+                                    displayedContributors.map((c) => `• *${c.name}*: *${c.share_pct.toFixed(1)}%* ($${c.payout_usd.toFixed(2)})`).join("\n")
+                                }
+                              }
+                            ]
+                          };
+                    return JSON.stringify(payload, null, 2);
+                  })()}
+                </pre>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-[#1e2024]">
+                <button
+                  type="button"
+                  onClick={() => setShowChatModal(false)}
+                  className="px-4 py-2 bg-[#0c0d0e] hover:bg-zinc-800 text-zinc-300 text-xs font-semibold rounded-lg border border-[#1e2024] transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const payload =
+                      chatPlatform === "telegram"
+                        ? {
+                            chat_id: "@shapley_updates",
+                            text: `<b>Shapley Milestone: <code>${data.repo}</code></b>\n\n<b>Bounty Pool:</b> $${currentTotal.toFixed(2)} USD\n<b>Merkle Root:</b> <code>88643cd1b4...</code>\n\n<b>Standings:</b>\n` +
+                              displayedContributors.map((c) => `• <b>${c.name}</b>: <code>${c.share_pct.toFixed(1)}%</code> ($${c.payout_usd.toFixed(2)})`).join("\n"),
+                            parse_mode: "HTML",
+                            reply_markup: {
+                              inline_keyboard: [
+                                [
+                                  { text: "Disburse Payouts", url: `${appOrigin}/results` },
+                                  { text: "Merkle Audit", url: `${appOrigin}/audit` }
+                                ]
+                              ]
+                            }
+                          }
+                        : chatPlatform === "whatsapp"
+                        ? {
+                            messaging_product: "whatsapp",
+                            recipient_type: "individual",
+                            to: "+1234567890",
+                            type: "interactive",
+                            interactive: {
+                              type: "button",
+                              header: { type: "text", text: `Shapley Milestone: ${data.repo}` },
+                              body: {
+                                text: `Milestone for *${data.repo}*:\n*Pool:* $${currentTotal.toFixed(2)} USD\n\n*Fair Shares:*\n` +
+                                  displayedContributors.map((c) => `• ${c.name}: ${c.share_pct.toFixed(1)}% ($${c.payout_usd.toFixed(2)})`).join("\n")
+                              },
+                              action: {
+                                buttons: [
+                                  { type: "reply", reply: { id: "btn_approve_payout", title: "Approve Payout" } },
+                                  { type: "reply", reply: { id: "btn_verify_audit", title: "Audit Merkle" } }
+                                ]
+                              }
+                            }
+                          }
+                        : chatPlatform === "discord"
+                        ? {
+                            embeds: [
+                              {
+                                title: `Shapley Attribution: ${data.repo}`,
+                                description: "Axiomatic game-theoretic fair revenue sharing.",
+                                color: 3447003,
+                                fields: [
+                                  { name: "Total Pool", value: `$${currentTotal.toFixed(2)} USD`, inline: true },
+                                  { name: "Merkle Proof", value: "88643cd1b4...", inline: true },
+                                  {
+                                    name: "Leaderboard",
+                                    value: displayedContributors.map((c) => `**${c.name}**: \`${c.share_pct.toFixed(1)}%\` ($${c.payout_usd.toFixed(2)})`).join("\n")
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        : {
+                            text: `Shapley Milestone Update: ${data.repo}`,
+                            blocks: [
+                              { type: "header", text: { type: "plain_text", text: `Shapley Milestone: ${data.repo}` } },
                               {
                                 type: "section",
                                 fields: [
@@ -1481,9 +1484,9 @@ jobs:
                     navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
                     alert(`${chatPlatform.toUpperCase()} webhook payload copied to clipboard!`);
                   }}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+                  className="px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 font-sans"
                 >
-                  <span>📋</span> Copy {chatPlatform.charAt(0).toUpperCase() + chatPlatform.slice(1)} Payload
+                  Copy {chatPlatform.charAt(0).toUpperCase() + chatPlatform.slice(1)} Payload
                 </button>
               </div>
             </div>
@@ -1494,17 +1497,17 @@ jobs:
         <div className="bg-gradient-to-r from-blue-950/30 via-zinc-900 to-zinc-900 border border-blue-600/40 rounded-xl p-4 sm:p-5 mb-6 shadow-lg shadow-blue-950/20">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-4 border-b border-blue-900/30">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-blue-600/30">
-                &Pcy;
+              <div className="w-8 h-8 rounded-lg bg-[#0c0d0e] border border-[#1e2024] text-zinc-300 flex items-center justify-center font-mono font-bold text-xs">
+                PP
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-white">PayPal Multi-Stakeholder Escrow</h3>
+                  <h3 className="text-sm font-bold text-white font-mono">PayPal Multi-Stakeholder Escrow</h3>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
-                    🔒 Vault: ESCROW-PP-ACTIVE
+                    Vault: ESCROW-PP-ACTIVE
                   </span>
                 </div>
-                <p className="text-xs text-zinc-400 mt-0.5">
+                <p className="text-xs text-zinc-400 mt-0.5 font-mono">
                   PayPal acts as a neutral licensed custodian holding bounty funds in an Authorization Hold until multi-stakeholder criteria are met.
                 </p>
               </div>
@@ -1513,100 +1516,104 @@ jobs:
             <div className="flex items-center gap-3 self-start md:self-auto">
               <div className="text-right hidden sm:block">
                 <span className="text-[10px] text-zinc-500 uppercase font-mono block">Escrow In Custody</span>
-                <span className="text-xs font-mono font-bold text-emerald-400">${currentTotal.toFixed(2)} USD</span>
+                <span className="text-xs font-mono font-bold text-emerald-400 tabular-nums">${currentTotal.toFixed(2)} USD</span>
               </div>
               <div 
-                className="relative w-64 h-9 bg-zinc-950 border border-zinc-700/80 rounded-full overflow-hidden flex items-center select-none cursor-pointer group shadow-inner"
+                className="relative w-64 h-9 bg-[#0c0d0e] border border-[#1e2024] rounded-full overflow-hidden flex items-center select-none cursor-pointer group shadow-inner"
                 onClick={() => {
                   setIsSlideAuthorized(true);
                   setShowConfirm(true);
                 }}
               >
                 <div 
-                  className={`absolute left-0 top-0 bottom-0 bg-gradient-to-r from-blue-600 via-emerald-600 to-emerald-500 opacity-40 transition-all ${isSlideAuthorized ? "w-full" : "w-1/4 group-hover:w-1/2"}`}
+                  className={`absolute left-0 top-0 bottom-0 bg-emerald-600/30 transition-all ${isSlideAuthorized ? "w-full" : "w-1/4 group-hover:w-1/2"}`}
                 />
                 <div 
                   className={`absolute left-1 top-1 bottom-1 w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shadow-md transition-all ${
                     isSlideAuthorized 
-                      ? "bg-emerald-500 text-white translate-x-[220px] shadow-emerald-500/50" 
-                      : "bg-emerald-500 text-white group-hover:translate-x-2 shadow-emerald-900/40"
+                      ? "bg-emerald-500 text-white translate-x-[220px]" 
+                      : "bg-zinc-700 text-white group-hover:translate-x-2"
                   }`}
                 >
-                  {isSlideAuthorized ? "✓" : "→"}
+                  {isSlideAuthorized ? (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  ) : (
+                    <span>&rarr;</span>
+                  )}
                 </div>
                 <span className="w-full text-center text-[10px] font-semibold text-zinc-300 font-mono pointer-events-none pl-6 pr-2">
-                  {isSlideAuthorized ? "✓ Escrow Tranche Disbursed" : `Slide to Release ($${currentTotal.toFixed(2)}) ➔`}
+                  {isSlideAuthorized ? "Escrow Tranche Disbursed" : `Slide to Authorize ($${currentTotal.toFixed(2)}) →`}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Compact 3-Party Quorum Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 py-2 px-3 bg-zinc-950/70 rounded-lg border border-zinc-800/80 text-xs mb-3">
-            <div className="flex items-center justify-between sm:justify-start gap-2">
+          {/* Compact Quorum Consensus Pipeline Bar */}
+          <div className="flex flex-col sm:flex-row items-stretch divide-y sm:divide-y-0 sm:divide-x divide-[#1e2024] border border-[#1e2024] bg-[#0c0d0e] rounded-lg text-xs mb-3 font-mono">
+            <div className="flex-1 flex items-center justify-between p-2.5">
               <span className="flex items-center gap-1.5 text-zinc-300">
-                <span className="w-2 h-2 rounded-full bg-emerald-400"></span> 1. Sponsor Deposit
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> 1. Sponsor Deposit
               </span>
-              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded">&check; Authorized</span>
+              <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded">Authorized</span>
             </div>
-            <div className="flex items-center justify-between sm:justify-start gap-2">
+            <div className="flex-1 flex items-center justify-between p-2.5">
               <span className="flex items-center gap-1.5 text-zinc-300">
-                <span className="w-2 h-2 rounded-full bg-blue-400"></span> 2. PayPal Neutral Escrow
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span> 2. PayPal Neutral Escrow
               </span>
-              <span className="text-[10px] font-mono text-blue-300 bg-blue-950/60 border border-blue-800/60 px-1.5 py-0.5 rounded">&check; In Custody</span>
+              <span className="text-[10px] text-zinc-300 bg-zinc-900 border border-zinc-700 px-1.5 py-0.5 rounded">In Custody</span>
             </div>
-            <div className="flex items-center justify-between sm:justify-start gap-2">
+            <div className="flex-1 flex items-center justify-between p-2.5">
               <span className="flex items-center gap-1.5 text-zinc-300">
-                <span className="w-2 h-2 rounded-full bg-emerald-400"></span> 3. Maintainer Sign-off
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> 3. Maintainer Sign-off
               </span>
-              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded">&check; Merkle Verified</span>
+              <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded">Merkle Verified</span>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-zinc-400 pt-1 gap-1">
-            <span>⏱️ <strong>48-Hour Dispute Challenge Window:</strong> Active &bull; Exact-Penny conservation verified ($0.00 float)</span>
-            <span className="font-mono text-[10px] text-zinc-500">Idempotency: SHA-256 State-Locked</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-zinc-400 pt-1 gap-1 font-mono">
+            <span><strong>48-Hour Dispute Challenge Window:</strong> Active &bull; Exact-Penny conservation verified ($0.00 float)</span>
+            <span className="text-[10px] text-zinc-500">Idempotency: SHA-256 State-Locked</span>
           </div>
         </div>
 
-        <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4 animate-rise stagger-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-zinc-800 gap-3">
-            <div className="flex items-center gap-2">
+        <div className="bg-[#121316] rounded-xl border border-[#1e2024] p-4 animate-rise stagger-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#1e2024] gap-3">
+            <div className="flex items-center gap-2 font-mono">
               <button
                 onClick={() => setActiveGridTab("contributors")}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   activeGridTab === "contributors"
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "bg-zinc-800/80 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                    ? "bg-[#1e2024] text-white border border-zinc-600"
+                    : "bg-[#0c0d0e] text-zinc-400 hover:text-white border border-[#1e2024]"
                 }`}
               >
-                <span>👥 Contributor Allocations (N={displayedContributors.length})</span>
+                Contributors (N={displayedContributors.length})
               </button>
               <button
                 onClick={() => setActiveGridTab("coalitions")}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   activeGridTab === "coalitions"
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "bg-zinc-800/80 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                    ? "bg-[#1e2024] text-white border border-zinc-600"
+                    : "bg-[#0c0d0e] text-zinc-400 hover:text-white border border-[#1e2024]"
                 }`}
               >
-                <span>🌐 Coalition Explorer (2^N={coalitionExplorerRows.length} Subsets)</span>
+                Coalition Explorer (2^N={coalitionExplorerRows.length} Subsets)
               </button>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 font-mono">
               {selectedContributor && (
                 <button
                   onClick={() => setSelectedContributor(null)}
-                  className="text-xs bg-zinc-800 hover:bg-zinc-700 text-blue-300 border border-blue-800/50 px-2.5 py-1 rounded-md flex items-center gap-1.5 transition-colors"
+                  className="text-xs bg-[#0c0d0e] hover:bg-zinc-900 text-zinc-300 border border-[#1e2024] px-2.5 py-1 rounded-md flex items-center gap-1.5 transition-colors"
                 >
                   <span>Filtering: <strong>{selectedContributor.name}</strong></span>
-                  <span className="text-zinc-400 hover:text-white">✕</span>
+                  <span className="text-zinc-500 hover:text-white">x</span>
                 </button>
               )}
               <button
                 onClick={() => setEditingEmails(!editingEmails)}
-                className="text-xs text-blue-400 hover:text-blue-300 btn-interactive"
+                className="text-xs text-zinc-400 hover:text-zinc-200"
               >
                 {editingEmails ? "Done" : "Edit PayPal emails"}
               </button>
@@ -1614,41 +1621,41 @@ jobs:
           </div>
 
           {activeGridTab === "contributors" && (
-            <div className="pt-3 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="pt-3 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-zinc-400 uppercase font-mono tracking-wider font-semibold">
+                <span className="text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">
                   Model Bake-Off:
                 </span>
-                <div className="flex items-center bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs">
+                <div className="flex items-center bg-[#0c0d0e] p-0.5 rounded-lg border border-[#1e2024] text-xs">
                   <button
                     onClick={() => handleBaselineChange("shapley")}
                     className={`px-2.5 py-1 rounded-md transition-all font-medium ${
                       baselineMetric === "shapley"
-                        ? "bg-blue-600 text-white font-semibold shadow-sm"
+                        ? "bg-[#1e2024] text-white font-semibold"
                         : "text-zinc-400 hover:text-zinc-200"
                     }`}
                   >
-                    🤖 AI Shapley
+                    AI Shapley
                   </button>
                   <button
                     onClick={() => handleBaselineChange("loc")}
                     className={`px-2.5 py-1 rounded-md transition-all font-medium ${
                       baselineMetric === "loc"
-                        ? "bg-rose-600/90 text-white font-semibold shadow-sm"
+                        ? "bg-[#1e2024] text-white font-semibold"
                         : "text-zinc-400 hover:text-zinc-200"
                     }`}
                   >
-                    📝 Lines Changed (Naive)
+                    Lines Changed
                   </button>
                   <button
                     onClick={() => handleBaselineChange("commits")}
                     className={`px-2.5 py-1 rounded-md transition-all font-medium ${
                       baselineMetric === "commits"
-                        ? "bg-amber-600/90 text-white font-semibold shadow-sm"
+                        ? "bg-[#1e2024] text-white font-semibold"
                         : "text-zinc-400 hover:text-zinc-200"
                     }`}
                   >
-                    🔨 Commit Count
+                    Commit Count
                   </button>
                 </div>
               </div>
@@ -1693,7 +1700,7 @@ jobs:
                         [c.email]: e.target.value,
                       }))
                     }
-                    className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-blue-500"
+                    className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 font-mono text-xs"
                     placeholder="paypal@email.com"
                   />
                 </div>
@@ -1749,7 +1756,7 @@ jobs:
         {selectedContributor && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
-              className="absolute inset-0 bg-black/75 backdrop-blur-sm transition-opacity"
+              className="absolute inset-0 bg-black/80 transition-opacity"
               onClick={() => setSelectedContributor(null)}
             />
             <div className="relative w-full max-w-xl bg-zinc-900 border border-zinc-700/80 rounded-2xl p-6 overflow-y-auto max-h-[90vh] shadow-2xl">
@@ -1861,37 +1868,37 @@ jobs:
         {showMerkleModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
-              className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/80"
               onClick={() => setShowMerkleModal(false)}
             />
-            <div className="relative bg-zinc-900 border border-zinc-700 rounded-xl p-6 max-w-xl w-full shadow-2xl">
-              <div className="flex items-center justify-between pb-3 mb-4 border-b border-zinc-800">
+            <div className="relative bg-[#121316] border border-[#1e2024] rounded-xl p-6 max-w-xl w-full shadow-2xl">
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#1e2024]">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 text-emerald-400 flex items-center justify-center font-mono text-xs font-bold">
+                    RFC
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">Cryptographic Merkle Audit Proof</h3>
+                    <h3 className="text-sm font-bold text-white font-mono">Cryptographic Merkle Audit Proof</h3>
                     <p className="text-[11px] text-zinc-400 font-mono">RFC-6962 SHA-256 Tamper-Evident Ledger</p>
                   </div>
                 </div>
                 <button onClick={() => setShowMerkleModal(false)} className="text-zinc-400 hover:text-white p-1.5 rounded-lg bg-zinc-800">&times;</button>
               </div>
 
-              <div className="space-y-4 text-xs">
+              <div className="space-y-4 text-xs font-mono">
                 <div>
                   <label className="text-zinc-400 block mb-1 font-medium">Merkle Root Hash (256-bit SHA-256)</label>
-                  <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800 font-mono text-[11px] text-emerald-400 break-all select-all">
+                  <div className="bg-[#0c0d0e] p-2.5 rounded-lg border border-[#1e2024] font-mono text-[11px] text-emerald-400 break-all select-all">
                     88643cd1fe4e719119c4d29f8f2e26090c29f6f6d0fca8faef7d5f0b5d9095bb
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-zinc-300 font-mono text-[11px]">
-                  <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800">
+                  <div className="bg-[#0c0d0e] p-2.5 rounded-lg border border-[#1e2024]">
                     <span className="text-zinc-500 block text-[10px]">Leaf Hash Standard</span>
                     <span className="text-zinc-300">RFC 6962: SHA-256(0x00 || Leaf)</span>
                   </div>
-                  <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800">
+                  <div className="bg-[#0c0d0e] p-2.5 rounded-lg border border-[#1e2024]">
                     <span className="text-zinc-500 block text-[10px]">Internal Node Hash</span>
                     <span className="text-zinc-300">SHA-256(0x01 || Left || Right)</span>
                   </div>
@@ -1902,7 +1909,7 @@ jobs:
                   <p className="text-zinc-500 text-[11px] mb-2 leading-relaxed">
                     Anyone can verify the attribution mathematical integrity offline without trusting Shapley's servers:
                   </p>
-                  <pre className="bg-zinc-950 p-3 rounded-lg border border-zinc-800 font-mono text-[11px] text-blue-300 overflow-x-auto select-all">
+                  <pre className="bg-[#0c0d0e] p-3 rounded-lg border border-[#1e2024] font-mono text-[11px] text-zinc-300 overflow-x-auto select-all">
 {`# 1. Download tamper-proof cryptographic receipt
 curl -sO ${appOrigin}/api/audit/receipt.json
 
@@ -1912,19 +1919,19 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 mt-5 pt-3 border-t border-zinc-800">
+              <div className="flex justify-end gap-2 mt-5 pt-3 border-t border-[#1e2024]">
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText("88643cd1fe4e719119c4d29f8f2e26090c29f6f6d0fca8faef7d5f0b5d9095bb");
                     alert("Merkle Root copied!");
                   }}
-                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  className="bg-[#0c0d0e] hover:bg-zinc-800 text-zinc-300 px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#1e2024]"
                 >
                   Copy Root
                 </button>
                 <button
                   onClick={() => setShowMerkleModal(false)}
-                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-xs font-semibold"
+                  className="bg-zinc-100 hover:bg-white text-zinc-950 px-4 py-1.5 rounded-lg text-xs font-semibold font-sans"
                 >
                   Done
                 </button>
@@ -1935,7 +1942,7 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
 
         {/* Custom Repository Modal */}
         {showRepoModal && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-zinc-900 border border-zinc-700/80 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
               <div className="flex items-center justify-between pb-4 mb-4 border-b border-zinc-800">
                 <div className="flex items-center gap-2.5">
@@ -1971,7 +1978,7 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                     value={customRepo}
                     onChange={(e) => setCustomRepo(e.target.value)}
                     placeholder="e.g. tiangolo/fastapi, astral-sh/uv, or https://github.com/owner/repo"
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-zinc-100 placeholder-zinc-500 font-mono text-xs focus:outline-none focus:border-blue-500"
+                    className="w-full bg-[#0c0d0e] border border-[#1e2024] rounded-xl px-3.5 py-2.5 text-zinc-100 placeholder-zinc-500 font-mono text-xs focus:outline-none focus:border-zinc-500"
                   />
                 </div>
 
@@ -1985,8 +1992,8 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                         onClick={() => setCustomRepo(r)}
                         className={`px-2.5 py-1 rounded font-mono text-[11px] transition-colors border ${
                           customRepo === r
-                            ? "bg-blue-600/30 text-blue-300 border-blue-500/50"
-                            : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700"
+                            ? "bg-[#1e2024] text-white border-zinc-500 font-semibold"
+                            : "bg-[#0c0d0e] hover:bg-zinc-800 text-zinc-400 border-[#1e2024]"
                         }`}
                       >
                         {r}
@@ -2001,7 +2008,7 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                     type="number"
                     value={customPool}
                     onChange={(e) => setCustomPool(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-zinc-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                    className="w-full bg-[#0c0d0e] border border-[#1e2024] rounded-xl px-3.5 py-2 text-zinc-100 font-mono text-xs focus:outline-none focus:border-zinc-500"
                   />
                 </div>
 
@@ -2015,18 +2022,15 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                   <button
                     onClick={handleCustomAnalysis}
                     disabled={analyzingCustom}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+                    className="px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-950 disabled:opacity-50 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 font-sans"
                   >
                     {analyzingCustom ? (
                       <>
-                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <div className="w-3.5 h-3.5 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin"></div>
                         <span>Initializing...</span>
                       </>
                     ) : (
-                      <>
-                        <span>🚀</span>
-                        <span>Start Analysis</span>
-                      </>
+                      <span>Start Analysis</span>
                     )}
                   </button>
                 </div>
@@ -2041,7 +2045,7 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
         {showCommandPalette && (
           <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 p-4 animate-fade">
             <div
-              className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/80"
               onClick={() => setShowCommandPalette(false)}
             />
             <div className="relative bg-[#111215] border border-zinc-700/80 rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden font-sans modal-enter">
@@ -2061,10 +2065,10 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                 <kbd className="text-[10px] font-mono bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-700">ESC</kbd>
               </div>
 
-              <div className="p-2 max-h-80 overflow-y-auto space-y-1 text-xs">
+              <div className="p-2 max-h-80 overflow-y-auto space-y-1 text-xs font-mono">
                 {[
                   {
-                    icon: "🔓",
+                    tag: "ESCROW",
                     title: `Authorize PayPal Escrow Release ($${currentTotal.toFixed(2)})`,
                     badge: "Milestone 2",
                     action: () => {
@@ -2073,7 +2077,7 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                     },
                   },
                   {
-                    icon: "🔍",
+                    tag: "MERKLE",
                     title: "Verify Cryptographic Merkle Root",
                     badge: "RFC 6962 Proof",
                     action: () => {
@@ -2082,7 +2086,7 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                     },
                   },
                   {
-                    icon: "✈️",
+                    tag: "TELEGRAM",
                     title: "Telegram Bot Webhook Simulator",
                     badge: "MCP Tool",
                     action: () => {
@@ -2092,7 +2096,7 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                     },
                   },
                   {
-                    icon: "💬",
+                    tag: "WHATSAPP",
                     title: "WhatsApp Cloud API Interactive Message",
                     badge: "MCP Tool",
                     action: () => {
@@ -2102,7 +2106,7 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                     },
                   },
                   {
-                    icon: "💡",
+                    tag: "THEORY",
                     title: "Plain English Game Theory Explainer",
                     badge: "Nobel Intuition",
                     action: () => {
@@ -2111,7 +2115,7 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                     },
                   },
                   {
-                    icon: "🔬",
+                    tag: "PROOFS",
                     title: "Axiomatic Math Proofs & Marginal Deltas",
                     badge: "16 Coalitions",
                     action: () => {
@@ -2120,7 +2124,7 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                     },
                   },
                   {
-                    icon: "🚀",
+                    tag: "ANALYZE",
                     title: "Analyze Any Git Repository (Live Mode)",
                     badge: "Custom Repo",
                     action: () => {
@@ -2129,7 +2133,7 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                     },
                   },
                   {
-                    icon: "📋",
+                    tag: "MARKDOWN",
                     title: "Copy GitHub PR Settlement Markdown",
                     badge: "Markdown",
                     action: () => {
@@ -2141,7 +2145,8 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                   .filter((item) =>
                     !commandPaletteQuery ||
                     item.title.toLowerCase().includes(commandPaletteQuery.toLowerCase()) ||
-                    item.badge.toLowerCase().includes(commandPaletteQuery.toLowerCase())
+                    item.badge.toLowerCase().includes(commandPaletteQuery.toLowerCase()) ||
+                    item.tag.toLowerCase().includes(commandPaletteQuery.toLowerCase())
                   )
                   .map((item, idx) => (
                     <button
@@ -2149,9 +2154,9 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                       onClick={item.action}
                       className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-800 flex items-center justify-between text-zinc-200 transition-colors"
                     >
-                      <div className="flex items-center gap-2">
-                        <span>{item.icon}</span>
-                        <span className="font-medium">{item.title}</span>
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#0c0d0e] border border-[#1e2024] text-zinc-400 font-bold">{item.tag}</span>
+                        <span className="font-medium font-sans">{item.title}</span>
                       </div>
                       <span className="text-[10px] font-mono text-zinc-500">{item.badge}</span>
                     </button>

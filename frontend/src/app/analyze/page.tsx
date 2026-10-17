@@ -87,24 +87,24 @@ function AnalyzeContent() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center">
+    <main className="min-h-screen bg-[#0c0d0e] text-zinc-100 flex items-center justify-center font-mono">
       <div className="max-w-lg w-full px-6 animate-rise">
         <div className="text-center mb-8">
           <div className="relative w-16 h-16 mx-auto mb-6">
-            <div className="absolute inset-0 rounded-full border-2 border-blue-500/20" />
-            <div className="absolute inset-0 rounded-full border-t-2 border-blue-500 animate-spin" />
-            <div className="absolute inset-2 rounded-full bg-blue-500/10 loading-ring" />
+            <div className="absolute inset-0 rounded-full border-2 border-zinc-800" />
+            <div className="absolute inset-0 rounded-full border-t-2 border-zinc-200 animate-spin" />
+            <div className="absolute inset-2 rounded-full bg-zinc-800/40 loading-ring" />
           </div>
-          <h1 className="text-2xl font-bold mb-2">Analyzing Contributions</h1>
-          <p className="text-zinc-400 text-sm animate-breathe">
+          <h1 className="text-2xl font-bold mb-2 font-sans">Analyzing Contributions</h1>
+          <p className="text-zinc-400 text-sm animate-breathe font-mono">
             {statusText[status] || "Working..."}
           </p>
         </div>
 
         {/* Progress bar with smooth fill animation */}
-        <div className="bg-zinc-800 rounded-full h-2 overflow-hidden mb-4">
+        <div className="bg-[#121316] border border-[#1e2024] rounded-full h-2 overflow-hidden mb-4">
           <div
-            className="bg-blue-500 h-full rounded-full progress-fill"
+            className="bg-[#2563eb] h-full rounded-full progress-fill"
             style={{ width: `${pct}%` }}
           />
         </div>

@@ -35,7 +35,7 @@ export default function PotSolvencyModal({ isOpen, onClose }: PotSolvencyModalPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fade">
       <div className="bg-zinc-950 border border-zinc-800 rounded-xl max-w-2xl w-full p-6 shadow-2xl relative">
         <button
           onClick={onClose}
@@ -119,8 +119,8 @@ export default function PotSolvencyModal({ isOpen, onClose }: PotSolvencyModalPr
             disabled={loading}
             className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-mono rounded-lg border border-zinc-700 transition-colors flex items-center gap-1.5 disabled:opacity-50"
           >
-            <span>{loading ? "⏳" : "🔄"}</span>
-            {loading ? "Querying PayPal API..." : "Re-Verify Live Solvency"}
+            {loading && <div className="w-3 h-3 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />}
+            <span>{loading ? "Querying PayPal API..." : "Re-Verify Live Solvency"}</span>
           </button>
           <button
             onClick={onClose}

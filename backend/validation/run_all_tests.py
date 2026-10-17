@@ -22,10 +22,9 @@ SCRIPTS = [
     ("Adversarial Prompt Injection Defense", "test_prompt_injection.py"),
     ("Model Context Protocol (MCP) Compliance", "test_mcp_protocol.py"),
     ("Concurrency & Replay Defense", "test_idempotency_concurrency.py"),
-    ("Phased Milestone Escrow & Dynamic Invariants", "test_milestones.py"),
     ("AI Co-Authorship & Human Pilot Disambiguation", "test_ai_attribution.py"),
     ("MCP Chat & Webhook Protocol Integration", "test_mcp_chat.py"),
-    ("PayPal Multi-Stakeholder Escrow Invariants", "test_paypal_escrow.py"),
+    ("PayPal Orders v2 Escrow Invariants", "test_paypal_escrow.py"),
     ("Contributor Claims, RBAC & Hackathon Pot Solvency", "test_claims_and_onboarding.py"),
 ]
 

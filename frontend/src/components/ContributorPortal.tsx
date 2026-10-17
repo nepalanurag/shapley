@@ -303,7 +303,7 @@ export default function ContributorPortal() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                  className="px-5 py-2.5 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs rounded-lg transition-colors shadow-sm disabled:opacity-50"
                 >
                   {submitting ? "Signing & Binding Wallet..." : "Sign & Link PayPal Wallet"}
                 </button>

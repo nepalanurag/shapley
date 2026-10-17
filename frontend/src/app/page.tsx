@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { startAnalysis } from "@/lib/api";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 interface Repo {
   full_name: string;
@@ -222,30 +222,30 @@ export default function Home() {
               value={repoUrl}
               onChange={(e) => setRepoUrl(e.target.value)}
               placeholder="octocat/Hello-World or https://github.com/owner/repo"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-10 pr-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 font-mono text-sm transition-colors"
+              className="w-full bg-[#121316] border border-[#1e2024] rounded-lg pl-10 pr-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 font-mono text-sm transition-colors"
             />
           </div>
 
           <div className="flex items-center gap-2 mb-5 overflow-x-auto text-xs">
-            <span className="text-zinc-500 whitespace-nowrap font-medium">Bake-off Presets:</span>
+            <span className="text-zinc-500 whitespace-nowrap font-medium font-mono text-[11px] uppercase tracking-wider">Presets:</span>
             <button
               type="button"
               onClick={() => { setRepoUrl("pallets/jinja"); setTotal("1000"); }}
-              className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700 whitespace-nowrap transition-colors font-mono"
+              className="px-2.5 py-1 bg-[#121316] hover:bg-zinc-800 text-zinc-300 rounded border border-[#1e2024] whitespace-nowrap transition-colors font-mono"
             >
               pallets/jinja ($1k)
             </button>
             <button
               type="button"
               onClick={() => { setRepoUrl("psf/black"); setTotal("2500"); }}
-              className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700 whitespace-nowrap transition-colors font-mono"
+              className="px-2.5 py-1 bg-[#121316] hover:bg-zinc-800 text-zinc-300 rounded border border-[#1e2024] whitespace-nowrap transition-colors font-mono"
             >
               psf/black ($2.5k)
             </button>
             <button
               type="button"
               onClick={() => { setRepoUrl("aio-libs/aiohttp"); setTotal("5000"); }}
-              className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700 whitespace-nowrap transition-colors font-mono"
+              className="px-2.5 py-1 bg-[#121316] hover:bg-zinc-800 text-zinc-300 rounded border border-[#1e2024] whitespace-nowrap transition-colors font-mono"
             >
               aio-libs/aiohttp ($5k)
             </button>
@@ -264,7 +264,7 @@ export default function Home() {
               onChange={(e) => setTotal(e.target.value)}
               min="1"
               step="0.01"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-8 pr-4 py-3 text-zinc-100 font-mono focus:outline-none focus:border-blue-500 transition-colors"
+              className="w-full bg-[#121316] border border-[#1e2024] rounded-lg pl-8 pr-4 py-3 text-zinc-100 font-mono focus:outline-none focus:border-zinc-500 transition-colors"
             />
           </div>
 
@@ -278,14 +278,14 @@ export default function Home() {
             <button
               onClick={() => handleAnalyze(false)}
               disabled={loading}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium rounded-lg px-6 py-3 btn-interactive"
+              className="flex-1 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold rounded-lg px-6 py-3 btn-interactive disabled:opacity-50 transition-colors"
             >
               {loading ? "Starting..." : "Analyze Contributions"}
             </button>
             <button
               onClick={() => handleAnalyze(true)}
               disabled={loading}
-              className="flex-1 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-200 font-medium rounded-lg px-6 py-3 border border-zinc-700 btn-interactive"
+              className="flex-1 bg-[#121316] hover:bg-zinc-800 disabled:opacity-50 text-zinc-200 font-medium rounded-lg px-6 py-3 border border-[#1e2024] btn-interactive transition-colors"
             >
               Try Demo
             </button>
@@ -293,38 +293,38 @@ export default function Home() {
         </div>
 
         {/* Why Shapley? Plain English Explainer */}
-        <div className="mt-14 pt-10 border-t border-zinc-800/80">
+        <div className="mt-14 pt-10 border-t border-[#1e2024]">
           <div className="text-center mb-8">
-            <span className="text-xs uppercase font-semibold tracking-wider text-blue-400 font-mono">
+            <span className="text-xs uppercase font-semibold tracking-wider text-zinc-400 font-mono">
               The Common Sense Principle
             </span>
-            <h2 className="text-2xl font-bold text-white tracking-tight mt-1">Why Lines of Code Don&apos;t Work</h2>
-            <p className="text-xs text-zinc-400 mt-1 max-w-xl mx-auto">
-              How Shapley replaces unfair typing-speed contests with true problem-solving value
+            <h2 className="text-2xl font-bold text-white tracking-tight mt-1">Why Lines of Code Fail</h2>
+            <p className="text-xs text-zinc-400 mt-1 max-w-xl mx-auto font-mono">
+              Replacing typing-speed contests with game-theoretic marginal capability
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-5 mb-10">
-            <div className="bg-zinc-900/90 border border-rose-950/50 rounded-2xl p-6">
+            <div className="bg-[#121316] border border-rose-950/50 rounded-xl p-6">
               <div className="flex items-center gap-2 mb-3">
                 <span className="w-5 h-5 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center text-xs font-bold">&times;</span>
-                <h3 className="text-xs font-bold text-rose-400 uppercase tracking-wider font-mono">The Flawed Old Way</h3>
+                <h3 className="text-xs font-bold text-rose-400 uppercase tracking-wider font-mono">Naive LOC Metric</h3>
               </div>
               <p className="text-xs text-zinc-300 leading-relaxed mb-3">
-                Someone runs an automated linter (Prettier) to reformat 2,400 lines of whitespace. Naive platforms pay them 50% of the entire bounty. Meanwhile, the security researcher who spent 3 days finding a critical exploit and patched it in 5 lines gets only 1%.
+                Someone runs an automated linter (Prettier) to reformat 2,400 lines of whitespace. Naive platforms award them 50% of the entire bounty. Meanwhile, the security researcher who patched a critical exploit in 5 lines gets 1%.
               </p>
               <div className="text-[11px] text-zinc-500 font-mono">
                 Formula: Payout = Lines Changed &rarr; Rewards spam, punishes problem-solvers.
               </div>
             </div>
 
-            <div className="bg-zinc-900/90 border border-emerald-950/50 rounded-2xl p-6">
+            <div className="bg-[#121316] border border-emerald-950/50 rounded-xl p-6">
               <div className="flex items-center gap-2 mb-3">
-                <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">&check;</span>
-                <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-mono">The Shapley Way (&ldquo;Missing Teammate&rdquo; Test)</h3>
+                <span className="w-5 h-5 rounded-full bg-emerald-950/80 text-emerald-400 flex items-center justify-center text-xs font-bold">&check;</span>
+                <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-mono">Shapley Marginal Attribution</h3>
               </div>
               <p className="text-xs text-zinc-300 leading-relaxed mb-3">
-                We simulate every combination of your team working together. We ask: <em>&ldquo;How much does the project suffer if you&apos;re not on the team?&rdquo;</em> If your 5-line security patch turns a vulnerable repo into a rock-solid release, your reward is massive.
+                Simulating every combination of team members collaborating: <em>&ldquo;How much does the project suffer if you&apos;re not on the team?&rdquo;</em> If a 5-line security patch turns a vulnerable repo into an enterprise release, the allocation is proportional to marginal value.
               </p>
               <div className="text-[11px] text-emerald-400 font-mono">
                 Formula: Payout = Marginal Capability &rarr; 100% fair, zero favoritism.
@@ -334,17 +334,17 @@ export default function Home() {
         </div>
 
         {/* End-to-End Workflow Pipeline */}
-        <div className="mt-8 pt-8 border-t border-zinc-800/80">
+        <div className="mt-8 pt-8 border-t border-[#1e2024]">
           <div className="text-center mb-8">
             <h2 className="text-xl font-bold text-white tracking-tight">End-to-End Workflow Architecture</h2>
-            <p className="text-xs text-zinc-400 mt-1 max-w-xl mx-auto">
-              How Shapley connects git commit history to mathematical attribution and instant PayPal settlements
+            <p className="text-xs text-zinc-400 mt-1 max-w-xl mx-auto font-mono">
+              Connecting git commit history to mathematical attribution and instant PayPal settlements
             </p>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-5 relative">
-              <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 font-mono text-xs font-bold flex items-center justify-center mb-3">
+            <div className="bg-[#121316] border border-[#1e2024] rounded-xl p-5 relative">
+              <div className="w-7 h-7 rounded-lg bg-zinc-800 text-zinc-300 font-mono text-xs font-bold flex items-center justify-center mb-3 border border-zinc-700">
                 01
               </div>
               <h3 className="font-semibold text-sm text-zinc-200 mb-1.5">Git Ingestion</h3>
@@ -353,8 +353,8 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-5 relative">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 font-mono text-xs font-bold flex items-center justify-center mb-3">
+            <div className="bg-[#121316] border border-[#1e2024] rounded-xl p-5 relative">
+              <div className="w-7 h-7 rounded-lg bg-zinc-800 text-zinc-300 font-mono text-xs font-bold flex items-center justify-center mb-3 border border-zinc-700">
                 02
               </div>
               <h3 className="font-semibold text-sm text-zinc-200 mb-1.5">Coalition Scoring</h3>
@@ -363,8 +363,8 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-5 relative">
-              <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 font-mono text-xs font-bold flex items-center justify-center mb-3">
+            <div className="bg-[#121316] border border-[#1e2024] rounded-xl p-5 relative">
+              <div className="w-7 h-7 rounded-lg bg-zinc-800 text-zinc-300 font-mono text-xs font-bold flex items-center justify-center mb-3 border border-zinc-700">
                 03
               </div>
               <h3 className="font-semibold text-sm text-zinc-200 mb-1.5">Game Theory Proofs</h3>
@@ -373,8 +373,8 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-5 relative">
-              <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-400 font-mono text-xs font-bold flex items-center justify-center mb-3">
+            <div className="bg-[#121316] border border-[#1e2024] rounded-xl p-5 relative">
+              <div className="w-7 h-7 rounded-lg bg-zinc-800 text-zinc-300 font-mono text-xs font-bold flex items-center justify-center mb-3 border border-zinc-700">
                 04
               </div>
               <h3 className="font-semibold text-sm text-zinc-200 mb-1.5">PayPal Settlement</h3>
@@ -385,48 +385,48 @@ export default function Home() {
           </div>
 
           {/* Agentic Commerce Workflow Banner */}
-          <div className="mt-6 bg-gradient-to-r from-purple-950/30 via-zinc-900 to-zinc-900 border border-purple-900/40 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="mt-6 bg-[#121316] border border-[#1e2024] rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
-                <span className="text-xs font-bold uppercase tracking-wider text-purple-400 font-mono">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-mono">
                   Autonomous Multi-Agent Layer &middot; MCP Protocol
                 </span>
               </div>
-              <p className="text-xs text-zinc-300 max-w-2xl leading-relaxed">
-                Autonomous AI developer agents discover Shapley via Model Context Protocol (MCP) endpoints (<code className="text-purple-300 font-mono">/api/agent/tools</code>), negotiate fair pull request splits programmatically, and disburse payouts directly into agent wallets.
+              <p className="text-xs text-zinc-400 max-w-2xl leading-relaxed font-mono">
+                Autonomous AI developer agents discover Shapley via Model Context Protocol (MCP) endpoints (<code className="text-zinc-200 font-mono">/api/agent/tools</code>), negotiate fair pull request splits programmatically, and disburse payouts directly into agent wallets.
               </p>
             </div>
             <a
               href="https://github.com/nepalanurag/shapley/blob/main/backend/agent_tool.py"
               target="_blank"
               rel="noreferrer"
-              className="text-xs font-semibold px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 rounded-lg whitespace-nowrap transition-colors"
+              className="text-xs font-semibold font-mono px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg whitespace-nowrap transition-colors"
             >
               View MCP Schema &rarr;
             </a>
           </div>
         </div>
 
-        <div className="mt-16 text-center border-t border-zinc-800/80 pt-8 animate-rise stagger-5">
+        <div className="mt-16 text-center border-t border-[#1e2024] pt-8 animate-rise stagger-5">
           <p className="text-xs uppercase tracking-widest text-zinc-500 mb-4 font-semibold font-mono">
-            Enterprise Infrastructure &amp; Ecosystem
+            Infrastructure &amp; Protocol Stack
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-zinc-400">
-            <span className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-              PayPal Batch Payouts API
+          <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-mono text-zinc-400">
+            <span className="flex items-center gap-2 bg-[#121316] border border-[#1e2024] px-3 py-1.5 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              PayPal Orders v2 &amp; Payouts
             </span>
-            <span className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span className="flex items-center gap-2 bg-[#121316] border border-[#1e2024] px-3 py-1.5 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
               Google Gemini 2.5 Flash
             </span>
-            <span className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-              AG Grid & AG Charts
+            <span className="flex items-center gap-2 bg-[#121316] border border-[#1e2024] px-3 py-1.5 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+              AG Grid Community
             </span>
-            <span className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+            <span className="flex items-center gap-2 bg-[#121316] border border-[#1e2024] px-3 py-1.5 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
               Render Cloud
             </span>
           </div>
