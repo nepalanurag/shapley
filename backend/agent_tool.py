@@ -114,6 +114,47 @@ MCP_TOOLS = [
             },
             "required": ["shares", "total_amount"]
         }
+    },
+    {
+        "name": "shapley_get_project_standings",
+        "description": "Get current milestone standings, phase escrow status, and team member fair shares for a repository.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "repo_url": {
+                    "type": "string",
+                    "description": "GitHub repository in owner/repo format (default: 'pallets/jinja')"
+                },
+                "phase_id": {
+                    "type": "string",
+                    "description": "Milestone phase (e.g. 'phase1', 'phase2', or 'all')",
+                    "default": "phase2"
+                }
+            }
+        }
+    },
+    {
+        "name": "shapley_get_chat_webhook",
+        "description": "Generate a ready-to-dispatch Slack Block Kit or Discord Embed JSON payload for team chat milestone updates.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "platform": {
+                    "type": "string",
+                    "enum": ["slack", "discord"],
+                    "description": "Chat platform format (slack or discord)",
+                    "default": "slack"
+                },
+                "repo_url": {
+                    "type": "string",
+                    "default": "pallets/jinja"
+                },
+                "phase_id": {
+                    "type": "string",
+                    "default": "phase2"
+                }
+            }
+        }
     }
 ]
 
@@ -258,16 +299,16 @@ def agent_payout(req: AgentPayoutRequest):
 
 @agent_router.post("/mcp")
 async def mcp_jsonrpc_endpoint(request: Request):
-    """Official JSON-RPC 2.0 Model Context Protocol (MCP) transport endpoint.
-
-    Allows any standard MCP client (Claude Code, Cursor, Gemini Developer Swarms)
-    to discover and invoke Shapley tools over JSON-RPC 2.0.
-    """
+    """Official JSON-RPC 2.0 Model Context Protocol (MCP) transport endpoint."""
     try:
         body = await request.json()
     except Exception:
         return {"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": None}
+    return handle_mcp_message(body)
 
+
+def handle_mcp_message(body: dict) -> dict:
+    """Processes a JSON-RPC 2.0 Model Context Protocol request payload."""
     req_id = body.get("id")
     method = body.get("method")
     params = body.get("params", {})
@@ -345,6 +386,49 @@ async def mcp_jsonrpc_endpoint(request: Request):
                     "content": [{"type": "text", "text": json.dumps(payout_res, indent=2)}]
                 }
             }
+
+        elif tool_name == "shapley_get_project_standings":
+            from milestone_engine import MilestoneTracker
+            repo_name = args.get("repo_url", "pallets/jinja")
+            phase_id = args.get("phase_id", "phase2")
+            tracker = MilestoneTracker(repo_name)
+            if phase_id == "all":
+                res = tracker.get_cumulative_standings()
+            else:
+                phase = tracker.get_phase(phase_id)
+                res = phase.__dict__ if phase else {"error": f"Unknown phase {phase_id}"}
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "content": [{"type": "text", "text": json.dumps(res, indent=2)}]
+                }
+            }
+
+        elif tool_name == "shapley_get_chat_webhook":
+            from milestone_engine import MilestoneTracker
+            from chat_webhook import generate_slack_milestone_digest, generate_discord_milestone_digest
+            platform = args.get("platform", "slack").lower()
+            repo_name = args.get("repo_url", "pallets/jinja")
+            phase_id = args.get("phase_id", "phase2")
+            tracker = MilestoneTracker(repo_name)
+            phase = tracker.get_phase(phase_id)
+            standings = [
+                {"name": name, "share_pct": phase.shares_pct[name], "payout_usd": phase.payouts_usd[name], "ai_assisted": (name == "David Park")}
+                for name in phase.shares_pct
+            ] if phase else []
+            if platform == "discord":
+                payload = generate_discord_milestone_digest(repo_name, phase.title if phase else phase_id, phase.pool_usd if phase else 1000.0, standings, phase.merkle_root or "88643cd1...")
+            else:
+                payload = generate_slack_milestone_digest(repo_name, phase.title if phase else phase_id, phase.pool_usd if phase else 1000.0, standings, phase.merkle_root or "88643cd1...")
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "content": [{"type": "text", "text": json.dumps(payload, indent=2)}]
+                }
+            }
+
         else:
             return {
                 "jsonrpc": "2.0",

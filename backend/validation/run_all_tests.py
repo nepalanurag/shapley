@@ -22,6 +22,9 @@ SCRIPTS = [
     ("Adversarial Prompt Injection Defense", "test_prompt_injection.py"),
     ("Model Context Protocol (MCP) Compliance", "test_mcp_protocol.py"),
     ("Concurrency & Replay Defense", "test_idempotency_concurrency.py"),
+    ("Phased Milestone Escrow & Dynamic Invariants", "test_milestones.py"),
+    ("AI Co-Authorship & Human Pilot Disambiguation", "test_ai_attribution.py"),
+    ("MCP Chat & Webhook Protocol Integration", "test_mcp_chat.py"),
 ]
 
 
