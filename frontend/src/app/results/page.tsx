@@ -23,6 +23,9 @@ import {
   AnalysisResult,
   Contributor,
 } from "@/lib/api";
+import PotSolvencyModal from "@/components/PotSolvencyModal";
+import SponsorHub from "@/components/SponsorHub";
+import ContributorPortal from "@/components/ContributorPortal";
 
 GridModuleRegistry.registerModules([GridAllCommunityModule]);
 ChartModuleRegistry.registerModules([ChartAllCommunityModule]);
@@ -46,6 +49,12 @@ export default function ResultsPage() {
 function ResultsContent() {
   const params = useSearchParams();
   const router = useRouter();
+  const initialPersona = (params.get("persona") as "lead" | "sponsor" | "member") || "lead";
+  const [currentPersona, setCurrentPersona] = useState<"lead" | "sponsor" | "member">(initialPersona);
+  const [showPotModal, setShowPotModal] = useState(false);
+  const appOrigin = typeof window !== "undefined" && window.location.origin
+    ? window.location.origin
+    : (process.env.NEXT_PUBLIC_APP_URL || "https://shapley.onrender.com");
   const [data, setData] = useState<AnalysisResult | null>(null);
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
@@ -681,7 +690,55 @@ function ResultsContent() {
           <span className="text-zinc-300">Fair Share Results</span>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-8 border-b border-zinc-800/80 gap-4">
+        {/* Persona Switcher Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 bg-zinc-900/90 border border-zinc-800 rounded-xl mb-6 shadow-sm">
+          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-zinc-950 rounded-lg text-xs font-mono">
+            <button
+              onClick={() => setCurrentPersona("lead")}
+              className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
+                currentPersona === "lead"
+                  ? "bg-zinc-800 text-white font-semibold shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              <span>🛠️</span> Team Lead (Attribution Ledger)
+            </button>
+            <button
+              onClick={() => setCurrentPersona("sponsor")}
+              className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
+                currentPersona === "sponsor"
+                  ? "bg-blue-600 text-white font-semibold shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              <span>💼</span> Business Sponsor (PayPal Escrow)
+            </button>
+            <button
+              onClick={() => setCurrentPersona("member")}
+              className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
+                currentPersona === "member"
+                  ? "bg-emerald-600 text-white font-semibold shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              <span>💻</span> Contributor (W-8BEN Payout Setup)
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowPotModal(true)}
+              className="px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-emerald-400 text-xs font-mono flex items-center gap-2 transition-colors shadow-sm"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              Hackathon Pot Solvency ($2,500)
+            </button>
+          </div>
+        </div>
+
+        {currentPersona === "lead" ? (
+          <>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-8 border-b border-zinc-800/80 gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Fair Share Results</h1>
             <p className="text-zinc-400 mt-1 text-sm font-mono">
@@ -1069,6 +1126,15 @@ function ResultsContent() {
             </div>
           </div>
         </div>
+          </>
+        ) : currentPersona === "sponsor" ? (
+          <SponsorHub
+            onSwitchToAttribution={() => setCurrentPersona("lead")}
+            onOpenPotModal={() => setShowPotModal(true)}
+          />
+        ) : (
+          <ContributorPortal />
+        )}
 
         {/* Payout confirmation modal */}
         {showConfirm && data && (
@@ -1150,14 +1216,14 @@ jobs:
     steps:
       - name: Calculate Shapley Shares & Payout
         run: |
-          curl -X POST https://shapley.onrender.com/api/agent/evaluate \\
+          curl -X POST ${appOrigin}/api/agent/evaluate \\
             -H "Content-Type: application/json" \\
             -d '{"repo_url": "${data.repo}", "total_amount": ${currentTotal}}'`}
               </pre>
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(`name: Shapley Release Bounty\non:\n  release:\n    types: [published]\n\njobs:\n  distribute:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Calculate Shapley Shares & Payout\n        run: |\n          curl -X POST https://shapley.onrender.com/api/agent/evaluate \\\n            -H "Content-Type: application/json" \\\n            -d '{"repo_url": "${data.repo}", "total_amount": ${currentTotal}}'`);
+                    navigator.clipboard.writeText(`name: Shapley Release Bounty\non:\n  release:\n    types: [published]\n\njobs:\n  distribute:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Calculate Shapley Shares & Payout\n        run: |\n          curl -X POST ${appOrigin}/api/agent/evaluate \\\n            -H "Content-Type: application/json" \\\n            -d '{"repo_url": "${data.repo}", "total_amount": ${currentTotal}}'`);
                     alert("GitHub Action YAML copied to clipboard!");
                   }}
                   className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
@@ -1253,8 +1319,8 @@ jobs:
                           reply_markup: {
                             inline_keyboard: [
                               [
-                                { text: "💳 Disburse Payouts", url: "https://shapley.onrender.com/results" },
-                                { text: "🔍 Merkle Audit", url: "https://shapley.onrender.com/audit" }
+                                { text: "💳 Disburse Payouts", url: `${appOrigin}/results` },
+                                { text: "🔍 Merkle Audit", url: `${appOrigin}/audit` }
                               ]
                             ]
                           }
@@ -1346,8 +1412,8 @@ jobs:
                             reply_markup: {
                               inline_keyboard: [
                                 [
-                                  { text: "💳 Disburse Payouts", url: "https://shapley.onrender.com/results" },
-                                  { text: "🔍 Merkle Audit", url: "https://shapley.onrender.com/audit" }
+                                  { text: "💳 Disburse Payouts", url: `${appOrigin}/results` },
+                                  { text: "🔍 Merkle Audit", url: `${appOrigin}/audit` }
                                 ]
                               ]
                             }
@@ -1838,7 +1904,7 @@ jobs:
                   </p>
                   <pre className="bg-zinc-950 p-3 rounded-lg border border-zinc-800 font-mono text-[11px] text-blue-300 overflow-x-auto select-all">
 {`# 1. Download tamper-proof cryptographic receipt
-curl -sO https://shapley.onrender.com/api/audit/receipt.json
+curl -sO ${appOrigin}/api/audit/receipt.json
 
 # 2. Verify root hash and leaf memberships locally
 python3 -m backend.security.merkle_ledger verify receipt.json`}
@@ -2094,6 +2160,12 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
             </div>
           </div>
         )}
+
+        {/* Hackathon Pot Solvency Modal */}
+        <PotSolvencyModal
+          isOpen={showPotModal}
+          onClose={() => setShowPotModal(false)}
+        />
       </div>
     </main>
   );

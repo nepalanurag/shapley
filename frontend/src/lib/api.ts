@@ -1,5 +1,5 @@
-// API client for Shapley backend
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// API client for Shapley backend (uses 127.0.0.1 to avoid macOS IPv6 localhost hang)
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export interface Contributor {
   name: string;
@@ -91,5 +91,72 @@ export async function executePayout(
 export async function payoutStatus(batchId: string): Promise<any> {
   const res = await fetch(`${API_BASE}/api/payout/${batchId}`);
   if (!res.ok) throw new Error("Status check failed");
+  return res.json();
+}
+
+export async function fetchSponsorPortfolio(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/sponsor/portfolio`);
+  if (!res.ok) throw new Error("Failed to fetch sponsor portfolio");
+  return res.json();
+}
+
+export async function generateSponsorInvoice(payload: {
+  sponsor_name: string;
+  repo_url: string;
+  milestone_name: string;
+  grant_amount_usd: number;
+}): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/sponsor/invoice`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Failed to generate sponsor invoice");
+  return res.json();
+}
+
+export async function createEscrowOrder(payload: {
+  repo_url: string;
+  milestone_name: string;
+  total_amount_usd: number;
+}): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/escrow/order`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Failed to create escrow order");
+  return res.json();
+}
+
+export async function fetchContributorProfiles(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/contributor/profiles`);
+  if (!res.ok) throw new Error("Failed to fetch contributor profiles");
+  return res.json();
+}
+
+export async function submitContributorClaim(payload: {
+  contributor_id: string;
+  oauth_github_username: string;
+  oauth_email: string;
+  paypal_recipient_email: string;
+  tax_form_type?: string;
+  tax_certified: boolean;
+}): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/contributor/claim`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Contributor claim failed");
+  }
+  return res.json();
+}
+
+export async function validatePotSolvency(hackathonId = "hack-sf-2026", expectedPool = 2500): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/pot/validate?hackathon_id=${encodeURIComponent(hackathonId)}&expected_pool_usd=${expectedPool}`);
+  if (!res.ok) throw new Error("Failed to validate pot solvency");
   return res.json();
 }

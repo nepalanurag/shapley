@@ -17,6 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Shapley — Fair Revenue Splits",
   description: "AI evaluates contributions, game theory calculates fair shares, PayPal executes payouts.",
+  icons: { icon: "/icon.svg" },
 };
 
 export default function RootLayout({
