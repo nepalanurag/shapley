@@ -15,6 +15,7 @@ import {
   pollAnalysis,
   executePayout,
   payoutStatus as fetchPayoutStatus,
+  startAnalysis,
   AnalysisResult,
   Contributor,
 } from "@/lib/api";
@@ -54,6 +55,11 @@ function ResultsContent() {
   const [adjustedAmount, setAdjustedAmount] = useState<number | null>(null);
   const [showActionModal, setShowActionModal] = useState(false);
   const [showMerkleModal, setShowMerkleModal] = useState(false);
+  const [showRepoModal, setShowRepoModal] = useState(false);
+  const [customRepo, setCustomRepo] = useState("");
+  const [customPool, setCustomPool] = useState("2500");
+  const [analyzingCustom, setAnalyzingCustom] = useState(false);
+  const [customRepoError, setCustomRepoError] = useState("");
   const [selectedContributor, setSelectedContributor] = useState<Contributor | null>(null);
   const [copiedMd, setCopiedMd] = useState(false);
 
@@ -312,6 +318,28 @@ function ResultsContent() {
     document.body.removeChild(link);
   };
 
+  const handleCustomAnalysis = async () => {
+    if (!customRepo.trim()) {
+      setCustomRepoError("Please enter a repository URL or owner/repo (e.g. tiangolo/fastapi)");
+      return;
+    }
+    setAnalyzingCustom(true);
+    setCustomRepoError("");
+    try {
+      const { job_id } = await startAnalysis(
+        customRepo.trim(),
+        parseFloat(customPool) || 1000,
+        false
+      );
+      sessionStorage.setItem("shapley_job", job_id);
+      sessionStorage.setItem("shapley_total", customPool);
+      router.push(`/analyze?job=${job_id}`);
+    } catch (err: any) {
+      setCustomRepoError(err.message || "Failed to start analysis");
+      setAnalyzingCustom(false);
+    }
+  };
+
   if (status === "loading" || status === "ingesting" || status === "scoring" || status === "computing_shapley" || status === "queued") {
     return (
       <main className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center">
@@ -406,6 +434,13 @@ function ResultsContent() {
             <button onClick={() => router.push(`/audit?demo=${params.get("demo")}&job=${params.get("job") || ""}`)}
               className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 transition-colors text-zinc-200">
               View Audit Trail
+            </button>
+            <button
+              onClick={() => setShowRepoModal(true)}
+              className="bg-blue-600/20 hover:bg-blue-600/30 px-3.5 py-2 rounded-lg text-xs font-semibold border border-blue-500/40 flex items-center gap-1.5 transition-colors text-blue-300"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Analyze Any Repo
             </button>
             <button onClick={() => router.push("/")}
               className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 transition-colors text-zinc-200">
@@ -1019,6 +1054,108 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                 >
                   Done
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Repository Modal */}
+        {showRepoModal && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-zinc-900 border border-zinc-700/80 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-zinc-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Analyze Any GitHub Repository</h3>
+                    <p className="text-[11px] text-zinc-400">Evaluate any repository with game-theoretic attribution</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowRepoModal(false)}
+                  className="text-zinc-400 hover:text-white p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-base transition-colors"
+                >
+                  &times;
+                </button>
+              </div>
+
+              {customRepoError && (
+                <div className="bg-red-950/50 border border-red-800 text-red-300 text-xs rounded-lg p-3 mb-4">
+                  {customRepoError}
+                </div>
+              )}
+
+              <div className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-zinc-300 font-medium mb-1.5">GitHub Repository URL or owner/repo</label>
+                  <input
+                    type="text"
+                    value={customRepo}
+                    onChange={(e) => setCustomRepo(e.target.value)}
+                    placeholder="e.g. tiangolo/fastapi, astral-sh/uv, or https://github.com/owner/repo"
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-zinc-100 placeholder-zinc-500 font-mono text-xs focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <span className="text-zinc-400 block mb-1.5 font-medium">Quick Benchmark Presets:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {["fastapi/fastapi", "astral-sh/uv", "encode/httpx", "tiangolo/sqlmodel", "psf/black"].map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setCustomRepo(r)}
+                        className={`px-2.5 py-1 rounded font-mono text-[11px] transition-colors border ${
+                          customRepo === r
+                            ? "bg-blue-600/30 text-blue-300 border-blue-500/50"
+                            : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700"
+                        }`}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-300 font-medium mb-1.5">Bounty Pool (USD)</label>
+                  <input
+                    type="number"
+                    value={customPool}
+                    onChange={(e) => setCustomPool(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-zinc-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="pt-3 border-t border-zinc-800 flex justify-end gap-2">
+                  <button
+                    onClick={() => setShowRepoModal(false)}
+                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCustomAnalysis}
+                    disabled={analyzingCustom}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+                  >
+                    {analyzingCustom ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Initializing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🚀</span>
+                        <span>Start Analysis</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
