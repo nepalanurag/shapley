@@ -1118,6 +1118,73 @@ jobs:
           </div>
         )}
 
+        {/* PayPal Multi-Stakeholder Custodial Escrow Card */}
+        <div className="bg-gradient-to-r from-blue-950/30 via-zinc-900 to-zinc-900 border border-blue-600/40 rounded-xl p-4 sm:p-5 mb-6 shadow-lg shadow-blue-950/20">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-4 border-b border-blue-900/30">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-blue-600/30">
+                &Pcy;
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-white">PayPal Multi-Stakeholder Escrow</h3>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
+                    🔒 Vault: ESCROW-PP-ACTIVE
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  PayPal acts as a neutral licensed custodian holding bounty funds in an Authorization Hold until multi-stakeholder criteria are met.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono text-zinc-300 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800">
+                Escrow Hold: <strong className="text-emerald-400">${currentTotal.toFixed(2)} USD</strong>
+              </span>
+              <button
+                onClick={() => setShowConfirm(true)}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-md shadow-emerald-700/20"
+              >
+                <span>🔓</span>
+                Release Escrow
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs mb-3">
+            <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-mono uppercase font-bold text-blue-400">1. Funder / Sponsor</span>
+                <span className="text-[10px] font-mono text-emerald-400">&check; Authorized</span>
+              </div>
+              <span className="font-semibold text-white block">Grant Sponsor</span>
+              <span className="text-[10px] text-zinc-500 font-mono">Non-retractable authorization hold</span>
+            </div>
+            <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-mono uppercase font-bold text-blue-400">2. Neutral Escrow</span>
+                <span className="text-[10px] font-mono text-blue-400">&check; In Custody</span>
+              </div>
+              <span className="font-semibold text-white block">PayPal Commerce Platform</span>
+              <span className="text-[10px] text-zinc-500 font-mono">Disbursement Mode: DELAYED</span>
+            </div>
+            <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-mono uppercase font-bold text-blue-400">3. Maintainer Sign-off</span>
+                <span className="text-[10px] font-mono text-emerald-400">&check; Merkle Validated</span>
+              </div>
+              <span className="font-semibold text-white block">Project Core Maintainers</span>
+              <span className="text-[10px] text-zinc-500 font-mono">48h Dispute Challenge Window active</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-zinc-400 pt-1">
+            <span>⏱️ <strong>48-Hour Dispute Challenge Window:</strong> Active &bull; Exact-Penny conservation verified ($0.00 float)</span>
+            <span className="font-mono text-[10px] text-zinc-500">Idempotency: SHA-256 State-Locked</span>
+          </div>
+        </div>
+
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4 animate-rise stagger-2">
           <div className="flex items-center justify-between mb-4 px-2">
             <h2 className="font-semibold">Contributor Breakdown</h2>

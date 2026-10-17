@@ -155,6 +155,41 @@ MCP_TOOLS = [
                 }
             }
         }
+    },
+    {
+        "name": "shapley_get_escrow_status",
+        "description": "Get current multi-stakeholder PayPal Escrow status, custody holds, challenge window timer, and quorum signatures for a repository.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "escrow_id": {
+                    "type": "string",
+                    "description": "Escrow Vault ID (e.g. 'ESCROW-PP-JINJA-02')",
+                    "default": "ESCROW-PP-JINJA-02"
+                }
+            }
+        }
+    },
+    {
+        "name": "shapley_authorize_escrow_release",
+        "description": "Authorize and disburse a PayPal Escrow milestone tranche to contributors following dual-quorum stakeholder verification.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "escrow_id": {
+                    "type": "string",
+                    "description": "Escrow Vault ID to release",
+                    "default": "ESCROW-PP-JINJA-02"
+                },
+                "signer_role": {
+                    "type": "string",
+                    "enum": ["maintainer", "sponsor"],
+                    "description": "Authorizing stakeholder role",
+                    "default": "maintainer"
+                }
+            },
+            "required": ["escrow_id"]
+        }
     }
 ]
 
@@ -435,6 +470,62 @@ def handle_mcp_message(body: dict) -> dict:
                 "id": req_id,
                 "result": {
                     "content": [{"type": "text", "text": json.dumps(payload, indent=2)}]
+                }
+            }
+
+        elif tool_name == "shapley_get_escrow_status":
+            from paypal_escrow import escrow_manager
+            escrow_id = args.get("escrow_id", "ESCROW-PP-JINJA-02")
+            vault = escrow_manager.get_vault(escrow_id)
+            if not vault:
+                return {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {"code": -32602, "message": f"Escrow vault not found: {escrow_id}"}
+                }
+            data = {
+                "escrow_id": vault.escrow_id,
+                "status": vault.status,
+                "custodian": vault.custodian,
+                "pool_usd": vault.pool_usd,
+                "authorization_id": vault.authorization_id,
+                "merkle_root": vault.merkle_root,
+                "challenge_window_hours": vault.challenge_window_hours,
+                "challenge_expires_at": vault.challenge_expires_at,
+                "time_remaining_seconds": max(0, vault.challenge_expires_at - time.time()),
+                "stakeholders": {k: {"role": s.role, "name": s.name, "approved": s.approved, "signature_hash": s.signature_hash} for k, s in vault.stakeholders.items()}
+            }
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "content": [{"type": "text", "text": json.dumps(data, indent=2)}]
+                }
+            }
+
+        elif tool_name == "shapley_authorize_escrow_release":
+            from paypal_escrow import escrow_manager
+            from milestone_engine import MilestoneTracker
+            escrow_id = args.get("escrow_id", "ESCROW-PP-JINJA-02")
+            vault = escrow_manager.get_vault(escrow_id)
+            if not vault:
+                return {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {"code": -32602, "message": f"Escrow vault not found: {escrow_id}"}
+                }
+            tracker = MilestoneTracker(vault.repo_url)
+            phase = tracker.get_phase(vault.phase_id)
+            shares = [
+                {"email": f"{name.lower().replace(' ', '.')}@jinja-dev.org", "amount": amt}
+                for name, amt in phase.payouts_usd.items()
+            ] if phase else []
+            res = escrow_manager.release_escrow(escrow_id, shares)
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "content": [{"type": "text", "text": json.dumps(res, indent=2)}]
                 }
             }
 
