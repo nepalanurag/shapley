@@ -106,9 +106,14 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
           Attribution Console
         </button>
+        <button onclick="switchView('sponsor')" id="tab-sponsor" class="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 transition-all flex items-center gap-1.5">
+          <span>🏛️</span>
+          Sponsor Hub
+          <span class="text-[9px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 px-1 py-0.2 rounded font-semibold">$25k Stack</span>
+        </button>
         <button onclick="switchView('audit')" id="tab-audit" class="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 transition-all flex items-center gap-1.5">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-          Game Theory Audit
+          Audit Vault
         </button>
         <button onclick="switchView('workflows')" id="tab-workflows" class="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 transition-all flex items-center gap-1.5">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
@@ -147,6 +152,7 @@
     <div class="md:hidden bg-zinc-950 border-t border-zinc-800 px-4 py-2 flex items-center justify-between overflow-x-auto text-xs font-medium gap-2">
       <div class="flex items-center gap-1">
         <button onclick="switchView('results')" id="mob-tab-results" class="px-2.5 py-1 rounded-md text-white bg-zinc-800 font-semibold whitespace-nowrap">Console</button>
+        <button onclick="switchView('sponsor')" id="mob-tab-sponsor" class="px-2.5 py-1 rounded-md text-zinc-400 hover:text-white whitespace-nowrap">Sponsor</button>
         <button onclick="switchView('audit')" id="mob-tab-audit" class="px-2.5 py-1 rounded-md text-zinc-400 hover:text-white whitespace-nowrap">Audit</button>
         <button onclick="switchView('workflows')" id="mob-tab-workflows" class="px-2.5 py-1 rounded-md text-zinc-400 hover:text-white whitespace-nowrap">Pipelines</button>
         <button onclick="switchView('agent')" id="mob-tab-agent" class="px-2.5 py-1 rounded-md text-zinc-400 hover:text-white whitespace-nowrap">MCP</button>
@@ -732,7 +738,214 @@
     </div>
   </main>
 
-  <!-- VIEW 2: GAME THEORY AUDIT & COALITION MATRIX -->
+  <!-- ============================================================ -->
+  <!-- VIEW: SPONSOR PORTFOLIO & GRANT COMMAND CENTER               -->
+  <!-- ============================================================ -->
+  <main id="view-sponsor" class="hidden max-w-7xl mx-auto px-4 sm:px-6 py-6 animate-fade">
+    
+    <!-- Sponsor Header Banner -->
+    <div class="pb-5 mb-6 border-b border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold text-sm">
+            🏛️
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Sponsor Portfolio &amp; Grant Command Center</h1>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-semibold">
+                Batch: BATCH-2026-Q4
+              </span>
+            </div>
+            <p class="text-xs text-zinc-400 mt-0.5">
+              Funder: <strong class="text-zinc-200">Open Source Capital Fund</strong> &bull; PayPal Business Account: <code class="text-blue-300 font-mono text-[11px]">sponsor-treasury@opensource-fund.org</code> &bull; Two-Phase Custody
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="downloadSponsorInvoiceCSV()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg shadow-sm flex items-center gap-1.5 transition-colors">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Export Tax Statement (CSV)
+        </button>
+        <button onclick="openSponsorInvoiceModal()" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg border border-zinc-700 flex items-center gap-1.5 transition-colors">
+          <span>🧾</span> View GAAP Invoice
+        </button>
+        <button onclick="copySponsorBadge()" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg border border-zinc-700 flex items-center gap-1.5 transition-colors">
+          <span>✨</span> Copy README Badge
+        </button>
+      </div>
+    </div>
+
+    <!-- The 3 Sponsor High-Impact KPI Tiles -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div class="bg-[#111215] border border-zinc-800/90 rounded-xl p-4 shadow-sm relative overflow-hidden">
+        <div class="flex items-center justify-between text-zinc-400 text-xs mb-1.5">
+          <span class="font-medium uppercase tracking-wider text-[10px] font-mono">Total Grant Committed</span>
+          <span class="text-blue-400 font-mono text-[11px]">4 Repositories</span>
+        </div>
+        <div class="text-2xl font-bold text-white font-mono">$25,000.00 <span class="text-xs text-zinc-500 font-sans font-normal">USD</span></div>
+        <p class="text-[11px] text-zinc-400 mt-2">100% non-dilutive open-source infrastructure funding across key Python runtime stack.</p>
+      </div>
+
+      <div class="bg-[#111215] border border-blue-900/40 rounded-xl p-4 shadow-sm relative overflow-hidden">
+        <div class="flex items-center justify-between text-zinc-400 text-xs mb-1.5">
+          <span class="font-medium uppercase tracking-wider text-[10px] font-mono text-blue-400">PayPal Custodial Escrow</span>
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        </div>
+        <div class="text-2xl font-bold text-emerald-400 font-mono">$11,500.00 <span class="text-xs text-zinc-500 font-sans font-normal">USD</span></div>
+        <p class="text-[11px] text-zinc-400 mt-2">Held under PayPal 29-day non-retractable Authorization Holds. Zero platform custody risk.</p>
+      </div>
+
+      <div class="bg-[#111215] border border-emerald-900/40 rounded-xl p-4 shadow-sm relative overflow-hidden">
+        <div class="flex items-center justify-between text-zinc-400 text-xs mb-1.5">
+          <span class="font-medium uppercase tracking-wider text-[10px] font-mono text-emerald-400">Capital Waste Prevented</span>
+          <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">ROI Protected</span>
+        </div>
+        <div class="text-2xl font-bold text-emerald-400 font-mono">+$3,840.00 <span class="text-xs text-zinc-500 font-sans font-normal">USD</span></div>
+        <p class="text-[11px] text-zinc-400 mt-2">6,400 boilerplate &amp; formatting lines filtered by Shapley AST, concentrating capital on real deliverables.</p>
+      </div>
+    </div>
+
+    <!-- Multi-Repo Dependency Stack Portfolio Table -->
+    <div class="bg-[#111215] border border-zinc-800 rounded-xl p-4 sm:p-5 mb-6 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-4 border-b border-zinc-800/80">
+        <div>
+          <h2 class="text-sm font-bold text-white">Ecosystem Dependency Stack Portfolio</h2>
+          <p class="text-xs text-zinc-400">Multi-repository milestone grants governed by dual-quorum PayPal Two-Phase escrow.</p>
+        </div>
+        <span class="text-[11px] font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg">
+          Settled Disbursed: <strong class="text-white">$13,500.00 USD</strong>
+        </span>
+      </div>
+
+      <!-- Portfolio Stack Cards / Table -->
+      <div class="space-y-3">
+        <!-- Jinja -->
+        <div class="bg-zinc-950/80 border border-blue-900/40 rounded-xl p-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div class="flex-1">
+            <div class="flex items-center gap-2.5 mb-1">
+              <span class="font-mono font-bold text-white text-sm">pallets/jinja</span>
+              <span class="text-[10px] font-mono text-blue-300 bg-blue-950/80 border border-blue-800 px-2 py-0.5 rounded">Phase 2: Security &amp; AST</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">Active Escrow Hold</span>
+            </div>
+            <p class="text-xs text-zinc-300">Deliverables: Core AST parser rewrite (Maya Chen) + 1 critical memory CVE patch (Sara Ahmed).</p>
+            <div class="flex items-center gap-3 text-[10px] font-mono text-zinc-500 mt-1.5">
+              <span>Vault: ESCROW-PP-JINJA-02</span>
+              <span>&bull;</span>
+              <span>Auth ID: AUTH-PP-8829410-USD</span>
+              <span>&bull;</span>
+              <span class="text-emerald-400">+$1,240.00 waste prevented</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-4 justify-between lg:justify-end">
+            <div class="text-right">
+              <div class="text-[10px] font-mono text-zinc-500">Committed / Escrow / Disbursed</div>
+              <div class="font-mono text-xs font-semibold text-white">
+                $3,500 <span class="text-zinc-600">|</span> <span class="text-emerald-400">$2,500</span> <span class="text-zinc-600">|</span> $1,000
+              </div>
+            </div>
+            <button onclick="switchView('results')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors">
+              Manage Tranche &rarr;
+            </button>
+          </div>
+        </div>
+
+        <!-- FastAPI -->
+        <div class="bg-zinc-950/80 border border-zinc-800 rounded-xl p-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div class="flex-1">
+            <div class="flex items-center gap-2.5 mb-1">
+              <span class="font-mono font-bold text-white text-sm">fastapi/fastapi</span>
+              <span class="text-[10px] font-mono text-zinc-300 bg-zinc-900 border border-zinc-700 px-2 py-0.5 rounded">Phase 1: Core AST</span>
+              <span class="text-[10px] font-mono text-blue-300 bg-blue-950/80 border border-blue-800 px-2 py-0.5 rounded">Authorization Hold</span>
+            </div>
+            <p class="text-xs text-zinc-300">Deliverables: Pydantic v2 deep integration &amp; OpenAPI 3.1 high-performance schema generation.</p>
+            <div class="flex items-center gap-3 text-[10px] font-mono text-zinc-500 mt-1.5">
+              <span>Vault: ESCROW-PP-FASTAPI-01</span>
+              <span>&bull;</span>
+              <span>Auth ID: AUTH-PP-9941023-USD</span>
+              <span>&bull;</span>
+              <span class="text-emerald-400">+$1,420.00 waste prevented</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-4 justify-between lg:justify-end">
+            <div class="text-right">
+              <div class="text-[10px] font-mono text-zinc-500">Committed / Escrow / Disbursed</div>
+              <div class="font-mono text-xs font-semibold text-white">
+                $8,000 <span class="text-zinc-600">|</span> <span class="text-emerald-400">$8,000</span> <span class="text-zinc-600">|</span> $0
+              </div>
+            </div>
+            <button onclick="openCustomRepoModal()" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg border border-zinc-700 transition-colors">
+              Inspect Scope &rarr;
+            </button>
+          </div>
+        </div>
+
+        <!-- HTTPX -->
+        <div class="bg-zinc-950/80 border border-zinc-800 rounded-xl p-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div class="flex-1">
+            <div class="flex items-center gap-2.5 mb-1">
+              <span class="font-mono font-bold text-white text-sm">encode/httpx</span>
+              <span class="text-[10px] font-mono text-zinc-300 bg-zinc-900 border border-zinc-700 px-2 py-0.5 rounded">Phase 3: Scale &amp; Resilience</span>
+              <span class="text-[10px] font-mono text-amber-300 bg-amber-950/60 border border-amber-800 px-2 py-0.5 rounded">Dispute Challenge Window</span>
+            </div>
+            <p class="text-xs text-zinc-300">Deliverables: HTTP/2 connection pooling resilience, timeout telemetry, and SSL renegotiation.</p>
+            <div class="flex items-center gap-3 text-[10px] font-mono text-zinc-500 mt-1.5">
+              <span>Vault: ESCROW-PP-HTTPX-03</span>
+              <span>&bull;</span>
+              <span>Auth ID: AUTH-PP-4410294-USD</span>
+              <span>&bull;</span>
+              <span class="text-emerald-400">+$680.00 waste prevented</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-4 justify-between lg:justify-end">
+            <div class="text-right">
+              <div class="text-[10px] font-mono text-zinc-500">Committed / Escrow / Disbursed</div>
+              <div class="font-mono text-xs font-semibold text-white">
+                $6,000 <span class="text-zinc-600">|</span> <span class="text-emerald-400">$1,000</span> <span class="text-zinc-600">|</span> $5,000
+              </div>
+            </div>
+            <button onclick="openMerkleModal()" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg border border-zinc-700 transition-colors">
+              Verify Merkle &rarr;
+            </button>
+          </div>
+        </div>
+
+        <!-- Astral uv -->
+        <div class="bg-zinc-950/80 border border-zinc-800 rounded-xl p-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div class="flex-1">
+            <div class="flex items-center gap-2.5 mb-1">
+              <span class="font-mono font-bold text-white text-sm">astral-sh/uv</span>
+              <span class="text-[10px] font-mono text-zinc-300 bg-zinc-900 border border-zinc-700 px-2 py-0.5 rounded">Phase 1: Bootstrap</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">Fully Settled</span>
+            </div>
+            <p class="text-xs text-zinc-300">Deliverables: Universal wheels caching isolation, dependency solver benchmarking, lockfile spec.</p>
+            <div class="flex items-center gap-3 text-[10px] font-mono text-zinc-500 mt-1.5">
+              <span>Vault: ESCROW-PP-UV-01</span>
+              <span>&bull;</span>
+              <span>Auth ID: AUTH-PP-1120492-USD</span>
+              <span>&bull;</span>
+              <span class="text-emerald-400">+$500.00 waste prevented</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-4 justify-between lg:justify-end">
+            <div class="text-right">
+              <div class="text-[10px] font-mono text-zinc-500">Committed / Escrow / Disbursed</div>
+              <div class="font-mono text-xs font-semibold text-white">
+                $7,500 <span class="text-zinc-600">|</span> <span class="text-zinc-500">$0</span> <span class="text-zinc-600">|</span> $7,500
+              </div>
+            </div>
+            <button onclick="downloadSponsorInvoiceCSV()" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg border border-zinc-700 transition-colors">
+              Receipt &rarr;
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- VIEW 3: GAME THEORY AUDIT & COALITION MATRIX -->
   <main id="view-audit" class="hidden max-w-7xl mx-auto px-4 sm:px-6 py-6">
     <div class="pb-5 mb-6 border-b border-zinc-800 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
       <div>
@@ -1616,6 +1829,30 @@
           </div>
           <span class="text-[10px] font-mono text-zinc-500">16 Coalitions</span>
         </button>
+
+        <button onclick="switchView('sponsor'); closeCommandPalette();" class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-800 flex items-center justify-between text-zinc-200 transition-colors">
+          <div class="flex items-center gap-2">
+            <span class="text-blue-400">🏛️</span>
+            <span class="font-medium">Sponsor Portfolio &amp; Grant Command Center</span>
+          </div>
+          <span class="text-[10px] font-mono text-zinc-500">$25k Grants</span>
+        </button>
+
+        <button onclick="openSponsorInvoiceModal(); closeCommandPalette();" class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-800 flex items-center justify-between text-zinc-200 transition-colors">
+          <div class="flex items-center gap-2">
+            <span>🧾</span>
+            <span class="font-medium">View GAAP Tax Disbursement Statement</span>
+          </div>
+          <span class="text-[10px] font-mono text-zinc-500">IRS 501(c)(3)</span>
+        </button>
+
+        <button onclick="downloadSponsorInvoiceCSV(); closeCommandPalette();" class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-800 flex items-center justify-between text-zinc-200 transition-colors">
+          <div class="flex items-center gap-2">
+            <span class="text-emerald-400">📊</span>
+            <span class="font-medium">Export Sponsor Tax Statement (CSV)</span>
+          </div>
+          <span class="text-[10px] font-mono text-zinc-500">Spreadsheet</span>
+        </button>
       </div>
     </div>
   </div>
@@ -1653,6 +1890,8 @@ jobs:
         </button>
       </div>
     </div>
+  </div>
+
   <!-- ============================================================ -->
   <!-- MODAL: ANALYZE CUSTOM GITHUB REPOSITORY                     -->
   <!-- ============================================================ -->
@@ -1738,6 +1977,129 @@ jobs:
           <div id="cstep2" class="text-zinc-600">&bull; [2/4] AST quarantine: Isolating logic diffs...</div>
           <div id="cstep3" class="text-zinc-600">&bull; [3/4] Gemini scoring 16 coalition subsets...</div>
           <div id="cstep4" class="text-zinc-600">&bull; [4/4] Calculating exact-penny Shapley split...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: SPONSOR GAAP TAX INVOICE & DISBURSEMENT STATEMENT      -->
+  <!-- ============================================================ -->
+  <div id="sponsorInvoiceModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeSponsorInvoiceModal()"></div>
+    <div class="relative bg-[#111215] border border-zinc-700/80 rounded-2xl p-6 max-w-2xl w-full shadow-2xl modal-enter max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 mb-4 border-b border-zinc-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold text-sm">
+            🧾
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">GAAP Grant Disbursement &amp; Escrow Statement</h3>
+            <p class="text-[11px] text-zinc-400 font-mono">Invoice Reference: INV-2026-Q4-OSCF-001</p>
+          </div>
+        </div>
+        <button onclick="closeSponsorInvoiceModal()" class="text-zinc-400 hover:text-white p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-base transition-colors">&times;</button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <!-- Funder & Custodian Summary -->
+        <div class="grid grid-cols-2 gap-3 bg-zinc-950 p-3.5 rounded-xl border border-zinc-800 text-[11px]">
+          <div>
+            <div class="text-zinc-500 uppercase tracking-wider text-[9px] font-mono">Grant Sponsor</div>
+            <div class="font-bold text-white mt-0.5">Open Source Capital Fund</div>
+            <div class="text-zinc-400 font-mono mt-0.5">sponsor-treasury@opensource-fund.org</div>
+            <div class="text-zinc-500 font-mono mt-0.5">EIN: 84-2910492 &bull; 501(c)(3) Compliant</div>
+          </div>
+          <div>
+            <div class="text-zinc-500 uppercase tracking-wider text-[9px] font-mono">Escrow Custodian</div>
+            <div class="font-bold text-blue-400 mt-0.5">PayPal Developer Platform (Orders v2)</div>
+            <div class="text-zinc-400 font-mono mt-0.5">Method: Delayed Capture (Intent: AUTHORIZE)</div>
+            <div class="text-emerald-400 font-mono mt-0.5">&bull; 29-Day Non-Retractable Hold</div>
+          </div>
+        </div>
+
+        <!-- Financial Breakdown -->
+        <div class="border border-zinc-800 rounded-xl overflow-hidden">
+          <table class="w-full text-left text-[11px]">
+            <thead class="bg-zinc-900/80 text-zinc-400 font-mono text-[10px] border-b border-zinc-800">
+              <tr>
+                <th class="py-2 px-3">Repository &amp; Scope</th>
+                <th class="py-2 px-3">PayPal Auth ID</th>
+                <th class="py-2 px-3">Status</th>
+                <th class="py-2 px-3 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-800/60 font-mono">
+              <tr>
+                <td class="py-2 px-3 text-white">pallets/jinja (Phase 2 AST)</td>
+                <td class="py-2 px-3 text-zinc-400 text-[10px]">AUTH-PP-8829410-USD</td>
+                <td class="py-2 px-3"><span class="text-blue-400 bg-blue-950/80 px-1.5 py-0.5 rounded text-[10px]">ESCROW HOLD</span></td>
+                <td class="py-2 px-3 text-right font-bold text-white">$2,500.00</td>
+              </tr>
+              <tr>
+                <td class="py-2 px-3 text-white">pallets/jinja (Phase 1 Baseline)</td>
+                <td class="py-2 px-3 text-zinc-400 text-[10px]">CAPTURE-PP-8829401-USD</td>
+                <td class="py-2 px-3"><span class="text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded text-[10px]">SETTLED</span></td>
+                <td class="py-2 px-3 text-right font-bold text-emerald-400">$1,000.00</td>
+              </tr>
+              <tr>
+                <td class="py-2 px-3 text-white">fastapi/fastapi (Pydantic v2 AST)</td>
+                <td class="py-2 px-3 text-zinc-400 text-[10px]">AUTH-PP-9941023-USD</td>
+                <td class="py-2 px-3"><span class="text-blue-400 bg-blue-950/80 px-1.5 py-0.5 rounded text-[10px]">ESCROW HOLD</span></td>
+                <td class="py-2 px-3 text-right font-bold text-white">$8,000.00</td>
+              </tr>
+              <tr>
+                <td class="py-2 px-3 text-white">encode/httpx (Phase 3 Scale)</td>
+                <td class="py-2 px-3 text-zinc-400 text-[10px]">AUTH-PP-4410294-USD</td>
+                <td class="py-2 px-3"><span class="text-amber-400 bg-amber-950/60 px-1.5 py-0.5 rounded text-[10px]">CHALLENGE WINDOW</span></td>
+                <td class="py-2 px-3 text-right font-bold text-white">$1,000.00</td>
+              </tr>
+              <tr>
+                <td class="py-2 px-3 text-white">encode/httpx (Phase 1 &amp; 2)</td>
+                <td class="py-2 px-3 text-zinc-400 text-[10px]">CAPTURE-PP-4410201-USD</td>
+                <td class="py-2 px-3"><span class="text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded text-[10px]">SETTLED</span></td>
+                <td class="py-2 px-3 text-right font-bold text-emerald-400">$5,000.00</td>
+              </tr>
+              <tr>
+                <td class="py-2 px-3 text-white">astral-sh/uv (Phase 1 Bootstrap)</td>
+                <td class="py-2 px-3 text-zinc-400 text-[10px]">AUTH-PP-1120492-USD</td>
+                <td class="py-2 px-3"><span class="text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded text-[10px]">SETTLED</span></td>
+                <td class="py-2 px-3 text-right font-bold text-emerald-400">$7,500.00</td>
+              </tr>
+            </tbody>
+            <tfoot class="bg-zinc-900/60 text-[11px] font-mono border-t border-zinc-800">
+              <tr>
+                <td colspan="3" class="py-2 px-3 text-right text-zinc-400 font-sans">Settled &amp; Disbursed:</td>
+                <td class="py-2 px-3 text-right font-bold text-emerald-400">$13,500.00 USD</td>
+              </tr>
+              <tr>
+                <td colspan="3" class="py-2 px-3 text-right text-zinc-400 font-sans">Active PayPal Escrow Holds:</td>
+                <td class="py-2 px-3 text-right font-bold text-blue-400">$11,500.00 USD</td>
+              </tr>
+              <tr class="bg-zinc-900">
+                <td colspan="3" class="py-2 px-3 text-right text-white font-bold font-sans">Total Grant Commitment:</td>
+                <td class="py-2 px-3 text-right font-bold text-white text-xs">$25,000.00 USD</td>
+              </tr>
+              <tr class="bg-emerald-950/30 text-emerald-300">
+                <td colspan="3" class="py-2 px-3 text-right font-bold font-sans">Capital Waste Prevented (AST Filtering):</td>
+                <td class="py-2 px-3 text-right font-bold">+$3,840.00 USD</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="text-[10px] text-zinc-500 font-mono leading-relaxed bg-zinc-950 p-3 rounded-lg border border-zinc-800">
+          This document serves as an immutable disbursement record for financial audit and tax deduction reporting under IRS Sec. 501(c)(3) open source grants. All transactions are backed by cryptographic SHA-256 Merkle proofs and PayPal webhook receipts.
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button onclick="downloadSponsorInvoiceCSV(); closeSponsorInvoiceModal();" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Download CSV Export
+          </button>
+          <button onclick="closeSponsorInvoiceModal()" class="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg transition-colors">
+            Close
+          </button>
         </div>
       </div>
     </div>
@@ -2079,22 +2441,69 @@ jobs:
     }
 
     function switchView(viewName) {
-      const views = ['results', 'audit', 'workflows', 'agent'];
+      const views = ['results', 'sponsor', 'audit', 'workflows', 'agent'];
       views.forEach(v => {
         const el = document.getElementById('view-' + v);
         const tab = document.getElementById('tab-' + v);
+        const mobTab = document.getElementById('mob-tab-' + v);
         if (el) el.classList.add('hidden');
         if (tab) {
           tab.className = 'px-3 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 transition-all flex items-center gap-1.5 font-normal';
+        }
+        if (mobTab) {
+          mobTab.className = 'px-2.5 py-1 rounded-md text-zinc-400 hover:text-white whitespace-nowrap font-normal';
         }
       });
 
       const activeEl = document.getElementById('view-' + viewName);
       const activeTab = document.getElementById('tab-' + viewName);
+      const activeMobTab = document.getElementById('mob-tab-' + viewName);
       if (activeEl) activeEl.classList.remove('hidden');
       if (activeTab) {
         activeTab.className = 'px-3 py-1.5 rounded-lg text-white bg-zinc-800 shadow-sm transition-all flex items-center gap-1.5 font-semibold';
       }
+      if (activeMobTab) {
+        activeMobTab.className = 'px-2.5 py-1 rounded-md text-white bg-zinc-800 font-semibold whitespace-nowrap';
+      }
+    }
+
+    function openSponsorInvoiceModal() {
+      const modal = document.getElementById('sponsorInvoiceModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeSponsorInvoiceModal() {
+      const modal = document.getElementById('sponsorInvoiceModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function downloadSponsorInvoiceCSV() {
+      const csvContent = 
+`Grant Batch,Repository,Milestone,PayPal Auth ID,Escrow Vault,Status,Committed USD,Escrow Hold USD,Disbursed USD,Waste Prevented USD
+BATCH-2026-Q4,pallets/jinja,Phase 2: Security & AST,AUTH-PP-8829410-USD,ESCROW-PP-JINJA-02,ESCROW_HELD,3500.00,2500.00,1000.00,1240.00
+BATCH-2026-Q4,fastapi/fastapi,Phase 1: Core AST,AUTH-PP-9941023-USD,ESCROW-PP-FASTAPI-01,ESCROW_HELD,8000.00,8000.00,0.00,1420.00
+BATCH-2026-Q4,encode/httpx,Phase 3: Scale & Resilience,AUTH-PP-4410294-USD,ESCROW-PP-HTTPX-03,CHALLENGE_WINDOW,6000.00,1000.00,5000.00,680.00
+BATCH-2026-Q4,astral-sh/uv,Phase 1: Bootstrap,AUTH-PP-1120492-USD,ESCROW-PP-UV-01,SETTLED,7500.00,0.00,7500.00,500.00
+TOTAL,4 Repositories,Q4 Stack Portfolio,-,-,ACTIVE,25000.00,11500.00,13500.00,3840.00`;
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'OSCF_Grant_Invoice_BATCH-2026-Q4.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('Tax statement CSV exported successfully!');
+    }
+
+    function copySponsorBadge() {
+      const badgeMd = '[![Funded via Shapley](https://img.shields.io/badge/Funded%20via-Shapley%20%26%20PayPal%20Escrow-0070BA?style=flat&logo=paypal)](https://github.com/shapley-main)';
+      navigator.clipboard.writeText(badgeMd).then(() => {
+        showToast('Markdown sponsor badge copied to clipboard!');
+      }).catch(() => {
+        showToast('Badge copied: ' + badgeMd);
+      });
     }
 
     function switchAuditMode(mode) {
@@ -2542,6 +2951,7 @@ jobs:
       const modal = urlParams.get('modal');
       if (modal === 'payout' || modal === 'escrow') openPayoutModal();
       if (modal === 'palette' || modal === 'command') openCommandPalette();
+      if (modal === 'sponsor_invoice' || modal === 'invoice') openSponsorInvoiceModal();
     });
   </script>
 </body>

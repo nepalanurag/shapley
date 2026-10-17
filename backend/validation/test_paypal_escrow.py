@@ -135,6 +135,103 @@ def test_default_demo_vault_jinja_phase2():
     assert vault.custodian == "PayPal Inc. (Delayed Disbursement Custody)"
 
 
+def test_orders_v2_authorization_intent():
+    """Verify PayPal Orders v2 creates intent='AUTHORIZE' with sandbox approval link."""
+    mgr = PayPalEscrowManager()
+    res = mgr.create_orders_v2_authorization(
+        repo_url="pallets/jinja",
+        phase_id="phase2",
+        pool_usd=2500.00,
+        sponsor_email="sponsor@ospo-fund.org",
+        sponsor_name="OSPO Fund",
+        merkle_root="3c98af010e92..."
+    )
+    assert res["intent"] == "AUTHORIZE"
+    assert res["status"] == "CREATED"
+    assert res["pool_usd"] == 2500.00
+    assert "https://www.sandbox.paypal.com/checkoutnow" in res["approval_url"]
+    assert res["authorization_id"].startswith("AUTH-PP-")
+
+
+def test_orders_v2_delayed_capture_flow():
+    """Verify PayPal Delayed Capture triggers upon dual quorum and executes exact-penny disburse."""
+    mgr = PayPalEscrowManager()
+    res = mgr.create_orders_v2_authorization(
+        repo_url="encode/httpx",
+        phase_id="phase1",
+        pool_usd=1000.00,
+        sponsor_email="sponsor@encode.io",
+        sponsor_name="Encode Funder",
+        merkle_root="abc123456..."
+    )
+    shares = [
+        {"email": "devA@encode.io", "amount": 650.00},
+        {"email": "devB@encode.io", "amount": 350.00}
+    ]
+    capture = mgr.capture_authorization(res["escrow_id"], shares, maintainer_signed=True)
+    assert capture["status"] == "RELEASED"
+    assert capture["intent"] == "CAPTURE_COMPLETED"
+    assert capture["disbursed_pool_usd"] == 1000.00
+    assert capture["capture_id"].startswith("CAPTURE-PP-")
+
+
+def test_orders_v2_void_on_dispute():
+    """Verify voiding authorization returns 100% of funds to sponsor."""
+    mgr = PayPalEscrowManager()
+    res = mgr.create_orders_v2_authorization(
+        repo_url="psf/black",
+        phase_id="phase1",
+        pool_usd=500.00,
+        sponsor_email="sponsor@psf.org",
+        sponsor_name="PSF",
+        merkle_root="998877..."
+    )
+    void_res = mgr.void_authorization(res["escrow_id"], "Sybil contributor attack detected")
+    assert void_res["status"] == "VOIDED_REFUNDED"
+    assert void_res["refunded_usd"] == 500.00
+    assert void_res["refunded_to_sponsor"] == "sponsor@psf.org"
+
+
+def test_paypal_webhook_signature_verification():
+    """Verify PayPal webhook verification logic checks headers and body."""
+    mgr = PayPalEscrowManager()
+    assert mgr.verify_webhook_signature(
+        transmission_id="trans_123",
+        transmission_time="2026-10-16T21:00:00Z",
+        cert_url="https://api.sandbox.paypal.com/v1/notifications/certs/CERT-1",
+        auth_algo="SHA256withRSA",
+        transmission_sig="valid_test_signature_xyz",
+        raw_body='{"event_type":"PAYMENT.AUTHORIZATION.CREATED"}'
+    ) is True
+
+    # Untrusted domain rejected
+    assert mgr.verify_webhook_signature(
+        transmission_id="trans_123",
+        transmission_time="2026-10-16T21:00:00Z",
+        cert_url="https://evil-hacker.com/cert",
+        auth_algo="SHA256withRSA",
+        transmission_sig="sig",
+        raw_body='{}'
+    ) is False
+
+
+def test_sponsor_portfolio_and_invoice_accounting():
+    """Verify multi-repo stack accounting, zero float, and invoice itemization."""
+    mgr = PayPalEscrowManager()
+    portfolio = mgr.get_sponsor_portfolio()
+    assert portfolio["total_committed_usd"] == 25000.00
+    assert portfolio["total_escrow_hold_usd"] == 11500.00
+    assert portfolio["total_disbursed_usd"] == 13500.00
+    assert portfolio["total_waste_prevented_usd"] == 3840.00
+    # Accounting conservation: committed = escrow + disbursed
+    assert portfolio["total_committed_usd"] == portfolio["total_escrow_hold_usd"] + portfolio["total_disbursed_usd"]
+
+    invoice = mgr.generate_sponsor_invoice()
+    assert invoice["invoice_number"].startswith("INV-SHAPLEY-")
+    assert invoice["exact_penny_float"] == "$0.00 USD"
+    assert len(invoice["line_items"]) == 4
+
+
 if __name__ == "__main__":
     test_escrow_creation_and_authorization_hold()
     print("PASS: test_escrow_creation_and_authorization_hold")
@@ -146,4 +243,15 @@ if __name__ == "__main__":
     print("PASS: test_dispute_challenge_lock")
     test_default_demo_vault_jinja_phase2()
     print("PASS: test_default_demo_vault_jinja_phase2")
-    print("\nALL PAYPAL ESCROW INVARIANT TESTS PASSED (5/5)")
+    test_orders_v2_authorization_intent()
+    print("PASS: test_orders_v2_authorization_intent")
+    test_orders_v2_delayed_capture_flow()
+    print("PASS: test_orders_v2_delayed_capture_flow")
+    test_orders_v2_void_on_dispute()
+    print("PASS: test_orders_v2_void_on_dispute")
+    test_paypal_webhook_signature_verification()
+    print("PASS: test_paypal_webhook_signature_verification")
+    test_sponsor_portfolio_and_invoice_accounting()
+    print("PASS: test_sponsor_portfolio_and_invoice_accounting")
+    print("\nALL PAYPAL ESCROW & SPONSOR INVARIANT TESTS PASSED (10/10)")
+

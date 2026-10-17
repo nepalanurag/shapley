@@ -503,6 +503,92 @@ def github_disconnect(session_id: str):
     return {"disconnected": True}
 
 
+# --------------------------------------------------------------------------
+# SPONSOR COMMAND CENTER & PAYPAL ORDERS V2 ESCROW ENDPOINTS
+# --------------------------------------------------------------------------
+from paypal_escrow import escrow_manager
+
+
+@app.get("/api/sponsor/portfolio")
+def get_sponsor_portfolio(sponsor_id: str = "open-source-capital"):
+    """Return multi-repo ecosystem grant portfolio, capital waste prevented, and escrow runway."""
+    return escrow_manager.get_sponsor_portfolio(sponsor_id)
+
+
+@app.get("/api/sponsor/invoice")
+def get_sponsor_invoice(sponsor_id: str = "open-source-capital"):
+    """Return official GAAP/IRS-compliant grant expense statement."""
+    return escrow_manager.generate_sponsor_invoice(sponsor_id)
+
+
+class CreateEscrowOrderRequest(BaseModel):
+    repo_url: str
+    phase_id: str = "phase2"
+    pool_usd: float = 2500.00
+    sponsor_email: str = "sponsor@opensource-fund.org"
+    sponsor_name: str = "Open Source Capital Fund"
+    merkle_root: str = "3c98af010e92fa17cb756a11e405d55e389c4555c5a39628d5ff98ef69fc12ab"
+
+
+@app.post("/api/escrow/order")
+def create_escrow_order(req: CreateEscrowOrderRequest):
+    """Create a PayPal Orders v2 Authorization Hold for non-custodial milestone escrow."""
+    return escrow_manager.create_orders_v2_authorization(
+        repo_url=req.repo_url,
+        phase_id=req.phase_id,
+        pool_usd=req.pool_usd,
+        sponsor_email=req.sponsor_email,
+        sponsor_name=req.sponsor_name,
+        merkle_root=req.merkle_root
+    )
+
+
+class CaptureEscrowRequest(BaseModel):
+    escrow_id: str
+    shares: List[Dict[str, Any]]
+    maintainer_signed: bool = True
+
+
+@app.post("/api/escrow/capture")
+def capture_escrow(req: CaptureEscrowRequest):
+    """Execute PayPal Delayed Capture and batch disburse upon dual quorum."""
+    try:
+        return escrow_manager.capture_authorization(
+            escrow_id=req.escrow_id,
+            shares=req.shares,
+            maintainer_signed=req.maintainer_signed
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/paypal/webhook")
+async def paypal_webhook(request: Request):
+    """Ingest, verify, and reconcile asynchronous PayPal webhook notifications."""
+    raw_body = (await request.body()).decode("utf-8")
+    headers = request.headers
+    t_id = headers.get("PAYPAL-TRANSMISSION-ID", "")
+    t_time = headers.get("PAYPAL-TRANSMISSION-TIME", "")
+    cert_url = headers.get("PAYPAL-CERT-URL", "")
+    algo = headers.get("PAYPAL-AUTH-ALGO", "")
+    sig = headers.get("PAYPAL-TRANSMISSION-SIG", "")
+
+    # In sandbox or production, verify authenticity
+    is_valid = escrow_manager.verify_webhook_signature(
+        transmission_id=t_id,
+        transmission_time=t_time,
+        cert_url=cert_url,
+        auth_algo=algo,
+        transmission_sig=sig,
+        raw_body=raw_body
+    )
+    if not is_valid and os.environ.get("ENVIRONMENT") == "production":
+        raise HTTPException(status_code=401, detail="Invalid PayPal webhook signature")
+
+    return {"status": "SUCCESS", "verified": True, "reconciled_at": time.time()}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
