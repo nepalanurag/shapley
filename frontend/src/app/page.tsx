@@ -292,8 +292,49 @@ export default function Home() {
           </div>
         </div>
 
-        {/* End-to-End Workflow Pipeline */}
+        {/* Why Shapley? Plain English Explainer */}
         <div className="mt-14 pt-10 border-t border-zinc-800/80">
+          <div className="text-center mb-8">
+            <span className="text-xs uppercase font-semibold tracking-wider text-blue-400 font-mono">
+              The Common Sense Principle
+            </span>
+            <h2 className="text-2xl font-bold text-white tracking-tight mt-1">Why Lines of Code Don&apos;t Work</h2>
+            <p className="text-xs text-zinc-400 mt-1 max-w-xl mx-auto">
+              How Shapley replaces unfair typing-speed contests with true problem-solving value
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-5 mb-10">
+            <div className="bg-zinc-900/90 border border-rose-950/50 rounded-2xl p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-5 h-5 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center text-xs font-bold">&times;</span>
+                <h3 className="text-xs font-bold text-rose-400 uppercase tracking-wider font-mono">The Flawed Old Way</h3>
+              </div>
+              <p className="text-xs text-zinc-300 leading-relaxed mb-3">
+                Someone runs an automated linter (Prettier) to reformat 2,400 lines of whitespace. Naive platforms pay them 50% of the entire bounty. Meanwhile, the security researcher who spent 3 days finding a critical exploit and patched it in 5 lines gets only 1%.
+              </p>
+              <div className="text-[11px] text-zinc-500 font-mono">
+                Formula: Payout = Lines Changed &rarr; Rewards spam, punishes problem-solvers.
+              </div>
+            </div>
+
+            <div className="bg-zinc-900/90 border border-emerald-950/50 rounded-2xl p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">&check;</span>
+                <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-mono">The Shapley Way (&ldquo;Missing Teammate&rdquo; Test)</h3>
+              </div>
+              <p className="text-xs text-zinc-300 leading-relaxed mb-3">
+                We simulate every combination of your team working together. We ask: <em>&ldquo;How much does the project suffer if you&apos;re not on the team?&rdquo;</em> If your 5-line security patch turns a vulnerable repo into a rock-solid release, your reward is massive.
+              </p>
+              <div className="text-[11px] text-emerald-400 font-mono">
+                Formula: Payout = Marginal Capability &rarr; 100% fair, zero favoritism.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* End-to-End Workflow Pipeline */}
+        <div className="mt-8 pt-8 border-t border-zinc-800/80">
           <div className="text-center mb-8">
             <h2 className="text-xl font-bold text-white tracking-tight">End-to-End Workflow Architecture</h2>
             <p className="text-xs text-zinc-400 mt-1 max-w-xl mx-auto">

@@ -50,6 +50,7 @@ function ResultsContent() {
   const [emailOverrides, setEmailOverrides] = useState<Record<string, string>>({});
   const [editingEmails, setEditingEmails] = useState(false);
   const [showMath, setShowMath] = useState(false);
+  const [explainerTab, setExplainerTab] = useState<"simple" | "math">("simple");
   const [adjustedAmount, setAdjustedAmount] = useState<number | null>(null);
   const [showActionModal, setShowActionModal] = useState(false);
   const [showMerkleModal, setShowMerkleModal] = useState(false);
@@ -428,9 +429,9 @@ function ResultsContent() {
                 </h3>
                 <button
                   onClick={() => setShowMath(!showMath)}
-                  className="text-xs text-zinc-400 hover:text-zinc-200 underline flex items-center gap-1"
+                  className="text-xs text-blue-400 hover:text-blue-300 font-medium underline flex items-center gap-1"
                 >
-                  {showMath ? "Hide Game Theory Details" : "How Shapley Math Works"}
+                  {showMath ? "Hide How It Works" : "💡 How Fair Shares Are Calculated (Plain English)"}
                 </button>
               </div>
               <p className="text-sm text-zinc-300 leading-relaxed">
@@ -443,67 +444,138 @@ function ResultsContent() {
         {/* Game Theory Explainer Dropdown */}
         {showMath && (
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8 text-sm text-zinc-300 animate-rise shadow-lg">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-zinc-800">
               <h4 className="font-semibold text-zinc-100 flex items-center gap-2">
                 <span className="w-5 h-5 rounded bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-serif font-bold">
                   &phi;
                 </span>
-                The Shapley Value Formula & Game Theory Proofs
+                How Shapley Calculates Fair Shares
               </h4>
-              <span className="text-[11px] font-mono text-zinc-500 bg-zinc-950 px-2.5 py-0.5 rounded border border-zinc-800">
-                Lloyd Shapley (1953) &middot; Nobel Memorial Prize
-              </span>
+              
+              <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs">
+                <button
+                  onClick={() => setExplainerTab("simple")}
+                  className={`px-3 py-1 rounded-md transition-all font-medium ${
+                    explainerTab === "simple"
+                      ? "bg-blue-600 text-white font-semibold shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  💡 Plain English
+                </button>
+                <button
+                  onClick={() => setExplainerTab("math")}
+                  className={`px-3 py-1 rounded-md transition-all font-medium ${
+                    explainerTab === "math"
+                      ? "bg-blue-600 text-white font-semibold shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  🔬 Math Proofs
+                </button>
+              </div>
             </div>
-            <p className="text-zinc-400 mb-4 text-xs leading-relaxed">
-              Calculates each contributor&apos;s expected marginal contribution across all possible team coalitions <code className="text-blue-300 bg-zinc-950 px-1.5 py-0.5 rounded border border-zinc-800 font-mono text-xs">S &sube; N \ &#123;i&#125;</code>:
-            </p>
 
-            {/* Styled Mathematical Formula Container */}
-            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800/90 mb-5 flex items-center justify-center overflow-x-auto">
-              <div className="flex items-center gap-3 font-serif text-sm sm:text-base text-zinc-200 select-none py-1">
-                <span className="text-blue-400 font-bold italic text-lg sm:text-xl">&phi;<sub>i</sub></span>
-                <span className="text-zinc-400 text-lg">&equals;</span>
-                <div className="flex items-center gap-1.5">
-                  <div className="flex flex-col items-center">
-                    <span className="text-xs text-zinc-500 font-sans tracking-tighter">S &sube; N \ &#123;i&#125;</span>
-                    <span className="text-xl text-blue-400 font-sans">&sum;</span>
+            {explainerTab === "simple" ? (
+              <div className="space-y-5 text-xs">
+                {/* The Missing Teammate Analogy */}
+                <div className="bg-zinc-950/80 border border-zinc-800/90 rounded-xl p-4">
+                  <h5 className="font-bold text-white text-sm mb-1.5 flex items-center gap-2">
+                    <span>⚽️</span> The &ldquo;Missing Teammate&rdquo; Test
+                  </h5>
+                  <p className="text-zinc-300 leading-relaxed">
+                    Think of a software project like a sports team. How do you measure a player&apos;s real value? Not by how many miles they ran, but by how the team performs <strong>with them</strong> versus <strong>without them</strong>.
+                  </p>
+                </div>
+
+                {/* Real-World Contrast: Lines of Code vs True Impact */}
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="bg-zinc-950/60 border border-rose-900/30 rounded-xl p-4">
+                    <span className="text-rose-400 font-bold block mb-1 font-mono text-[11px]">&times; The Flawed Old Way (Lines of Code)</span>
+                    <p className="text-zinc-400 leading-relaxed mb-2">
+                      If an engineer runs an automated linter (Prettier) to reformat 2,400 lines of whitespace, naive systems award them 50% of the entire bounty pool.
+                    </p>
+                    <span className="text-zinc-500 text-[10px]">Result: Rewards spam, punishes real engineering.</span>
                   </div>
-                  <div className="inline-flex flex-col items-center text-center px-1 font-sans text-xs sm:text-sm">
-                    <span className="border-b border-zinc-600 px-2 pb-0.5 font-mono text-blue-300">
-                      |S|! &middot; (n &minus; |S| &minus; 1)!
-                    </span>
-                    <span className="pt-0.5 font-mono text-zinc-400">n!</span>
+                  <div className="bg-zinc-950/60 border border-emerald-900/30 rounded-xl p-4">
+                    <span className="text-emerald-400 font-bold block mb-1 font-mono text-[11px]">&check; The Shapley Way (Cooperative Value)</span>
+                    <p className="text-zinc-400 leading-relaxed mb-2">
+                      We simulate all combinations of team members. If your 5-line security patch turns a broken, vulnerable release into a rock-solid product, you are paid as an MVP.
+                    </p>
+                    <span className="text-zinc-500 text-[10px]">Result: 100% fair, zero favoritism, exact-penny conservation.</span>
                   </div>
-                  <span className="text-zinc-400 text-lg sm:text-xl">&times;</span>
-                  <div className="flex items-center gap-1 bg-zinc-900/90 border border-zinc-800 px-3 py-1.5 rounded-lg font-mono text-xs text-emerald-400">
-                    <span>v(S &cup; &#123;i&#125;) &minus; v(S)</span>
+                </div>
+
+                {/* 3 Simple Rules */}
+                <div className="grid sm:grid-cols-3 gap-3 pt-1">
+                  <div className="bg-zinc-800/30 border border-zinc-800 p-3 rounded-lg">
+                    <span className="font-semibold text-white block mb-0.5">1. Noise Filtering</span>
+                    <span className="text-zinc-400 text-[11px] leading-tight block">AI parses code syntax to ignore whitespace and reformatting.</span>
+                  </div>
+                  <div className="bg-zinc-800/30 border border-zinc-800 p-3 rounded-lg">
+                    <span className="font-semibold text-white block mb-0.5">2. &lsquo;What-If&rsquo; Simulations</span>
+                    <span className="text-zinc-400 text-[11px] leading-tight block">Tests team capability jumps when each person is included.</span>
+                  </div>
+                  <div className="bg-zinc-800/30 border border-zinc-800 p-3 rounded-lg">
+                    <span className="font-semibold text-white block mb-0.5">3. PayPal Payout</span>
+                    <span className="text-zinc-400 text-[11px] leading-tight block">Funds disburse directly to developers with $0.00 rounding loss.</span>
                   </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div>
+                <p className="text-zinc-400 mb-4 text-xs leading-relaxed">
+                  Calculates each contributor&apos;s expected marginal contribution across all possible team coalitions <code className="text-blue-300 bg-zinc-950 px-1.5 py-0.5 rounded border border-zinc-800 font-mono text-xs">S &sube; N \ &#123;i&#125;</code>:
+                </p>
 
-            <div className="grid sm:grid-cols-4 gap-3 text-xs">
-              <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-lg">
-                <span className="font-semibold text-zinc-200 block mb-1">1. Efficiency</span>
-                <span className="font-mono text-[11px] text-blue-400 block mb-1">&sum; &phi;&#7522; &equals; 100%</span>
-                <span className="text-zinc-400 text-[11px] leading-tight block">Exact total bounty is distributed with 0 rounding leakage.</span>
+                {/* Styled Mathematical Formula Container */}
+                <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800/90 mb-5 flex items-center justify-center overflow-x-auto">
+                  <div className="flex items-center gap-3 font-serif text-sm sm:text-base text-zinc-200 select-none py-1">
+                    <span className="text-blue-400 font-bold italic text-lg sm:text-xl">&phi;<sub>i</sub></span>
+                    <span className="text-zinc-400 text-lg">&equals;</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex flex-col items-center">
+                        <span className="text-xs text-zinc-500 font-sans tracking-tighter">S &sube; N \ &#123;i&#125;</span>
+                        <span className="text-xl text-blue-400 font-sans">&sum;</span>
+                      </div>
+                      <div className="inline-flex flex-col items-center text-center px-1 font-sans text-xs sm:text-sm">
+                        <span className="border-b border-zinc-600 px-2 pb-0.5 font-mono text-blue-300">
+                          |S|! &middot; (n &minus; |S| &minus; 1)!
+                        </span>
+                        <span className="pt-0.5 font-mono text-zinc-400">n!</span>
+                      </div>
+                      <span className="text-zinc-400 text-lg sm:text-xl">&times;</span>
+                      <div className="flex items-center gap-1 bg-zinc-900/90 border border-zinc-800 px-3 py-1.5 rounded-lg font-mono text-xs text-emerald-400">
+                        <span>v(S &cup; &#123;i&#125;) &minus; v(S)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-4 gap-3 text-xs">
+                  <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-lg">
+                    <span className="font-semibold text-zinc-200 block mb-1">1. Efficiency</span>
+                    <span className="font-mono text-[11px] text-blue-400 block mb-1">&sum; &phi;&#7522; &equals; 100%</span>
+                    <span className="text-zinc-400 text-[11px] leading-tight block">Exact total bounty is distributed with 0 rounding leakage.</span>
+                  </div>
+                  <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-lg">
+                    <span className="font-semibold text-zinc-200 block mb-1">2. Symmetry</span>
+                    <span className="font-mono text-[11px] text-blue-400 block mb-1">&phi;&#7522; &equals; &phi;&#11388; if &Delta;v equal</span>
+                    <span className="text-zinc-400 text-[11px] leading-tight block">Contributors with equal marginal capability receive equal payout.</span>
+                  </div>
+                  <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-lg">
+                    <span className="font-semibold text-zinc-200 block mb-1">3. Dummy Player</span>
+                    <span className="font-mono text-[11px] text-blue-400 block mb-1">&phi;&#7522; &equals; 0 if &Delta;v &equals; 0</span>
+                    <span className="text-zinc-400 text-[11px] leading-tight block">Zero marginal utility code changes yield zero bounty.</span>
+                  </div>
+                  <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-lg">
+                    <span className="font-semibold text-zinc-200 block mb-1">4. Monotonicity</span>
+                    <span className="font-mono text-[11px] text-emerald-400 block mb-1">v(S &cup; &#123;i&#125;) &ge; v(S)</span>
+                    <span className="text-zinc-400 text-[11px] leading-tight block">Enforced strictly to prevent LLM temperature regressions.</span>
+                  </div>
+                </div>
               </div>
-              <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-lg">
-                <span className="font-semibold text-zinc-200 block mb-1">2. Symmetry</span>
-                <span className="font-mono text-[11px] text-blue-400 block mb-1">&phi;&#7522; &equals; &phi;&#11388; if &Delta;v equal</span>
-                <span className="text-zinc-400 text-[11px] leading-tight block">Contributors with equal marginal capability receive equal payout.</span>
-              </div>
-              <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-lg">
-                <span className="font-semibold text-zinc-200 block mb-1">3. Dummy Player</span>
-                <span className="font-mono text-[11px] text-blue-400 block mb-1">&phi;&#7522; &equals; 0 if &Delta;v &equals; 0</span>
-                <span className="text-zinc-400 text-[11px] leading-tight block">Zero marginal utility code changes yield zero bounty.</span>
-              </div>
-              <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-lg">
-                <span className="font-semibold text-zinc-200 block mb-1">4. Monotonicity</span>
-                <span className="font-mono text-[11px] text-emerald-400 block mb-1">v(S &cup; &#123;i&#125;) &ge; v(S)</span>
-                <span className="text-zinc-400 text-[11px] leading-tight block">Enforced strictly to prevent LLM temperature regressions.</span>
-              </div>
-            </div>
+            )}
           </div>
         )}
 
