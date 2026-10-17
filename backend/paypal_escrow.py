@@ -172,6 +172,84 @@ class PayPalEscrowManager:
             "idempotency_key": idempotency_key,
         }
 
+    def _call_paypal_capture_api(self, authorization_id: str, amount_usd: float) -> Optional[Dict[str, Any]]:
+        """Call real PayPal Payments v2 API POST /v2/payments/authorizations/{authorization_id}/capture."""
+        try:
+            token = get_access_token()
+            payload = {
+                "amount": {
+                    "currency_code": "USD",
+                    "value": f"{amount_usd:.2f}"
+                },
+                "is_final_capture": True
+            }
+            req = urllib.request.Request(
+                f"{PAYPAL_BASE}/v2/payments/authorizations/{authorization_id}/capture",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                    "PayPal-Request-Id": generate_idempotency_key("capture", authorization_id, f"{amount_usd:.2f}")
+                }
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                log.info(f"PayPal real capture successful: {data.get('id')} for auth {authorization_id}")
+                return data
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode("utf-8")
+            log.warning(f"PayPal capture API call for {authorization_id} returned {e.code}: {err_body}")
+            return None
+        except Exception as e:
+            log.warning(f"PayPal capture API error: {e}")
+            return None
+
+    def _call_paypal_void_api(self, authorization_id: str) -> Optional[Dict[str, Any]]:
+        """Call real PayPal Payments v2 API POST /v2/payments/authorizations/{authorization_id}/void."""
+        try:
+            token = get_access_token()
+            req = urllib.request.Request(
+                f"{PAYPAL_BASE}/v2/payments/authorizations/{authorization_id}/void",
+                data=b"",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                    "PayPal-Request-Id": generate_idempotency_key("void", authorization_id)
+                }
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                if resp.status == 204:
+                    log.info(f"PayPal real void successful (204 No Content) for {authorization_id}")
+                    return {"status": "VOIDED", "http_status": 204}
+                body = resp.read().decode("utf-8")
+                return json.loads(body) if body else {"status": "VOIDED"}
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode("utf-8")
+            log.warning(f"PayPal void API call for {authorization_id} returned {e.code}: {err_body}")
+            return None
+        except Exception as e:
+            log.warning(f"PayPal void API error: {e}")
+            return None
+
+    def query_live_paypal_order(self, order_id: str) -> Optional[Dict[str, Any]]:
+        """Query real PayPal Orders v2 API GET /v2/checkout/orders/{order_id}."""
+        try:
+            token = get_access_token()
+            req = urllib.request.Request(
+                f"{PAYPAL_BASE}/v2/checkout/orders/{order_id}",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                }
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                log.info(f"Queried live PayPal order {order_id}: status={data.get('status')}")
+                return data
+        except Exception as e:
+            log.warning(f"Could not query live PayPal order {order_id}: {e}")
+            return None
+
     def capture_authorization(
         self,
         escrow_id: str,
@@ -197,6 +275,15 @@ class PayPalEscrowManager:
                 f"({vault['pool_cents']} cents). Zero leakage allowed."
             )
 
+        # Attempt real PayPal capture if live authorization exists
+        paypal_capture = self._call_paypal_capture_api(vault["authorization_id"], vault["pool_usd"])
+        if paypal_capture and paypal_capture.get("id"):
+            capture_id = paypal_capture["id"]
+            live_captured = True
+        else:
+            capture_id = f"CAPTURE-{vault['order_id']}"
+            live_captured = False
+
         # Execute Batch Payout
         batch_res = create_batch_payout(
             shares=shares,
@@ -208,13 +295,16 @@ class PayPalEscrowManager:
         vault["status"] = "RELEASED"
         vault["disbursed_shares"] = shares
         vault["payout_batch_id"] = batch_res.get("batch_id")
+        vault["capture_id"] = capture_id
+        vault["live_paypal_captured"] = live_captured
 
         return {
             "status": "RELEASED",
             "escrow_id": escrow_id,
             "order_id": vault["order_id"],
             "authorization_id": vault["authorization_id"],
-            "capture_id": f"CAPTURE-{vault['order_id']}",
+            "capture_id": capture_id,
+            "live_paypal_captured": live_captured,
             "intent": "CAPTURE_COMPLETED",
             "payout_batch_id": batch_res.get("batch_id"),
             "disbursed_pool_usd": vault["pool_usd"],
@@ -232,14 +322,20 @@ class PayPalEscrowManager:
         if vault["status"] == "RELEASED":
             raise ValueError("Cannot void an already released escrow vault")
 
+        # Attempt real PayPal void if live authorization exists
+        paypal_void = self._call_paypal_void_api(vault["authorization_id"])
+        live_voided = bool(paypal_void and paypal_void.get("status") == "VOIDED")
+
         vault["status"] = "VOIDED_REFUNDED"
         vault["disputed"] = True
         vault["dispute_reason"] = reason
+        vault["live_paypal_voided"] = live_voided
 
         return {
             "escrow_id": escrow_id,
             "status": "VOIDED_REFUNDED",
             "authorization_id": vault["authorization_id"],
+            "live_paypal_voided": live_voided,
             "refunded_to_sponsor": vault["sponsor_email"],
             "refunded_usd": vault["pool_usd"],
             "reason": reason,

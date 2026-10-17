@@ -28,7 +28,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-[#0c0d0e] text-[#ededed]">
         {/* Top Ledger Header */}
         <header className="sticky top-0 z-40 w-full border-b border-[#1e2024] bg-[#0c0d0e]">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          <div className="max-w-6xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
               <div className="w-6 h-6 sm:w-7 sm:h-7 bg-[#16181d] border border-[#262930] flex items-center justify-center font-mono font-bold text-white text-xs">
                 φ
@@ -41,15 +41,16 @@ export default function RootLayout({
               </div>
             </Link>
 
-            <nav className="flex items-center gap-3 sm:gap-4 text-[11px] sm:text-xs font-mono">
-              <Link href="/" className="text-[#8a8f98] hover:text-[#ededed] transition-colors">
-                Analyze
+            <nav className="flex items-center gap-2 sm:gap-4 text-[11px] sm:text-xs font-mono shrink-0">
+              <Link href="/" className="text-[#8a8f98] hover:text-[#ededed] transition-colors whitespace-nowrap">
+                <span className="sm:hidden">New</span>
+                <span className="hidden sm:inline">New Analysis</span>
               </Link>
-              <Link href="/results?demo=true" className="text-[#8a8f98] hover:text-[#ededed] transition-colors">
+              <Link href="/results?demo=true" className="text-[#8a8f98] hover:text-[#ededed] transition-colors whitespace-nowrap">
                 <span className="sm:hidden">Demo</span>
-                <span className="hidden sm:inline">Ledger Demo</span>
+                <span className="hidden sm:inline">Demo Results</span>
               </Link>
-              <Link href="/audit?demo=true" className="text-[#8a8f98] hover:text-[#ededed] transition-colors">
+              <Link href="/audit?demo=true" className="text-[#8a8f98] hover:text-[#ededed] transition-colors whitespace-nowrap">
                 <span className="sm:hidden">Audit</span>
                 <span className="hidden sm:inline">Merkle Audit</span>
               </Link>
@@ -57,7 +58,7 @@ export default function RootLayout({
                 href="https://github.com/nepalanurag/shapley"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#8a8f98] hover:text-[#ededed] transition-colors"
+                className="text-[#8a8f98] hover:text-[#ededed] transition-colors whitespace-nowrap"
               >
                 Source
               </a>

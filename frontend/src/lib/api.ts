@@ -155,8 +155,12 @@ export async function submitContributorClaim(payload: {
   return res.json();
 }
 
-export async function validatePotSolvency(hackathonId = "hack-sf-2026", expectedPool = 2500): Promise<any> {
-  const res = await fetch(`${API_BASE}/api/pot/validate?hackathon_id=${encodeURIComponent(hackathonId)}&expected_pool_usd=${expectedPool}`);
+export async function validatePotSolvency(hackathonId = "hack-sf-2026", expectedPool = 2500, orderId?: string): Promise<any> {
+  let url = `${API_BASE}/api/pot/validate?hackathon_id=${encodeURIComponent(hackathonId)}&expected_pool_usd=${expectedPool}`;
+  if (orderId) {
+    url += `&order_id=${encodeURIComponent(orderId)}`;
+  }
+  const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to validate pot solvency");
   return res.json();
 }
