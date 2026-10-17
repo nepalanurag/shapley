@@ -18,6 +18,7 @@ from typing import Dict, List, Any
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from credentials import auth_request
+from ast_quarantine import quarantine_diff
 
 CREDENTIAL = "custom.google-gemini"
 HOSTS = ["generativelanguage.googleapis.com"]
@@ -205,13 +206,18 @@ def score_coalition(member_indices, contributor_diffs, contributor_names=None):
     coalition_diffs = []
     names = contributor_names or {}
     diff_sections = []
+    quarantine_warnings = []
     for idx in sorted(member_indices):
         name = names.get(idx, f"Contributor {idx}")
         diffs = contributor_diffs.get(idx, [])
         coalition_diffs.extend(diffs)
-        combined = "\n---\n".join(
-            sanitize_diff(d[:3000]) for d in diffs[:5]
-        )
+        sanitized_chunks = []
+        for d in diffs[:5]:
+            q_res = quarantine_diff(d[:3000])
+            sanitized_chunks.append(q_res["executable_diff"])
+            if q_res["injection_warnings"]:
+                quarantine_warnings.extend(q_res["injection_warnings"])
+        combined = "\n---\n".join(sanitized_chunks)
         diff_sections.append(f"### {name} (contributor {idx}):\n{combined}")
 
     # 1. Compute objective baseline
@@ -293,6 +299,7 @@ Respond with JSON only:
             "confidence": max(0.0, min(1.0, float(parsed.get("confidence", 0.5)))),
             "rubric": rubric,
             "objective_signals": obj_signals,
+            "injection_warnings": quarantine_warnings,
         }
     except Exception as e:
         print(f"  [scoring fallback to objective metrics: {e}]", file=sys.stderr)
@@ -305,6 +312,7 @@ Respond with JSON only:
             "rubric": {"complexity": round(obj_score * 0.25), "impact": round(obj_score * 0.25),
                        "originality": round(obj_score * 0.25), "unblocking": round(obj_score * 0.25)},
             "objective_signals": obj_signals,
+            "injection_warnings": quarantine_warnings,
         }
 
     _cache[chash] = scored

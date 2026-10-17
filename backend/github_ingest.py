@@ -122,20 +122,44 @@ def get_commits(repo, max_commits=50):
                 "patch": f.get("patch", "")[:4000],  # Truncate long patches
             })
 
+        verification = c["commit"].get("verification", {})
+        is_verified = bool(verification.get("verified", False))
+        verif_reason = verification.get("reason", "unsigned")
+
         commit_entry = {
             "sha": sha[:7],
             "message": c["commit"]["message"].split("\n")[0][:120],
             "date": author_info.get("date", ""),
             "additions": sum(f["additions"] for f in files),
             "deletions": sum(f["deletions"] for f in files),
+            "signature_verified": is_verified,
+            "signature_reason": verif_reason,
             "files": files,
         }
 
         key = email.lower()
         if key not in contributors:
-            contributors[key] = {"name": name, "email": email, "commits": []}
+            contributors[key] = {
+                "name": name,
+                "email": email,
+                "commits": [],
+                "verified_commits": 0,
+                "unverified_commits": 0,
+                "signature_status": "unsigned",
+            }
         contributors[key]["commits"].append(commit_entry)
-        print(f"  {sha[:7]} by {name}: {commit_entry['message'][:50]}", file=sys.stderr)
+        if is_verified:
+            contributors[key]["verified_commits"] += 1
+        else:
+            contributors[key]["unverified_commits"] += 1
+
+        v_count = contributors[key]["verified_commits"]
+        u_count = contributors[key]["unverified_commits"]
+        contributors[key]["signature_status"] = (
+            "verified" if u_count == 0 and v_count > 0 else
+            "mixed" if v_count > 0 else "unsigned"
+        )
+        print(f"  {sha[:7]} by {name} [sig: {verif_reason}]: {commit_entry['message'][:50]}", file=sys.stderr)
 
     return contributors
 

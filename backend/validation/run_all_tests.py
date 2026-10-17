@@ -21,6 +21,7 @@ SCRIPTS = [
     ("Cryptographic Merkle Audit Trail", "test_merkle_audit.py"),
     ("Adversarial Prompt Injection Defense", "test_prompt_injection.py"),
     ("Model Context Protocol (MCP) Compliance", "test_mcp_protocol.py"),
+    ("Concurrency & Replay Defense", "test_idempotency_concurrency.py"),
 ]
 
 

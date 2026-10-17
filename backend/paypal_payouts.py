@@ -61,18 +61,20 @@ def generate_payout_idempotency_key(
     repo_url: str,
     commit_head: str,
     total_amount_usd: float,
-    shares: List[Dict[str, Any]]
+    shares: List[Dict[str, Any]],
+    merkle_root: Optional[str] = None
 ) -> str:
     """Derive a deterministic, collision-resistant idempotency key.
 
-    SHA-256(repo_url || commit_head || total_cents || sorted_recipients_fingerprint).
+    SHA-256(repo_url || commit_head || total_cents || merkle_root || sorted_recipients_fingerprint).
     """
     total_cents = usd_to_cents(total_amount_usd)
     recipients_repr = "|".join(
         f"{s['email']}:{usd_to_cents(s['amount'])}"
         for s in sorted(shares, key=lambda x: x["email"])
     )
-    raw_payload = f"{repo_url}:{commit_head}:{total_cents}:{recipients_repr}"
+    root_str = merkle_root or "unanchored"
+    raw_payload = f"{repo_url}:{commit_head}:{total_cents}:{root_str}:{recipients_repr}"
     digest = hashlib.sha256(raw_payload.encode("utf-8")).hexdigest()
     return f"shapley_{digest[:20]}"
 
