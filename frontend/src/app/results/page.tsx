@@ -121,9 +121,15 @@ function ResultsContent() {
         sortable: true,
         valueFormatter: (p) => {
           const row = p.data as Contributor;
-          const lo = row.share_ci_low ?? p.value;
-          const hi = row.share_ci_high ?? p.value;
-          return `${Number(p.value).toFixed(1)}% [${lo.toFixed(1)}, ${hi.toFixed(1)}]`;
+          const val = Number(p.value).toFixed(1);
+          if (
+            row?.share_ci_low != null &&
+            row?.share_ci_high != null &&
+            row.share_ci_low !== row.share_ci_high
+          ) {
+            return `${val}% [${row.share_ci_low.toFixed(1)}, ${row.share_ci_high.toFixed(1)}]`;
+          }
+          return `${val}%`;
         },
         cellStyle: { fontWeight: "bold", color: "#60a5fa" },
       },
@@ -134,9 +140,15 @@ function ResultsContent() {
         sortable: true,
         valueFormatter: (p) => {
           const row = p.data as Contributor;
-          const lo = row.payout_ci_low ?? p.value;
-          const hi = row.payout_ci_high ?? p.value;
-          return `$${Number(p.value).toFixed(2)} [$${lo.toFixed(2)}, $${hi.toFixed(2)}]`;
+          const val = Number(p.value).toFixed(2);
+          if (
+            row?.payout_ci_low != null &&
+            row?.payout_ci_high != null &&
+            row.payout_ci_low !== row.payout_ci_high
+          ) {
+            return `$${val} [$${row.payout_ci_low.toFixed(2)}, $${row.payout_ci_high.toFixed(2)}]`;
+          }
+          return `$${val}`;
         },
         cellStyle: { fontWeight: "bold", color: "#34d399" },
       },

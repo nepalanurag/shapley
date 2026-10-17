@@ -225,11 +225,11 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits):
                 "deletions": sum(c["deletions"] for c in data["commits"]),
                 "shapley_value": result["shapley_values"][idx],
                 "share_pct": pct,
-                "share_ci_low": ci.get("low", pct),
-                "share_ci_high": ci.get("high", pct),
+                "share_ci_low": ci.get("low"),
+                "share_ci_high": ci.get("high"),
                 "payout_usd": round(total_amount * pct / 100, 2),
-                "payout_ci_low": round(total_amount * ci.get("low", pct) / 100, 2),
-                "payout_ci_high": round(total_amount * ci.get("high", pct) / 100, 2),
+                "payout_ci_low": round(total_amount * ci["low"] / 100, 2) if "low" in ci else None,
+                "payout_ci_high": round(total_amount * ci["high"] / 100, 2) if "high" in ci else None,
             })
 
         update("complete",

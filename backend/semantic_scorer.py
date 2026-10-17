@@ -26,7 +26,7 @@ BASE = "https://generativelanguage.googleapis.com/v1beta"
 # In-memory cache: coalition hash -> score result
 _cache = {}
 _last_call = 0
-MIN_INTERVAL = float(os.environ.get("GEMINI_MIN_INTERVAL", "1.0"))  # default 1.0s between API calls
+MIN_INTERVAL = float(os.environ.get("GEMINI_MIN_INTERVAL", "4.0"))  # default 4.0s for free-tier 15 RPM limit
 
 
 def sanitize_diff(text):
