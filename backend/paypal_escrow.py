@@ -12,11 +12,15 @@ Features:
   - Delayed disbursement mode with PayPal Authorization Holds.
   - Exact-penny Hare-Niemeyer conservation from escrow vault to recipient wallets.
 """
+import os
+import sys
 import time
 import hashlib
 import json
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Any
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from financial_math import allocate_exact_cents, usd_to_cents, cents_to_usd_str
 from paypal_payouts import calculate_paypal_batch_fee, create_batch_payout

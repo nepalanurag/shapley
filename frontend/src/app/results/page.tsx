@@ -4,11 +4,15 @@ import { useEffect, useState, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AgGridReact } from "ag-grid-react";
 import {
-  AllCommunityModule,
-  ModuleRegistry,
+  AllCommunityModule as GridAllCommunityModule,
+  ModuleRegistry as GridModuleRegistry,
   ColDef,
   themeQuartz,
 } from "ag-grid-community";
+import {
+  AllCommunityModule as ChartAllCommunityModule,
+  ModuleRegistry as ChartModuleRegistry,
+} from "ag-charts-community";
 import { AgCharts } from "ag-charts-react";
 import {
   fetchDemo,
@@ -20,7 +24,8 @@ import {
   Contributor,
 } from "@/lib/api";
 
-ModuleRegistry.registerModules([AllCommunityModule]);
+GridModuleRegistry.registerModules([GridAllCommunityModule]);
+ChartModuleRegistry.registerModules([ChartAllCommunityModule]);
 
 const darkTheme = themeQuartz.withParams({
   backgroundColor: "#18181b",
@@ -1344,7 +1349,7 @@ jobs:
                     <div className="flex justify-between items-center py-1 border-b border-zinc-800/60">
                       <span className="text-zinc-400">Net Churn Ratio</span>
                       <span className="text-zinc-300">
-                        {selectedContributor.deletions > 0 ? (selectedContributor.additions / selectedContributor.deletions).toFixed(2) : "N/A"}
+                        {(selectedContributor.deletions ?? 0) > 0 ? (((selectedContributor.additions ?? 0) / (selectedContributor.deletions || 1))).toFixed(2) : "N/A"}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-1 border-b border-zinc-800/60">

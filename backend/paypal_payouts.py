@@ -19,6 +19,8 @@ import urllib.request
 import uuid
 from typing import Dict, List, Optional, Any
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from financial_math import usd_to_cents, cents_to_usd_str
 
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
@@ -32,7 +34,7 @@ def load_env():
                 line = line.strip()
                 if line and "=" in line and not line.startswith("#"):
                     k, v = line.split("=", 1)
-                    env_vars[k] = v
+                    env_vars[k.strip()] = v.strip().strip("'\"")
     return env_vars
 
 
