@@ -459,7 +459,7 @@
               </div>
               <div class="space-y-1">
                 <div class="h-2 bg-[#161920] overflow-hidden flex">
-                  <div class="bg-emerald-500 h-full" style="width: 47%"></div>
+                  <div id="bar-maya-fill" class="bg-emerald-500 h-full transition-all duration-500" style="width: 47%"></div>
                 </div>
                 <div class="h-1 bg-[#161920] overflow-hidden flex">
                   <div class="bg-zinc-700 h-full" style="width: 18%"></div>
@@ -3232,6 +3232,11 @@ jobs:
       } catch (e) {
         // Fallback for standalone demo file
       }
+
+      if (notice) notice.innerText = `✓ Wallet Bound to Vault ESCROW-PP-JINJA-02 (${email})`;
+      showToast(`Success: Payout wallet ${email} bound & verified!`);
+      playHaptic(880, 0.08, 'sine');
+    }
 
     // =========================================================================
     // AG GRID & AG CHARTS COALITION EXPLORER & CROSS-FILTERING SUITE
