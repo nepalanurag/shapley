@@ -54,6 +54,8 @@ function ResultsContent() {
   const [explainerTab, setExplainerTab] = useState<"simple" | "math">("simple");
   const [adjustedAmount, setAdjustedAmount] = useState<number | null>(null);
   const [showActionModal, setShowActionModal] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [chatPlatform, setChatPlatform] = useState<"slack" | "discord" | "telegram" | "whatsapp">("telegram");
   const [showMerkleModal, setShowMerkleModal] = useState(false);
   const [showRepoModal, setShowRepoModal] = useState(false);
   const [customRepo, setCustomRepo] = useState("");
@@ -412,6 +414,13 @@ function ResultsContent() {
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
               {copiedMd ? "Copied Markdown!" : "Copy PR Markdown"}
+            </button>
+            <button
+              onClick={() => setShowChatModal(true)}
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
+            >
+              <span>💬</span>
+              Chat Alerts
             </button>
             <button
               onClick={() => setShowActionModal(true)}
@@ -848,6 +857,261 @@ jobs:
                   className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
                 >
                   Copy Workflow YAML
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Chat Alerts & Webhooks Modal */}
+        {showChatModal && data && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/70 modal-backdrop"
+              onClick={() => setShowChatModal(false)}
+            />
+            <div className="relative bg-zinc-900 border border-zinc-700 rounded-xl p-6 max-w-2xl w-full modal-content max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-zinc-800">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">💬</span>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Team Chat Alerts &amp; Webhooks</h3>
+                    <p className="text-xs text-zinc-400">Post milestone digests directly to Telegram, WhatsApp, Slack, or Discord</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowChatModal(false)} className="text-zinc-400 hover:text-white text-lg">&times;</button>
+              </div>
+
+              {/* Platform Selector Tabs */}
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setChatPlatform("telegram")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                    chatPlatform === "telegram"
+                      ? "bg-sky-600 text-white shadow-md shadow-sky-900/30"
+                      : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                  }`}
+                >
+                  <span>✈️</span> Telegram Bot
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChatPlatform("whatsapp")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                    chatPlatform === "whatsapp"
+                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-900/30"
+                      : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                  }`}
+                >
+                  <span>💬</span> WhatsApp Cloud
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChatPlatform("slack")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                    chatPlatform === "slack"
+                      ? "bg-blue-600 text-white shadow-md shadow-blue-900/30"
+                      : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                  }`}
+                >
+                  <span>⚡</span> Slack Block Kit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChatPlatform("discord")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                    chatPlatform === "discord"
+                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/30"
+                      : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                  }`}
+                >
+                  <span>👾</span> Discord Embed
+                </button>
+              </div>
+
+              {/* Payload Preview */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <span>Standard REST Webhook Payload ({chatPlatform}):</span>
+                  <span className="font-mono text-[11px] text-zinc-500">JSON-RPC 2.0 / MCP Compatible</span>
+                </div>
+                <pre className="bg-zinc-950 p-4 rounded-xl text-xs font-mono text-zinc-200 border border-zinc-800 overflow-x-auto max-h-72 leading-relaxed select-all">
+                  {JSON.stringify(
+                    chatPlatform === "telegram"
+                      ? {
+                          chat_id: "@shapley_updates",
+                          text: `<b>⚖️ Shapley Milestone: <code>${data.repo}</code></b>\n\n💰 <b>Bounty Pool:</b> $${currentTotal.toFixed(2)} USD\n🔒 <b>Merkle Root:</b> <code>88643cd1b4...</code>\n\n📊 <b>Standings:</b>\n` +
+                            displayedContributors.map((c) => `• <b>${c.name}</b>: <code>${c.share_pct.toFixed(1)}%</code> ($${c.payout_usd.toFixed(2)})`).join("\n"),
+                          parse_mode: "HTML",
+                          reply_markup: {
+                            inline_keyboard: [
+                              [
+                                { text: "💳 Disburse Payouts", url: "https://shapley.onrender.com/results" },
+                                { text: "🔍 Merkle Audit", url: "https://shapley.onrender.com/audit" }
+                              ]
+                            ]
+                          }
+                        }
+                      : chatPlatform === "whatsapp"
+                      ? {
+                          messaging_product: "whatsapp",
+                          recipient_type: "individual",
+                          to: "+1234567890",
+                          type: "interactive",
+                          interactive: {
+                            type: "button",
+                            header: { type: "text", text: `⚖️ Shapley Milestone: ${data.repo}` },
+                            body: {
+                              text: `Milestone for *${data.repo}*:\n💰 *Pool:* $${currentTotal.toFixed(2)} USD\n\n*Fair Shares:*\n` +
+                                displayedContributors.map((c) => `• ${c.name}: ${c.share_pct.toFixed(1)}% ($${c.payout_usd.toFixed(2)})`).join("\n")
+                            },
+                            action: {
+                              buttons: [
+                                { type: "reply", reply: { id: "btn_approve_payout", title: "💳 Approve Payout" } },
+                                { type: "reply", reply: { id: "btn_verify_audit", title: "🔍 Audit Merkle" } }
+                              ]
+                            }
+                          }
+                        }
+                      : chatPlatform === "discord"
+                      ? {
+                          embeds: [
+                            {
+                              title: `⚖️ Shapley Attribution: ${data.repo}`,
+                              description: "Axiomatic game-theoretic fair revenue sharing.",
+                              color: 3447003,
+                              fields: [
+                                { name: "💰 Total Pool", value: `$${currentTotal.toFixed(2)} USD`, inline: true },
+                                { name: "🔒 Merkle Proof", value: "88643cd1b4...", inline: true },
+                                {
+                                  name: "📊 Leaderboard",
+                                  value: displayedContributors.map((c) => `**${c.name}**: \`${c.share_pct.toFixed(1)}%\` ($${c.payout_usd.toFixed(2)})`).join("\n")
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      : {
+                          text: `Shapley Milestone Update: ${data.repo}`,
+                          blocks: [
+                            { type: "header", text: { type: "plain_text", text: `⚖️ Shapley Milestone: ${data.repo}` } },
+                            {
+                              type: "section",
+                              fields: [
+                                { type: "mrkdwn", text: `*Bounty Pool:*\n$${currentTotal.toFixed(2)} USD` },
+                                { type: "mrkdwn", text: `*Merkle Root:*\n\`88643cd1b4...\`` }
+                              ]
+                            },
+                            {
+                              type: "section",
+                              text: {
+                                type: "mrkdwn",
+                                text: "*Fair Share Standings:*\n" +
+                                  displayedContributors.map((c) => `• *${c.name}*: *${c.share_pct.toFixed(1)}%* ($${c.payout_usd.toFixed(2)})`).join("\n")
+                              }
+                            }
+                          ]
+                        },
+                    null,
+                    2
+                  )}
+                </pre>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setShowChatModal(false)}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const payload =
+                      chatPlatform === "telegram"
+                        ? {
+                            chat_id: "@shapley_updates",
+                            text: `<b>⚖️ Shapley Milestone: <code>${data.repo}</code></b>\n\n💰 <b>Bounty Pool:</b> $${currentTotal.toFixed(2)} USD\n🔒 <b>Merkle Root:</b> <code>88643cd1b4...</code>\n\n📊 <b>Standings:</b>\n` +
+                              displayedContributors.map((c) => `• <b>${c.name}</b>: <code>${c.share_pct.toFixed(1)}%</code> ($${c.payout_usd.toFixed(2)})`).join("\n"),
+                            parse_mode: "HTML",
+                            reply_markup: {
+                              inline_keyboard: [
+                                [
+                                  { text: "💳 Disburse Payouts", url: "https://shapley.onrender.com/results" },
+                                  { text: "🔍 Merkle Audit", url: "https://shapley.onrender.com/audit" }
+                                ]
+                              ]
+                            }
+                          }
+                        : chatPlatform === "whatsapp"
+                        ? {
+                            messaging_product: "whatsapp",
+                            recipient_type: "individual",
+                            to: "+1234567890",
+                            type: "interactive",
+                            interactive: {
+                              type: "button",
+                              header: { type: "text", text: `⚖️ Shapley Milestone: ${data.repo}` },
+                              body: {
+                                text: `Milestone for *${data.repo}*:\n💰 *Pool:* $${currentTotal.toFixed(2)} USD\n\n*Fair Shares:*\n` +
+                                  displayedContributors.map((c) => `• ${c.name}: ${c.share_pct.toFixed(1)}% ($${c.payout_usd.toFixed(2)})`).join("\n")
+                              },
+                              action: {
+                                buttons: [
+                                  { type: "reply", reply: { id: "btn_approve_payout", title: "💳 Approve Payout" } },
+                                  { type: "reply", reply: { id: "btn_verify_audit", title: "🔍 Audit Merkle" } }
+                                ]
+                              }
+                            }
+                          }
+                        : chatPlatform === "discord"
+                        ? {
+                            embeds: [
+                              {
+                                title: `⚖️ Shapley Attribution: ${data.repo}`,
+                                description: "Axiomatic game-theoretic fair revenue sharing.",
+                                color: 3447003,
+                                fields: [
+                                  { name: "💰 Total Pool", value: `$${currentTotal.toFixed(2)} USD`, inline: true },
+                                  { name: "🔒 Merkle Proof", value: "88643cd1b4...", inline: true },
+                                  {
+                                    name: "📊 Leaderboard",
+                                    value: displayedContributors.map((c) => `**${c.name}**: \`${c.share_pct.toFixed(1)}%\` ($${c.payout_usd.toFixed(2)})`).join("\n")
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        : {
+                            text: `Shapley Milestone Update: ${data.repo}`,
+                            blocks: [
+                              { type: "header", text: { type: "plain_text", text: `⚖️ Shapley Milestone: ${data.repo}` } },
+                              {
+                                type: "section",
+                                fields: [
+                                  { type: "mrkdwn", text: `*Bounty Pool:*\n$${currentTotal.toFixed(2)} USD` },
+                                  { type: "mrkdwn", text: `*Merkle Root:*\n\`88643cd1b4...\`` }
+                                ]
+                              },
+                              {
+                                type: "section",
+                                text: {
+                                  type: "mrkdwn",
+                                  text: "*Fair Share Standings:*\n" +
+                                    displayedContributors.map((c) => `• *${c.name}*: *${c.share_pct.toFixed(1)}%* ($${c.payout_usd.toFixed(2)})`).join("\n")
+                                }
+                              }
+                            ]
+                          };
+                    navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+                    alert(`${chatPlatform.toUpperCase()} webhook payload copied to clipboard!`);
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+                >
+                  <span>📋</span> Copy {chatPlatform.charAt(0).toUpperCase() + chatPlatform.slice(1)} Payload
                 </button>
               </div>
             </div>

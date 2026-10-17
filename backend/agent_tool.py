@@ -135,14 +135,14 @@ MCP_TOOLS = [
     },
     {
         "name": "shapley_get_chat_webhook",
-        "description": "Generate a ready-to-dispatch Slack Block Kit or Discord Embed JSON payload for team chat milestone updates.",
+        "description": "Generate a ready-to-dispatch Slack Block Kit, Discord Embed, Telegram Bot, or WhatsApp Cloud API JSON payload for team chat milestone updates.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "platform": {
                     "type": "string",
-                    "enum": ["slack", "discord"],
-                    "description": "Chat platform format (slack or discord)",
+                    "enum": ["slack", "discord", "telegram", "whatsapp"],
+                    "description": "Chat platform format (slack, discord, telegram, whatsapp)",
                     "default": "slack"
                 },
                 "repo_url": {
@@ -407,7 +407,12 @@ def handle_mcp_message(body: dict) -> dict:
 
         elif tool_name == "shapley_get_chat_webhook":
             from milestone_engine import MilestoneTracker
-            from chat_webhook import generate_slack_milestone_digest, generate_discord_milestone_digest
+            from chat_webhook import (
+                generate_slack_milestone_digest,
+                generate_discord_milestone_digest,
+                generate_telegram_milestone_digest,
+                generate_whatsapp_milestone_digest,
+            )
             platform = args.get("platform", "slack").lower()
             repo_name = args.get("repo_url", "pallets/jinja")
             phase_id = args.get("phase_id", "phase2")
@@ -419,6 +424,10 @@ def handle_mcp_message(body: dict) -> dict:
             ] if phase else []
             if platform == "discord":
                 payload = generate_discord_milestone_digest(repo_name, phase.title if phase else phase_id, phase.pool_usd if phase else 1000.0, standings, phase.merkle_root or "88643cd1...")
+            elif platform == "telegram":
+                payload = generate_telegram_milestone_digest(repo_name, phase.title if phase else phase_id, phase.pool_usd if phase else 1000.0, standings, phase.merkle_root or "88643cd1...")
+            elif platform == "whatsapp":
+                payload = generate_whatsapp_milestone_digest(repo_name, phase.title if phase else phase_id, phase.pool_usd if phase else 1000.0, standings, phase.merkle_root or "88643cd1...")
             else:
                 payload = generate_slack_milestone_digest(repo_name, phase.title if phase else phase_id, phase.pool_usd if phase else 1000.0, standings, phase.merkle_root or "88643cd1...")
             return {

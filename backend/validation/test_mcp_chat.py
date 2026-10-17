@@ -90,11 +90,74 @@ def test_mcp_project_standings():
     assert data["status"] == "ACTIVE"
 
 
+def test_mcp_chat_telegram_format():
+    """Verify Telegram Bot format generated via MCP message."""
+    req = {
+        "jsonrpc": "2.0",
+        "id": "test-telegram-1",
+        "method": "tools/call",
+        "params": {
+            "name": "shapley_get_chat_webhook",
+            "arguments": {
+                "platform": "telegram",
+                "repo_url": "pallets/jinja",
+                "phase_id": "phase2"
+            }
+        }
+    }
+    res = handle_mcp_message(req)
+    assert res.get("id") == "test-telegram-1"
+    content = res["result"]["content"][0]["text"]
+    import json
+    data = json.loads(content)
+    assert data["parse_mode"] == "HTML"
+    assert "chat_id" in data
+    assert "<b>⚖️ Shapley Milestone Update:" in data["text"]
+    assert "Sara Ahmed" in data["text"]
+    assert "reply_markup" in data
+    assert "inline_keyboard" in data["reply_markup"]
+    assert len(data["reply_markup"]["inline_keyboard"][0]) >= 2
+
+
+def test_mcp_chat_whatsapp_format():
+    """Verify WhatsApp Cloud API interactive button format generated via MCP message."""
+    req = {
+        "jsonrpc": "2.0",
+        "id": "test-whatsapp-1",
+        "method": "tools/call",
+        "params": {
+            "name": "shapley_get_chat_webhook",
+            "arguments": {
+                "platform": "whatsapp",
+                "repo_url": "pallets/jinja",
+                "phase_id": "phase2"
+            }
+        }
+    }
+    res = handle_mcp_message(req)
+    assert res.get("id") == "test-whatsapp-1"
+    content = res["result"]["content"][0]["text"]
+    import json
+    data = json.loads(content)
+    assert data["messaging_product"] == "whatsapp"
+    assert data["type"] == "interactive"
+    assert data["interactive"]["type"] == "button"
+    assert "buttons" in data["interactive"]["action"]
+    btn_ids = [b["reply"]["id"] for b in data["interactive"]["action"]["buttons"]]
+    assert "btn_approve_payout" in btn_ids
+    assert "Sara Ahmed" in data["interactive"]["body"]["text"]
+
+
 if __name__ == "__main__":
     test_mcp_chat_slack_format()
     print("PASS: test_mcp_chat_slack_format")
     test_mcp_chat_discord_format()
     print("PASS: test_mcp_chat_discord_format")
+    test_mcp_chat_telegram_format()
+    print("PASS: test_mcp_chat_telegram_format")
+    test_mcp_chat_whatsapp_format()
+    print("PASS: test_mcp_chat_whatsapp_format")
     test_mcp_project_standings()
     print("PASS: test_mcp_project_standings")
-    print("\nALL MCP CHAT INTEGRATION TESTS PASSED (3/3)")
+    print("\nALL MCP CHAT INTEGRATION TESTS PASSED (5/5)")
+
