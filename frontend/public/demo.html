@@ -610,21 +610,56 @@
 
     <!-- Contributor Attribution Table -->
     <div class="border border-[#1e222a] bg-[#0e1014] mb-8">
-      <div class="px-5 py-3.5 border-b border-[#1e222a] flex items-center justify-between">
-        <div>
-          <h2 class="text-base font-serif font-normal text-white">Contributor Payout Distribution</h2>
-          <p class="text-xs font-mono text-zinc-500">Exact-penny distribution derived from 16 cooperative game theory coalitions</p>
+      <div class="px-5 py-3.5 border-b border-[#1e222a] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <button id="btnTabContributors" onclick="switchAttributionTab('contributors')" class="px-3 py-1.5 bg-blue-600 text-white font-mono text-xs font-bold border border-blue-500 shadow-sm transition-all flex items-center gap-1.5">
+            <span>👥 Contributor Attribution (N=4)</span>
+          </button>
+          <button id="btnTabCoalitions" onclick="switchAttributionTab('coalitions')" class="px-3 py-1.5 bg-[#161920] hover:bg-[#1f2430] text-zinc-400 hover:text-white font-mono text-xs border border-[#2a2f3a] transition-all flex items-center gap-1.5">
+            <span>🌐 Coalition Explorer (2^N=16 Subsets)</span>
+          </button>
         </div>
-        <span class="text-xs font-mono text-zinc-400 bg-[#090a0d] border border-[#1e222a] px-2.5 py-1">
-          4 RECIPIENTS
-        </span>
+        <div class="flex items-center gap-3">
+          <span id="activeFilterBadge" class="hidden text-xs font-mono text-blue-300 bg-blue-950/60 border border-blue-800/60 px-2.5 py-1">
+            Filtered: <strong id="activeFilterName">Maya Chen</strong>
+            <button onclick="clearContributorCrossFilter(event)" class="ml-1.5 text-zinc-400 hover:text-white">✕</button>
+          </span>
+          <span class="text-xs font-mono text-zinc-400 bg-[#090a0d] border border-[#1e222a] px-2.5 py-1">
+            4 RECIPIENTS · EXACT-PENNY CONSERVED
+          </span>
+        </div>
       </div>
 
-      <div class="overflow-x-auto">
+      <!-- Model Bake-off Selector Bar (Visible on Contributor Tab) -->
+      <div id="modelBakeoffBar" class="px-5 py-2.5 bg-[#090a0d] border-b border-[#1e222a] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-zinc-500 font-mono text-[11px] uppercase tracking-wider font-semibold">Model Bake-Off:</span>
+          <div class="flex items-center bg-[#12161f] p-0.5 border border-[#1e222a]">
+            <button id="btnModelShapley" onclick="switchBaselineModel('shapley')" class="px-2.5 py-1 bg-blue-600 text-white font-mono text-xs font-bold">
+              🤖 AI Shapley
+            </button>
+            <button id="btnModelLoc" onclick="switchBaselineModel('loc')" class="px-2.5 py-1 text-zinc-400 hover:text-zinc-200 font-mono text-xs">
+              📝 Lines Changed (Naive)
+            </button>
+            <button id="btnModelCommits" onclick="switchBaselineModel('commits')" class="px-2.5 py-1 text-zinc-400 hover:text-zinc-200 font-mono text-xs">
+              🔨 Commit Count
+            </button>
+          </div>
+        </div>
+        <div id="modelBakeoffNotice" class="font-mono text-[11px] text-emerald-400 flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Game-Theoretic Axiomatic Fairness: Whitespace linter spam gets near-zero marginal credit.</span>
+        </div>
+      </div>
+
+      <!-- Contributor Allocations View -->
+      <div id="attribution-contributors-view" class="overflow-x-auto">
         <table class="w-full text-left text-xs">
           <thead class="bg-[#090a0d] border-b border-[#1e222a] text-zinc-500 font-mono text-[11px] uppercase tracking-wider">
             <tr>
+              <th class="py-2.5 px-3 text-center font-normal w-10">#</th>
               <th class="py-2.5 px-4 font-normal">Contributor</th>
+              <th class="py-2.5 px-4 font-normal">Marginal Consistency (2^(N-1) Subsets)</th>
               <th class="py-2.5 px-4 font-normal">Role / Focus</th>
               <th class="py-2.5 px-4 text-center font-normal">Commits</th>
               <th class="py-2.5 px-4 text-right font-normal">Lines (+/-)</th>
@@ -635,9 +670,10 @@
               <th class="py-2.5 px-4 text-center font-normal">Action</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-[#1e222a] text-zinc-300 font-mono">
+          <tbody id="contributorTbody" class="divide-y divide-[#1e222a] text-zinc-300 font-mono">
             <!-- Maya -->
-            <tr class="hover:bg-[#12161f] cursor-pointer transition-colors" onclick="openContributorModal('maya')">
+            <tr id="row-contrib-maya" class="hover:bg-[#12161f] cursor-pointer transition-colors" onclick="crossFilterContributor('maya')">
+              <td class="py-3 px-3 text-center text-zinc-400 font-bold rank-cell">1</td>
               <td class="py-3 px-4">
                 <div class="flex items-center gap-2.5">
                   <div class="w-6 h-6 bg-[#161920] border border-[#2a2f3a] text-zinc-300 flex items-center justify-center font-bold text-xs font-mono">M</div>
@@ -647,12 +683,21 @@
                   </div>
                 </div>
               </td>
+              <td class="py-3 px-4">
+                <div class="flex items-center gap-2" title="Marginal Δv across 8 subsets: [72, 43, 27, 62, 30, 40, 28, 30] | Mean: +41.5">
+                  <svg width="110" height="22" class="overflow-visible flex-shrink-0">
+                    <polyline fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="4,4 18,12 32,18 46,6 60,16 74,13 88,17 102,16" />
+                    <circle cx="102" cy="16" r="2.5" fill="#93c5fd" />
+                  </svg>
+                  <span class="text-[11px] font-mono text-blue-400 font-bold tabular-nums">+41.5</span>
+                </div>
+              </td>
               <td class="py-3 px-4 text-zinc-300 font-sans text-xs">Core AST Parser Rewrite</td>
               <td class="py-3 px-4 text-center tabular-nums">12</td>
               <td class="py-3 px-4 text-right tabular-nums"><span class="text-emerald-400">+580</span> / <span class="text-rose-400">-120</span></td>
               <td class="py-3 px-4 text-center font-bold text-zinc-200 tabular-nums">47.0</td>
-              <td class="py-3 px-4 text-right font-bold text-zinc-200 tabular-nums">47.0%</td>
-              <td id="payout-maya" class="py-3 px-4 text-right font-bold text-emerald-400 tabular-nums text-sm">$470.00</td>
+              <td class="py-3 px-4 text-right font-bold text-zinc-200 tabular-nums share-cell">47.0%</td>
+              <td id="payout-maya" class="py-3 px-4 text-right font-bold text-emerald-400 tabular-nums text-sm payout-cell">$470.00</td>
               <td class="py-3 px-4 text-center">
                 <span class="text-[10px] font-mono text-zinc-400 bg-[#161920] px-1.5 py-0.5 border border-[#2a2f3a]">GPG</span>
               </td>
@@ -664,7 +709,8 @@
             </tr>
 
             <!-- Sara -->
-            <tr class="hover:bg-[#12161f] cursor-pointer transition-colors" onclick="openContributorModal('sara')">
+            <tr id="row-contrib-sara" class="hover:bg-[#12161f] cursor-pointer transition-colors" onclick="crossFilterContributor('sara')">
+              <td class="py-3 px-3 text-center text-zinc-400 font-bold rank-cell">2</td>
               <td class="py-3 px-4">
                 <div class="flex items-center gap-2.5">
                   <div class="w-6 h-6 bg-[#161920] border border-[#2a2f3a] text-zinc-300 flex items-center justify-center font-bold text-xs font-mono">S</div>
@@ -674,12 +720,21 @@
                   </div>
                 </div>
               </td>
+              <td class="py-3 px-4">
+                <div class="flex items-center gap-2" title="Marginal Δv across 8 subsets: [58, 13, 27, 48, 14, 14, 25, 15] | Mean: +26.8">
+                  <svg width="110" height="22" class="overflow-visible flex-shrink-0">
+                    <polyline fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="4,5 18,17 32,13 46,7 60,16 74,16 88,13 102,16" />
+                    <circle cx="102" cy="16" r="2.5" fill="#6ee7b7" />
+                  </svg>
+                  <span class="text-[11px] font-mono text-emerald-400 font-bold tabular-nums">+26.8</span>
+                </div>
+              </td>
               <td class="py-3 px-4 text-zinc-300 font-sans text-xs">Security Patch &amp; CVE Memory Fix</td>
               <td class="py-3 px-4 text-center tabular-nums">5</td>
               <td class="py-3 px-4 text-right tabular-nums"><span class="text-emerald-400">+195</span> / <span class="text-rose-400">-85</span></td>
               <td class="py-3 px-4 text-center font-bold text-zinc-200 tabular-nums">31.6</td>
-              <td class="py-3 px-4 text-right font-bold text-zinc-200 tabular-nums">31.6%</td>
-              <td id="payout-sara" class="py-3 px-4 text-right font-bold text-emerald-400 tabular-nums text-sm">$316.00</td>
+              <td class="py-3 px-4 text-right font-bold text-zinc-200 tabular-nums share-cell">31.6%</td>
+              <td id="payout-sara" class="py-3 px-4 text-right font-bold text-emerald-400 tabular-nums text-sm payout-cell">$316.00</td>
               <td class="py-3 px-4 text-center">
                 <span class="text-[10px] font-mono text-zinc-400 bg-[#161920] px-1.5 py-0.5 border border-[#2a2f3a]">SSH</span>
               </td>
@@ -691,7 +746,8 @@
             </tr>
 
             <!-- David -->
-            <tr class="hover:bg-[#12161f] cursor-pointer transition-colors" onclick="openContributorModal('david')">
+            <tr id="row-contrib-david" class="hover:bg-[#12161f] cursor-pointer transition-colors" onclick="crossFilterContributor('david')">
+              <td class="py-3 px-3 text-center text-zinc-400 font-bold rank-cell">3</td>
               <td class="py-3 px-4">
                 <div class="flex items-center gap-2.5">
                   <div class="w-6 h-6 bg-[#161920] border border-[#2a2f3a] text-zinc-300 flex items-center justify-center font-bold text-xs font-mono">D</div>
@@ -701,12 +757,21 @@
                   </div>
                 </div>
               </td>
+              <td class="py-3 px-4">
+                <div class="flex items-center gap-2" title="Marginal Δv across 8 subsets: [35, 6, 4, 28, 7, 6, 5, 7] | Mean: +12.2">
+                  <svg width="110" height="22" class="overflow-visible flex-shrink-0">
+                    <polyline fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="4,6 18,16 32,18 46,8 60,15 74,16 88,17 102,15" />
+                    <circle cx="102" cy="15" r="2.5" fill="#6ee7b7" />
+                  </svg>
+                  <span class="text-[11px] font-mono text-emerald-400 font-bold tabular-nums">+12.2</span>
+                </div>
+              </td>
               <td class="py-3 px-4 text-zinc-300 font-sans text-xs">Test Suite &amp; E2E Testing</td>
               <td class="py-3 px-4 text-center tabular-nums">9</td>
               <td class="py-3 px-4 text-right tabular-nums"><span class="text-emerald-400">+420</span> / <span class="text-rose-400">-90</span></td>
               <td class="py-3 px-4 text-center font-bold text-zinc-200 tabular-nums">16.0</td>
-              <td class="py-3 px-4 text-right font-bold text-zinc-200 tabular-nums">16.0%</td>
-              <td id="payout-david" class="py-3 px-4 text-right font-bold text-emerald-400 tabular-nums text-sm">$160.00</td>
+              <td class="py-3 px-4 text-right font-bold text-zinc-200 tabular-nums share-cell">16.0%</td>
+              <td id="payout-david" class="py-3 px-4 text-right font-bold text-emerald-400 tabular-nums text-sm payout-cell">$160.00</td>
               <td class="py-3 px-4 text-center">
                 <span class="text-[10px] font-mono text-zinc-400 bg-[#161920] px-1.5 py-0.5 border border-[#2a2f3a]">GPG</span>
               </td>
@@ -718,7 +783,8 @@
             </tr>
 
             <!-- Tom -->
-            <tr class="hover:bg-[#12161f] cursor-pointer transition-colors" onclick="openContributorModal('tom')">
+            <tr id="row-contrib-tom" class="hover:bg-[#12161f] cursor-pointer transition-colors" onclick="crossFilterContributor('tom')">
+              <td class="py-3 px-3 text-center text-zinc-400 font-bold rank-cell">4</td>
               <td class="py-3 px-4">
                 <div class="flex items-center gap-2.5">
                   <div class="w-6 h-6 bg-[#161920] border border-[#2a2f3a] text-zinc-300 flex items-center justify-center font-bold text-xs font-mono">T</div>
@@ -728,12 +794,21 @@
                   </div>
                 </div>
               </td>
+              <td class="py-3 px-4">
+                <div class="flex items-center gap-2" title="Marginal Δv across 8 subsets: [12, 2, 5, 2, 2, 3, 3, 3] | Mean: +4.0">
+                  <svg width="110" height="22" class="overflow-visible flex-shrink-0">
+                    <polyline fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="4,10 18,18 32,15 46,18 60,18 74,17 88,17 102,17" />
+                    <circle cx="102" cy="17" r="2.5" fill="#fca5a5" />
+                  </svg>
+                  <span class="text-[11px] font-mono text-rose-400 font-bold tabular-nums">+4.0</span>
+                </div>
+              </td>
               <td class="py-3 px-4 text-zinc-300 font-sans text-xs">Linter &amp; Whitespace Formatting</td>
               <td class="py-3 px-4 text-center tabular-nums">4</td>
               <td class="py-3 px-4 text-right tabular-nums"><span class="text-emerald-400">+2,400</span> / <span class="text-rose-400">-1,800</span></td>
               <td class="py-3 px-4 text-center font-bold text-zinc-200 tabular-nums">5.4</td>
-              <td class="py-3 px-4 text-right font-bold text-zinc-200 tabular-nums">5.4%</td>
-              <td id="payout-tom" class="py-3 px-4 text-right font-bold text-emerald-400 tabular-nums text-sm">$54.00</td>
+              <td class="py-3 px-4 text-right font-bold text-zinc-200 tabular-nums share-cell">5.4%</td>
+              <td id="payout-tom" class="py-3 px-4 text-right font-bold text-emerald-400 tabular-nums text-sm payout-cell">$54.00</td>
               <td class="py-3 px-4 text-center">
                 <span class="text-[10px] font-mono text-amber-500 bg-amber-950/40 px-1.5 py-0.5 border border-amber-900">RAW</span>
               </td>
@@ -746,13 +821,48 @@
           </tbody>
           <tfoot class="bg-[#090a0d] font-bold border-t border-[#1e222a] text-xs font-mono">
             <tr>
-              <td colspan="5" class="py-3 px-4 text-right text-zinc-400 uppercase tracking-wider text-[11px]">Conserved Total:</td>
+              <td colspan="6" class="py-3 px-4 text-right text-zinc-400 uppercase tracking-wider text-[11px]">Conserved Total:</td>
               <td class="py-3 px-4 text-right text-zinc-200 tabular-nums">100.0%</td>
               <td id="payout-total" class="py-3 px-4 text-right text-emerald-400 tabular-nums text-sm">$1,000.00</td>
               <td></td>
               <td></td>
+              <td></td>
             </tr>
           </tfoot>
+        </table>
+      </div>
+
+      <!-- Coalition Explorer View (2^N Subsets) -->
+      <div id="attribution-coalitions-view" class="hidden overflow-x-auto">
+        <table class="w-full text-left text-xs font-mono">
+          <thead class="bg-[#090a0d] border-b border-[#1e222a] text-zinc-500 text-[11px] uppercase tracking-wider">
+            <tr>
+              <th class="py-2.5 px-4 font-normal">Coalition Subset S &sube; N</th>
+              <th class="py-2.5 px-3 text-center font-normal w-12">|S|</th>
+              <th class="py-2.5 px-4 font-normal">AI Valuation v(S)</th>
+              <th class="py-2.5 px-4 font-normal">Dominant MVP &Delta;v</th>
+              <th class="py-2.5 px-4 text-center font-normal">Confidence</th>
+              <th class="py-2.5 px-4 font-normal">AI AST Synergies &amp; Rationale</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#1e222a] text-zinc-300">
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 font-bold text-blue-400">{ Maya, Sara, David, Tom } (Grand)</td><td class="text-center">4</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-emerald-400 h-full" style="width:100%"></div></div><span class="text-emerald-400 font-bold">100.0</span></div></td><td class="text-blue-300 font-semibold">Maya (+50.0)</td><td class="text-center text-zinc-400">99%</td><td class="text-zinc-400 font-sans text-xs">Production release verified: AST rewrite + CVE security fix + E2E test suite.</td></tr>
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 font-bold text-blue-400">{ Maya, Sara, David }</td><td class="text-center">3</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-emerald-400 h-full" style="width:93%"></div></div><span class="text-emerald-400 font-bold">93.0</span></div></td><td class="text-blue-300 font-semibold">Maya (+49.0)</td><td class="text-center text-zinc-400">98%</td><td class="text-zinc-400 font-sans text-xs">High capability core: 0 test regressions, zero unhandled memory violations.</td></tr>
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 font-bold text-blue-400">{ Maya, Sara, Tom }</td><td class="text-center">3</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-emerald-400 h-full" style="width:82%"></div></div><span class="text-emerald-400 font-bold">82.0</span></div></td><td class="text-blue-300 font-semibold">Maya (+48.0)</td><td class="text-center text-zinc-400">95%</td><td class="text-zinc-400 font-sans text-xs">Robust feature patch with code styling, slight test coverage gap.</td></tr>
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 font-bold text-blue-400">{ Maya, Sara }</td><td class="text-center">2</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-emerald-400 h-full" style="width:76%"></div></div><span class="text-emerald-400 font-bold">76.0</span></div></td><td class="text-blue-300 font-semibold">Maya (+48.0)</td><td class="text-center text-zinc-400">97%</td><td class="text-zinc-400 font-sans text-xs">Sufficient for core engine launch; AST speedup + CVE vulnerability resolution.</td></tr>
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 font-bold text-blue-400">{ Maya, David, Tom }</td><td class="text-center">3</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-emerald-400 h-full" style="width:65%"></div></div><span class="text-emerald-400 font-bold">65.0</span></div></td><td class="text-blue-300 font-semibold">Maya (+44.0)</td><td class="text-center text-zinc-400">94%</td><td class="text-zinc-400 font-sans text-xs">AST engine functional with regression suite, memory leak CVE remains open.</td></tr>
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 font-bold text-blue-400">{ Maya, David }</td><td class="text-center">2</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-emerald-400 h-full" style="width:59%"></div></div><span class="text-emerald-400 font-bold">59.0</span></div></td><td class="text-blue-300 font-semibold">Maya (+44.0)</td><td class="text-center text-zinc-400">96%</td><td class="text-zinc-400 font-sans text-xs">Parser verified by QA tests, security vulnerability unmitigated.</td></tr>
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 font-bold text-blue-400">{ Sara, David, Tom }</td><td class="text-center">3</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-emerald-400 h-full" style="width:50%"></div></div><span class="text-emerald-400 font-bold">50.0</span></div></td><td class="text-blue-300 font-semibold">Sara (+29.0)</td><td class="text-center text-zinc-400">93%</td><td class="text-zinc-400 font-sans text-xs">Security patched and tested, but missing core parser optimization.</td></tr>
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 font-bold text-blue-400">{ Maya, Tom }</td><td class="text-center">2</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-emerald-400 h-full" style="width:48%"></div></div><span class="text-emerald-400 font-bold">48.0</span></div></td><td class="text-blue-300 font-semibold">Maya (+43.0)</td><td class="text-center text-zinc-400">92%</td><td class="text-zinc-400 font-sans text-xs">AST parser merged with formatted styles; lack of automated tests.</td></tr>
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 font-bold text-blue-400">{ Sara, David }</td><td class="text-center">2</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-emerald-400 h-full" style="width:44%"></div></div><span class="text-emerald-400 font-bold">44.0</span></div></td><td class="text-blue-300 font-semibold">Sara (+29.0)</td><td class="text-center text-zinc-400">94%</td><td class="text-zinc-400 font-sans text-xs">CVE memory leak closed with regression coverage, AST overhaul absent.</td></tr>
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 font-bold text-blue-400">{ Maya } (Singleton)</td><td class="text-center">1</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-emerald-400 h-full" style="width:42%"></div></div><span class="text-emerald-400 font-bold">42.0</span></div></td><td class="text-blue-300 font-semibold">Maya (+42.0)</td><td class="text-center text-zinc-400">96%</td><td class="text-zinc-400 font-sans text-xs">Stand-alone core parser refactor. Massive architectural leap.</td></tr>
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 font-bold text-blue-400">{ Sara, Tom }</td><td class="text-center">2</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-emerald-400 h-full" style="width:34%"></div></div><span class="text-emerald-400 font-bold">34.0</span></div></td><td class="text-blue-300 font-semibold">Sara (+29.0)</td><td class="text-center text-zinc-400">91%</td><td class="text-zinc-400 font-sans text-xs">Security patch cleanly formatted, missing core AST performance upgrades.</td></tr>
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 font-bold text-blue-400">{ Sara } (Singleton)</td><td class="text-center">1</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-emerald-400 h-full" style="width:28%"></div></div><span class="text-emerald-400 font-bold">28.0</span></div></td><td class="text-blue-300 font-semibold">Sara (+28.0)</td><td class="text-center text-zinc-400">95%</td><td class="text-zinc-400 font-sans text-xs">Standalone security patch resolves buffer overflow; high critical value.</td></tr>
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 font-bold text-blue-400">{ David, Tom }</td><td class="text-center">2</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-emerald-400 h-full" style="width:21%"></div></div><span class="text-emerald-400 font-bold">21.0</span></div></td><td class="text-blue-300 font-semibold">David (+16.0)</td><td class="text-center text-zinc-400">90%</td><td class="text-zinc-400 font-sans text-xs">Tests and style hygiene only; no functional feature additions.</td></tr>
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 font-bold text-blue-400">{ David } (Singleton)</td><td class="text-center">1</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-emerald-400 h-full" style="width:15%"></div></div><span class="text-emerald-400 font-bold">15.0</span></div></td><td class="text-blue-300 font-semibold">David (+15.0)</td><td class="text-center text-zinc-400">95%</td><td class="text-zinc-400 font-sans text-xs">Standalone E2E test harness; improves reliability but no new capabilities.</td></tr>
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 font-bold text-blue-400">{ Tom } (Singleton)</td><td class="text-center">1</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-rose-400/80 h-full" style="width:5%"></div></div><span class="text-rose-400 font-bold">5.0</span></div></td><td class="text-zinc-400">Tom (+5.0)</td><td class="text-center text-zinc-400">98%</td><td class="text-zinc-400 font-sans text-xs">Prettier formatting run. Pure whitespace churn; minimal marginal utility.</td></tr>
+            <tr class="hover:bg-[#12161f]"><td class="py-2.5 px-4 text-zinc-500 font-bold">&empty; (Empty Set)</td><td class="text-center">0</td><td class="py-2.5 px-4"><div class="flex items-center gap-2"><div class="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden"><div class="bg-zinc-700 h-full" style="width:0%"></div></div><span class="text-zinc-500 font-bold">0.0</span></div></td><td class="text-zinc-600">-</td><td class="text-center text-zinc-500">100%</td><td class="text-zinc-500 font-sans text-xs">Baseline empty coalition has zero marginal contribution.</td></tr>
+          </tbody>
         </table>
       </div>
 
@@ -3123,9 +3233,156 @@ jobs:
         // Fallback for standalone demo file
       }
 
-      if (notice) notice.innerText = `✓ Wallet Bound to Vault ESCROW-PP-JINJA-02 (${email})`;
-      showToast(`Success: Payout wallet ${email} bound & verified!`);
-      playHaptic(880, 0.08, 'sine');
+    // =========================================================================
+    // AG GRID & AG CHARTS COALITION EXPLORER & CROSS-FILTERING SUITE
+    // =========================================================================
+    let currentAttributionTab = 'contributors';
+    let currentBaselineModel = 'shapley';
+    let activeCrossFilter = null;
+
+    function switchAttributionTab(tab) {
+      currentAttributionTab = tab;
+      const cView = document.getElementById('attribution-contributors-view');
+      const qView = document.getElementById('attribution-coalitions-view');
+      const bBar = document.getElementById('modelBakeoffBar');
+      const bTabC = document.getElementById('btnTabContributors');
+      const bTabQ = document.getElementById('btnTabCoalitions');
+
+      if (tab === 'contributors') {
+        if (cView) cView.classList.remove('hidden');
+        if (qView) qView.classList.add('hidden');
+        if (bBar) bBar.classList.remove('hidden');
+        if (bTabC) bTabC.className = 'px-3 py-1.5 bg-blue-600 text-white font-mono text-xs font-bold border border-blue-500 shadow-sm transition-all flex items-center gap-1.5';
+        if (bTabQ) bTabQ.className = 'px-3 py-1.5 bg-[#161920] hover:bg-[#1f2430] text-zinc-400 hover:text-white font-mono text-xs border border-[#2a2f3a] transition-all flex items-center gap-1.5';
+      } else {
+        if (cView) cView.classList.add('hidden');
+        if (qView) qView.classList.remove('hidden');
+        if (bBar) bBar.classList.add('hidden');
+        if (bTabC) bTabC.className = 'px-3 py-1.5 bg-[#161920] hover:bg-[#1f2430] text-zinc-400 hover:text-white font-mono text-xs border border-[#2a2f3a] transition-all flex items-center gap-1.5';
+        if (bTabQ) bTabQ.className = 'px-3 py-1.5 bg-blue-600 text-white font-mono text-xs font-bold border border-blue-500 shadow-sm transition-all flex items-center gap-1.5';
+      }
+    }
+
+    function switchBaselineModel(model) {
+      currentBaselineModel = model;
+      const bShapley = document.getElementById('btnModelShapley');
+      const bLoc = document.getElementById('btnModelLoc');
+      const bCommits = document.getElementById('btnModelCommits');
+      const notice = document.getElementById('modelBakeoffNotice');
+      const tbody = document.getElementById('contributorTbody');
+
+      [bShapley, bLoc, bCommits].forEach(b => {
+        if (b) b.className = 'px-2.5 py-1 text-zinc-400 hover:text-zinc-200 font-mono text-xs';
+      });
+
+      const rowMaya = document.getElementById('row-contrib-maya');
+      const rowSara = document.getElementById('row-contrib-sara');
+      const rowDavid = document.getElementById('row-contrib-david');
+      const rowTom = document.getElementById('row-contrib-tom');
+
+      if (!tbody || !rowMaya || !rowSara || !rowDavid || !rowTom) return;
+
+      if (model === 'shapley') {
+        if (bShapley) bShapley.className = 'px-2.5 py-1 bg-blue-600 text-white font-mono text-xs font-bold';
+        if (notice) notice.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>Game-Theoretic Axiomatic Fairness: Whitespace linter spam gets near-zero marginal credit.</span>';
+        
+        tbody.appendChild(rowMaya);
+        tbody.appendChild(rowSara);
+        tbody.appendChild(rowDavid);
+        tbody.appendChild(rowTom);
+
+        updateRowRanks({ maya: 1, sara: 2, david: 3, tom: 4 });
+      } else if (model === 'loc') {
+        if (bLoc) bLoc.className = 'px-2.5 py-1 bg-rose-600 text-white font-mono text-xs font-bold';
+        if (notice) notice.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span><span>⚠️ Naive LOC Flaw: Tom Rivera captures 50% of bounty for automated Prettier whitespace formatting.</span>';
+
+        tbody.appendChild(rowTom);
+        tbody.appendChild(rowMaya);
+        tbody.appendChild(rowDavid);
+        tbody.appendChild(rowSara);
+
+        updateRowRanks({ tom: 1, maya: 2, david: 3, sara: 4 });
+      } else if (model === 'commits') {
+        if (bCommits) bCommits.className = 'px-2.5 py-1 bg-amber-600 text-white font-mono text-xs font-bold';
+        if (notice) notice.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span><span>⚠️ Commit Count Flaw: Rewards micro-commit fragmentation over high-impact single-commit architecture.</span>';
+
+        tbody.appendChild(rowMaya);
+        tbody.appendChild(rowDavid);
+        tbody.appendChild(rowSara);
+        tbody.appendChild(rowTom);
+
+        updateRowRanks({ maya: 1, david: 2, sara: 3, tom: 4 });
+      }
+
+      [rowMaya, rowSara, rowDavid, rowTom].forEach(r => {
+        r.classList.add('bg-zinc-800/80');
+        setTimeout(() => r.classList.remove('bg-zinc-800/80'), 350);
+      });
+    }
+
+    function updateRowRanks(rankMap) {
+      for (const [id, rank] of Object.entries(rankMap)) {
+        const row = document.getElementById('row-contrib-' + id);
+        if (row) {
+          const rankCell = row.querySelector('.rank-cell');
+          if (rankCell) rankCell.innerText = rank;
+        }
+      }
+    }
+
+    function crossFilterContributor(who) {
+      if (activeCrossFilter === who) {
+        clearContributorCrossFilter();
+        return;
+      }
+      activeCrossFilter = who;
+      const names = { maya: 'Maya Chen', sara: 'Sara Ahmed', david: 'David Park', tom: 'Tom Rivera' };
+      
+      const badge = document.getElementById('activeFilterBadge');
+      const badgeName = document.getElementById('activeFilterName');
+      if (badge && badgeName) {
+        badgeName.innerText = names[who] || who;
+        badge.classList.remove('hidden');
+      }
+
+      ['maya', 'sara', 'david', 'tom'].forEach(k => {
+        const row = document.getElementById('row-contrib-' + k);
+        if (row) {
+          if (k === who) {
+            row.classList.add('bg-[#161f30]', 'ring-1', 'ring-blue-500');
+            row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          } else {
+            row.classList.remove('bg-[#161f30]', 'ring-1', 'ring-blue-500');
+          }
+        }
+      });
+
+      ['maya', 'sara', 'david', 'tom'].forEach(k => {
+        const barFill = document.getElementById('bar-' + k + '-fill');
+        const barPct = document.getElementById('bar-' + k + '-pct');
+        if (barFill) {
+          barFill.style.opacity = (k === who) ? '1.0' : '0.2';
+        }
+        if (barPct) {
+          barPct.style.opacity = (k === who) ? '1.0' : '0.4';
+        }
+      });
+    }
+
+    function clearContributorCrossFilter(e) {
+      if (e) e.stopPropagation();
+      activeCrossFilter = null;
+      const badge = document.getElementById('activeFilterBadge');
+      if (badge) badge.classList.add('hidden');
+
+      ['maya', 'sara', 'david', 'tom'].forEach(k => {
+        const row = document.getElementById('row-contrib-' + k);
+        if (row) row.classList.remove('bg-[#161f30]', 'ring-1', 'ring-blue-500');
+        const barFill = document.getElementById('bar-' + k + '-fill');
+        const barPct = document.getElementById('bar-' + k + '-pct');
+        if (barFill) barFill.style.opacity = '1.0';
+        if (barPct) barPct.style.opacity = '1.0';
+      });
     }
 
     let currentActiveView = 'results';
