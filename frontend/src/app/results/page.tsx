@@ -49,6 +49,7 @@ function ResultsContent() {
   const [payoutStatus, setPayoutStatus] = useState<string | null>(null);
   const [emailOverrides, setEmailOverrides] = useState<Record<string, string>>({});
   const [editingEmails, setEditingEmails] = useState(false);
+  const [showMath, setShowMath] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -158,23 +159,49 @@ function ResultsContent() {
 
   const chartOptions = useMemo(() => {
     if (!data) return null;
+    const totalLines = data.contributors.reduce(
+      (acc, cur) => acc + (cur.additions || 0) + (cur.deletions || 0),
+      0
+    );
+
     return {
-      data: data.contributors.map((c) => ({
-        contributor: c.name,
-        share: c.share_pct,
-      })),
+      data: data.contributors.map((c) => {
+        const lines = (c.additions || 0) + (c.deletions || 0);
+        const linesPct = totalLines > 0 ? (lines / totalLines) * 100 : 0;
+        return {
+          contributor: c.name,
+          aiShare: Number(c.share_pct.toFixed(1)),
+          linesShare: Number(linesPct.toFixed(1)),
+        };
+      }),
       series: [
         {
           type: "bar",
           xKey: "contributor",
-          yKey: "share",
+          yKey: "aiShare",
+          yName: "AI Shapley Fair %",
           fill: "#3b82f6",
+        } as any,
+        {
+          type: "bar",
+          xKey: "contributor",
+          yKey: "linesShare",
+          yName: "Lines Changed % (Naive)",
+          fill: "#52525b",
         } as any,
       ],
       axes: [
         { type: "category", position: "bottom", title: { text: "Contributor" } },
         { type: "number", position: "left", title: { text: "Share %" } },
       ] as any,
+      legend: {
+        position: "top",
+        item: {
+          label: {
+            color: "#e4e4e7",
+          },
+        },
+      },
       background: { fill: "#18181b" },
     };
   }, [data]);
@@ -284,9 +311,68 @@ function ResultsContent() {
           </div>
         </div>
 
+        {/* Executive Summary Card */}
+        {data.summary && (
+          <div className="bg-gradient-to-r from-blue-950/40 via-zinc-900 to-zinc-900 border border-blue-900/40 rounded-xl p-5 mb-8 flex items-start gap-4 animate-rise">
+            <div className="w-9 h-9 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+              </svg>
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-xs font-semibold text-blue-400 uppercase tracking-wider">
+                  AI Contribution Synthesis
+                </h3>
+                <button
+                  onClick={() => setShowMath(!showMath)}
+                  className="text-xs text-zinc-400 hover:text-zinc-200 underline flex items-center gap-1"
+                >
+                  {showMath ? "Hide Game Theory Details" : "How Shapley Math Works"}
+                </button>
+              </div>
+              <p className="text-sm text-zinc-300 leading-relaxed">
+                {data.summary}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Game Theory Explainer Dropdown */}
+        {showMath && (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8 text-sm text-zinc-300 animate-rise">
+            <h4 className="font-semibold text-zinc-100 mb-2">The Shapley Value Formula</h4>
+            <p className="text-zinc-400 mb-3">
+              Shapley values calculate each contributor&apos;s expected marginal contribution across all possible team coalitions <code className="text-blue-300">S ⊆ N \ &#123;i&#125;</code>:
+            </p>
+            <div className="bg-zinc-950 p-3 rounded-lg font-mono text-xs text-blue-400 overflow-x-auto mb-4 border border-zinc-800">
+              φᵢ = ∑ [ |S|! · (n - |S| - 1)! / n! ] × ( v(S ∪ &#123;i&#125;) - v(S) )
+            </div>
+            <div className="grid sm:grid-cols-3 gap-4 text-xs">
+              <div className="bg-zinc-800/50 p-3 rounded-lg">
+                <span className="font-semibold text-zinc-100 block mb-1">1. Efficiency</span>
+                100% of the revenue is distributed. The sum of all shares equals the exact payout.
+              </div>
+              <div className="bg-zinc-800/50 p-3 rounded-lg">
+                <span className="font-semibold text-zinc-100 block mb-1">2. Symmetry</span>
+                Contributors with identical marginal value across coalitions receive identical payouts.
+              </div>
+              <div className="bg-zinc-800/50 p-3 rounded-lg">
+                <span className="font-semibold text-zinc-100 block mb-1">3. Dummy Player</span>
+                A contributor whose code adds zero marginal value receives a zero payout.
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid lg:grid-cols-2 gap-6 mb-8">
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-            <h2 className="font-semibold mb-4">Shapley Distribution</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="font-semibold">Attribution Comparison</h2>
+                <p className="text-xs text-zinc-400">AI Semantic Impact vs. Raw Lines of Code</p>
+              </div>
+            </div>
             {chartOptions && (
               <AgCharts options={chartOptions as any} style={{ height: 300 }} />
             )}

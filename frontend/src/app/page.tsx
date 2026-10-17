@@ -216,8 +216,33 @@ export default function Home() {
             value={repoUrl}
             onChange={(e) => setRepoUrl(e.target.value)}
             placeholder="octocat/Hello-World or https://github.com/owner/repo"
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 mb-4 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors"
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 mb-2 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors"
           />
+
+          <div className="flex items-center gap-2 mb-5 overflow-x-auto text-xs">
+            <span className="text-zinc-500 whitespace-nowrap">Presets:</span>
+            <button
+              type="button"
+              onClick={() => setRepoUrl("pallets/jinja")}
+              className="px-2.5 py-1 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700/60 whitespace-nowrap transition-colors"
+            >
+              pallets/jinja
+            </button>
+            <button
+              type="button"
+              onClick={() => setRepoUrl("psf/black")}
+              className="px-2.5 py-1 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700/60 whitespace-nowrap transition-colors"
+            >
+              psf/black
+            </button>
+            <button
+              type="button"
+              onClick={() => setRepoUrl("aio-libs/aiohttp")}
+              className="px-2.5 py-1 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700/60 whitespace-nowrap transition-colors"
+            >
+              aio-libs/aiohttp
+            </button>
+          </div>
 
           <label className="block text-sm text-zinc-400 mb-2">
             Total payout amount (USD)
@@ -276,6 +301,30 @@ export default function Home() {
               One click executes the fair split via PayPal Payouts.
               Full audit trail of every AI decision.
             </p>
+          </div>
+        </div>
+
+        <div className="mt-16 text-center border-t border-zinc-800/80 pt-8 animate-rise stagger-5">
+          <p className="text-xs uppercase tracking-widest text-zinc-500 mb-4 font-semibold">
+            Built for the PayPal AI Hackathon 2026
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-zinc-400">
+            <span className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+              PayPal Batch Payouts API
+            </span>
+            <span className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              Google Gemini 2.5 Flash
+            </span>
+            <span className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full">
+              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+              AG Grid & AG Charts
+            </span>
+            <span className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full">
+              <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+              Render Cloud
+            </span>
           </div>
         </div>
       </div>

@@ -95,6 +95,7 @@ def get_demo_analysis():
         "total_amount": DEMO_TOTAL,
         "contributors": contributors,
         "evaluations": evaluations,
+        "summary": "Maya Chen delivered the foundational auth and architectural backbone (47.0%), while Sara Ahmed built the core external API integration (31.6%). David Park contributed utility functions (16.0%), and Tom Rivera maintained project documentation (5.4%).",
         "api_calls": 0,
         "demo_mode": True,
         "num_coalitions": len(DEMO_COALITION_SCORES),

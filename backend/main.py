@@ -232,9 +232,17 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits):
                 "payout_ci_high": round(total_amount * ci["high"] / 100, 2) if "high" in ci else None,
             })
 
+        # Generate executive contribution summary
+        sorted_contribs = sorted(contribs, key=lambda c: c["share_pct"], reverse=True)
+        summary_parts = [f"{c['name']} ({c['share_pct']}%)" for c in sorted_contribs]
+        summary = (f"Fair revenue distribution calculated across {len(contribs)} contributors: "
+                   + ", ".join(summary_parts)
+                   + f". {sorted_contribs[0]['name']} demonstrated the highest marginal impact across evaluated coalitions.")
+
         update("complete",
                repo=repo, total_amount=total_amount,
                contributors=contribs,
+               summary=summary,
                evaluations=result["evaluations"],
                api_calls=result["api_calls"],
                num_coalitions=result["num_coalitions"],
@@ -262,6 +270,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+from agent_tool import agent_router
+app.include_router(agent_router)
 
 
 @app.get("/api/health")

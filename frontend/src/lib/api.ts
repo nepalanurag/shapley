@@ -36,6 +36,7 @@ export interface AnalysisResult {
   total_amount: number;
   contributors: Contributor[];
   evaluations: Evaluation[];
+  summary?: string;
   api_calls: number;
   num_coalitions: number;
   demo_mode?: boolean;
