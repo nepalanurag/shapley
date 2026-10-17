@@ -348,8 +348,8 @@ export default function Home() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
-                <span className="text-xs font-bold uppercase tracking-wider text-purple-400">
-                  Agentic Commerce & Autonomous Swarms ($5,000 Prize Category)
+                <span className="text-xs font-bold uppercase tracking-wider text-purple-400 font-mono">
+                  Autonomous Multi-Agent Layer &middot; MCP Protocol
                 </span>
               </div>
               <p className="text-xs text-zinc-300 max-w-2xl leading-relaxed">
@@ -368,8 +368,8 @@ export default function Home() {
         </div>
 
         <div className="mt-16 text-center border-t border-zinc-800/80 pt-8 animate-rise stagger-5">
-          <p className="text-xs uppercase tracking-widest text-zinc-500 mb-4 font-semibold">
-            Built for the PayPal AI Hackathon 2026
+          <p className="text-xs uppercase tracking-widest text-zinc-500 mb-4 font-semibold font-mono">
+            Enterprise Infrastructure &amp; Ecosystem
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-zinc-400">
             <span className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full">

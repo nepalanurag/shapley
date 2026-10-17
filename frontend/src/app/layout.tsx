@@ -39,8 +39,8 @@ export default function RootLayout({
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-base tracking-tight text-white">Shapley</span>
-                <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                  Hackathon
+                <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
+                  Protocol v1.0
                 </span>
               </div>
             </Link>
@@ -89,7 +89,7 @@ export default function RootLayout({
               <span>Fair Open-Source & Multi-Agent Revenue Splits</span>
             </div>
             <div className="flex items-center gap-4 text-zinc-400">
-              <span>PayPal AI Hackathon 2026</span>
+              <span>Autonomous Revenue Infrastructure</span>
               <span>•</span>
               <a href="https://github.com/nepalanurag/shapley" target="_blank" rel="noreferrer" className="hover:text-zinc-200 underline">
                 GitHub Repo

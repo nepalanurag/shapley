@@ -50,6 +50,40 @@ function ResultsContent() {
   const [emailOverrides, setEmailOverrides] = useState<Record<string, string>>({});
   const [editingEmails, setEditingEmails] = useState(false);
   const [showMath, setShowMath] = useState(false);
+  const [adjustedAmount, setAdjustedAmount] = useState<number | null>(null);
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [copiedMd, setCopiedMd] = useState(false);
+
+  const currentTotal = adjustedAmount ?? data?.total_amount ?? 1000;
+
+  const displayedContributors = useMemo(() => {
+    if (!data) return [];
+    return data.contributors.map((c) => ({
+      ...c,
+      payout_usd: Math.round(currentTotal * c.share_pct) / 100,
+      payout_ci_low: c.share_ci_low != null ? Math.round(currentTotal * c.share_ci_low) / 100 : undefined,
+      payout_ci_high: c.share_ci_high != null ? Math.round(currentTotal * c.share_ci_high) / 100 : undefined,
+    }));
+  }, [data, currentTotal]);
+
+  const copyMarkdown = () => {
+    if (!data) return;
+    const lines = [
+      `### ⚖️ Fair Revenue Split for ${data.repo}`,
+      `**Total Pool:** $${currentTotal.toFixed(2)} USD · Calculated via Shapley Cooperative Game Theory`,
+      "",
+      "| Contributor | GitHub Commits | Lines Changed | Shapley Marginal Share % | Payout (USD) |",
+      "| :--- | :--- | :--- | :--- | :--- |",
+      ...displayedContributors.map((c) => {
+        return `| **${c.name}** | ${c.commits} | +${c.additions} / -${c.deletions} | ${c.share_pct.toFixed(1)}% | **$${c.payout_usd.toFixed(2)}** |`;
+      }),
+      "",
+      `*Disbursed deterministically via PayPal Payouts API • Protected by SHA-256 Idempotency*`
+    ];
+    navigator.clipboard.writeText(lines.join("\n"));
+    setCopiedMd(true);
+    setTimeout(() => setCopiedMd(false), 2500);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -220,12 +254,12 @@ function ResultsContent() {
     setPaying(true);
     setError("");
     try {
-      const shares = data.contributors.map((c) => ({
+      const shares = displayedContributors.map((c) => ({
         email: getEffectiveEmail(c),
         amount: c.payout_usd,
         note: `Shapley fair share: ${c.share_pct.toFixed(1)}%`,
       }));
-      const result = await executePayout(shares, data.total_amount);
+      const result = await executePayout(shares, currentTotal);
       setPayoutResult(result);
       setPayoutStatus(result.status);
       // Poll for completion
@@ -333,10 +367,24 @@ function ResultsContent() {
               )}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={copyMarkdown}
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              {copiedMd ? "Copied Markdown!" : "Copy PR Markdown"}
+            </button>
+            <button
+              onClick={() => setShowActionModal(true)}
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+              CI/CD Action
+            </button>
             <button
               onClick={exportCSV}
-              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors"
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -346,11 +394,11 @@ function ResultsContent() {
               Export CSV
             </button>
             <button onClick={() => router.push(`/audit?demo=${params.get("demo")}&job=${params.get("job") || ""}`)}
-              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 transition-colors">
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 transition-colors text-zinc-200">
               View Audit Trail
             </button>
             <button onClick={() => router.push("/")}
-              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 transition-colors">
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 transition-colors text-zinc-200">
               New Analysis
             </button>
           </div>
@@ -462,26 +510,57 @@ function ResultsContent() {
               <AgCharts options={chartOptions as any} style={{ height: 300 }} />
             )}
           </div>
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6">
-            <h2 className="font-semibold mb-4">Summary</h2>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-zinc-400">Contributors</span>
-                <span className="font-medium">{data.contributors.length}</span>
+          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 flex flex-col justify-between">
+            <div>
+              <h2 className="font-semibold mb-4">Summary &amp; Settlement</h2>
+
+              {/* Real-time Pool Simulator */}
+              <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-3.5 mb-5">
+                <div className="flex items-center justify-between mb-2 text-xs">
+                  <span className="text-zinc-400 font-medium">Bounty Pool Simulator</span>
+                  <span className="font-mono text-emerald-400 font-bold text-sm">
+                    ${currentTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} USD
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="100"
+                  max="10000"
+                  step="50"
+                  value={currentTotal}
+                  onChange={(e) => setAdjustedAmount(parseFloat(e.target.value))}
+                  className="w-full accent-blue-500 bg-zinc-800 h-1.5 rounded-lg cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-zinc-500 mt-1.5 font-mono">
+                  <span>$100 min</span>
+                  <span>$5,000</span>
+                  <span>$10,000 max</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-400">Coalitions scored</span>
-                <span className="font-medium">{data.num_coalitions}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-400">AI API calls</span>
-                <span className="font-medium">{data.api_calls}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-400">Total payout</span>
-                <span className="font-medium text-green-400">
-                  ${data.total_amount.toFixed(2)}
-                </span>
+
+              <div className="space-y-2.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-zinc-400">Contributors</span>
+                  <span className="font-medium">{data.contributors.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-400">Coalitions scored</span>
+                  <span className="font-medium font-mono">{data.num_coalitions}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-400">AI API calls</span>
+                  <span className="font-medium font-mono">{data.api_calls}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-400">Total payout</span>
+                  <span className="font-medium text-emerald-400 font-mono font-bold">
+                    ${currentTotal.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs text-zinc-500 pt-2 border-t border-zinc-800/60">
+                  <span>PayPal Batch Fee (${0.25} &times; {data.contributors.length})</span>
+                  <span className="font-mono text-zinc-400">${(0.25 * data.contributors.length).toFixed(2)}</span>
+                </div>
               </div>
             </div>
             {!payoutResult ? (
@@ -537,16 +616,16 @@ function ResultsContent() {
               <h3 className="text-lg font-bold mb-2">Confirm Payout</h3>
               <p className="text-sm text-zinc-400 mb-4">
                 This will send{" "}
-                <span className="text-green-400 font-semibold">
-                  ${data.total_amount.toFixed(2)}
+                <span className="text-emerald-400 font-semibold font-mono">
+                  ${currentTotal.toFixed(2)}
                 </span>{" "}
-                via PayPal Payouts to {data.contributors.length} contributors.
+                via PayPal Payouts to {displayedContributors.length} contributors.
                 This cannot be undone.
               </p>
               <div className="bg-zinc-800 rounded-lg p-3 mb-4 max-h-48 overflow-y-auto">
-                {data.contributors.map((c) => (
-                  <div key={c.email} className="flex justify-between text-sm py-1">
-                    <span className="text-zinc-300">{c.name}</span>
+                {displayedContributors.map((c) => (
+                  <div key={c.email} className="flex justify-between text-sm py-1 font-mono">
+                    <span className="text-zinc-300 font-sans">{c.name}</span>
                     <span className="text-zinc-400">
                       ${c.payout_usd.toFixed(2)} ({c.share_pct.toFixed(1)}%)
                     </span>
@@ -562,14 +641,65 @@ function ResultsContent() {
                 </button>
                 <button
                   onClick={confirmPayout}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg px-4 py-2.5 btn-interactive"
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg px-4 py-2.5 btn-interactive font-mono"
                 >
-                  Send ${data.total_amount.toFixed(2)}
+                  Send ${currentTotal.toFixed(2)}
                 </button>
               </div>
               <p className="text-xs text-zinc-500 mt-3 text-center">
                 AI recommended these shares. You are confirming the execution.
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* GitHub Action CI/CD Workflow Modal */}
+        {showActionModal && data && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/70 modal-backdrop"
+              onClick={() => setShowActionModal(false)}
+            />
+            <div className="relative bg-zinc-900 border border-zinc-700 rounded-xl p-6 max-w-xl w-full modal-content">
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-zinc-800">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                  </svg>
+                  Automate via GitHub Actions
+                </h3>
+                <button onClick={() => setShowActionModal(false)} className="text-zinc-400 hover:text-white">&times;</button>
+              </div>
+              <p className="text-xs text-zinc-400 mb-3">
+                Drop this workflow into <code className="text-blue-300 font-mono">.github/workflows/shapley.yml</code> to automatically calculate and disburse developer bounties upon each release tag:
+              </p>
+              <pre className="bg-zinc-950 p-3.5 rounded-lg text-xs font-mono text-zinc-300 border border-zinc-800 overflow-x-auto leading-relaxed mb-4">
+{`name: Shapley Release Bounty
+on:
+  release:
+    types: [published]
+
+jobs:
+  distribute:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calculate Shapley Shares & Payout
+        run: |
+          curl -X POST https://shapley.onrender.com/api/agent/evaluate \\
+            -H "Content-Type: application/json" \\
+            -d '{"repo_url": "${data.repo}", "total_amount": ${currentTotal}}'`}
+              </pre>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`name: Shapley Release Bounty\non:\n  release:\n    types: [published]\n\njobs:\n  distribute:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Calculate Shapley Shares & Payout\n        run: |\n          curl -X POST https://shapley.onrender.com/api/agent/evaluate \\\n            -H "Content-Type: application/json" \\\n            -d '{"repo_url": "${data.repo}", "total_amount": ${currentTotal}}'`);
+                    alert("GitHub Action YAML copied to clipboard!");
+                  }}
+                  className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                >
+                  Copy Workflow YAML
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -590,7 +720,7 @@ function ResultsContent() {
               <p className="text-xs text-zinc-500">
                 GitHub emails may not match PayPal accounts. Override them here.
               </p>
-              {data.contributors.map((c) => (
+              {displayedContributors.map((c) => (
                 <div key={c.email} className="flex items-center gap-3 text-sm">
                   <span className="w-32 truncate text-zinc-300">{c.name}</span>
                   <input
@@ -613,7 +743,7 @@ function ResultsContent() {
           <div className="ag-theme-quartz" style={{ height: 300 }}>
             <AgGridReact
               theme={darkTheme}
-              rowData={data.contributors}
+              rowData={displayedContributors}
               columnDefs={contributorCols}
               defaultColDef={{ resizable: true }}
             />
