@@ -20,9 +20,21 @@ ENV_VAR = "GITHUB_TOKEN"
 
 from concurrent.futures import ThreadPoolExecutor
 
-# Skip these patterns (bots, merges)
-SKIP_AUTHORS = ["dependabot", "github-actions", "renovate"]
+# Bot quarantine: GitHub bot/App accounts use logins ending in "[bot]"
+# (patchback[bot], pre-commit-ci[bot], dependabot[bot], ...). A short list
+# covers well-known automation accounts whose logins lack the suffix.
+# (Fix 2026-10-22: the previous version only excluded three hardcoded
+# names, which let patchback[bot] receive 21.0% in a committed bake-off run.)
+KNOWN_BOT_LOGINS = ["dependabot", "github-actions", "renovate", "codecov", "mergify"]
 SKIP_MESSAGES = ["merge branch", "merge pull request"]
+
+
+def is_bot_login(login):
+    """True for bot/App accounts: any '*[bot]' login or a known automation name."""
+    login = (login or "").lower()
+    if login.endswith("[bot]"):
+        return True
+    return any(b in login for b in KNOWN_BOT_LOGINS)
 
 
 def api_get(path):
@@ -65,10 +77,13 @@ def parse_repo_url(url):
 
 
 def is_bot_commit(commit):
-    author = (commit.get("author") or {}).get("login", "").lower()
-    committer = (commit.get("committer") or {}).get("login", "").lower()
+    author = (commit.get("author") or {}).get("login", "")
+    committer = (commit.get("committer") or {}).get("login", "")
+    # Unlinked commits fall back to the git author name, which for bots
+    # typically also carries the "[bot]" suffix.
+    git_name = commit["commit"].get("author", {}).get("name", "")
     msg = commit["commit"]["message"].lower()
-    if any(b in author or b in committer for b in SKIP_AUTHORS):
+    if is_bot_login(author) or is_bot_login(committer) or is_bot_login(git_name):
         return True
     if any(s in msg for s in SKIP_MESSAGES):
         return True

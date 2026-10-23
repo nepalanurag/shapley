@@ -126,7 +126,8 @@ literals, Unicode obfuscation).
 
 ## 4. Baseline bake-off — RUN 2026-10-15
 
-**Status:** Complete. Results in `validation/bakeoff_results.json`.
+**Status:** Complete. Results in `validation/bakeoff_results.json` (n=3 repos)
+and `validation/bakeoff_results_n5.json` (n=5 repos).
 
 **What it does:** On real repos, computes payout splits four ways
 (AI Shapley, lines-changed, commit count, files touched) and reports
@@ -148,9 +149,30 @@ Mean correlations (4 repos): lines -0.08, commits -0.31, files -0.17.
 
 **Verdict:** AI does NOT track naive baselines. All correlations |r| <= 0.50,
 well below the 0.80 "expensive theater" threshold. The AI's top-contributor
-pick differed from every baseline in all four repos. The n=5 results show
-fine-grained, varied correlations (not the coarse ±0.5 forced by n=3) —
-confirming the AI makes genuinely different judgments than line counting.
+pick differed from every baseline in all four repos. Two qualifications keep
+this from being a stronger claim: with n=3, Spearman r can only take values
+in {-1, -0.5, 0, 0.5, 1}, so the n=3 repos are weak evidence and the n=5
+repos carry the signal; and "does not track line counting" does not
+establish that the AI's rankings match human judgment — that is what the
+unrun inter-rater study (§1) would test.
+
+**Known defects in this run (found by the 2026-10-22 audit):**
+
+- **Bot contamination:** the aiohttp contributor set includes
+  `patchback[bot]`, which received **21.0%** of the AI shares. The ingest
+  filter (`github_ingest.py`) only excluded three hardcoded bot names, so
+  the bot's commits were scored as a human contributor's. The filter now
+  quarantines any `*[bot]` login plus known automation accounts. The
+  committed JSON above is unchanged — the defect is reported, not edited
+  out of the record. The pytest contributor set likewise includes
+  `pre-commit-ci[bot]` (0.0% AI share).
+- **Degenerate pytest split:** three of five contributors received exactly
+  **0.0%** and the other two exactly **50.0%**. That pattern looks like a
+  scoring collapse rather than discrimination between contributors. In
+  addition, Ronny Pfannschmidt appears twice (two different emails), so
+  the "5 contributors" are 4 distinct humans plus one bot. The pytest row
+  should be read as a failure mode of the scorer on that snapshot, not as
+  evidence of fine-grained judgment.
 
 **To run:**
 ```bash
