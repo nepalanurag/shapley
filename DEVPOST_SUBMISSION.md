@@ -60,14 +60,36 @@ We designed Shapley with a strict architectural boundary:
 
 ## 🧪 Validation & The 4-Repo Bake-off
 
-To test Shapley's real-world accuracy against naive line-counting, we benchmarked 4 open-source repositories:
+We benchmarked the scorer on 4 open-source repositories (committed results:
+`backend/validation/bakeoff_results.json` and `bakeoff_results_n5.json`).
+Read this as what it is: a **rank-correlation study** asking whether the AI's
+contributor rankings merely track naive metrics. The shares below are the
+scorer's outputs on those snapshots, **not** validated fair-share outcomes —
+whether the scores match human judgment of contribution value is untested
+(the inter-rater study has not run; see `VALIDATION.md`).
 
-| Repository | Real Contribution | Naive Lines-of-Code Metric | Shapley AI Evaluation | Real Outcome |
+| Repository | n | AI shares (committed run) | Spearman r: lines / commits / files | AI top pick matched a baseline's? |
 | :--- | :--- | :--- | :--- | :--- |
-| **`pallets/jinja`** | Critical parser bug fix (15 lines) vs Docs/Formatting (450 lines) | Docs writer receives **88%** | Bug fixer receives **62%**, Docs receives **38%** | **Corrected:** Critical functionality recognized over formatting |
-| **`psf/black`** | AST safety verification engine vs Configuration renames | Config author receives **74%** | AST engine author receives **81%** | **Corrected:** Foundational code prioritized over surface changes |
-| **`aio-libs/aiohttp`** | Async connection pool race condition patch vs Typo fixes | Typo PRs dominate LOC counts | Race condition patch captures **69%** | **Corrected:** High-leverage concurrency stability rewarded |
-| **`octocat/Hello-World`** | Initial setup and dummy README edits | Flawed 50/50 split | Proportional to setup impact | **Axiomatic Symmetry & Dummy player confirmed** |
+| **`pallets/jinja`** | 3 | Kevin Brown-Silva **81.5%**, David Lord **10.6%**, Adam Englander **7.9%** | −0.50 / −0.50 / −0.50 | No |
+| **`aio-libs/aiohttp`** | 3 | Sam Bull **48.8%**, J. Nick Koston **30.2%**, patchback[bot] **21.0%** ⚠️ | +0.50 / −0.50 / +0.50 | No |
+| **`psf/black`** | 5 | Matthew Suozzo **35.6%**, Prateek99-s **31.9%**, Jitesh Gulati **24.0%**, Jay Zhou **5.9%**, Jelle Zijlstra **2.5%** | −0.30 / +0.05 / −0.40 | No |
+| **`pytest-dev/pytest`** | 5 | Ronny Pfannschmidt **50.0%**, Frank Hoffmann **50.0%**, three contributors **0.0%** ⚠️ | 0.00 / −0.30 / −0.30 | No |
+
+Mean correlations across the 4 repos: lines **−0.08**, commits **−0.31**,
+files **−0.17**. Every |r| ≤ 0.50, well under the 0.80 "expensive theater"
+threshold at which the AI would just be re-measuring line counts. Honesty
+caveats, stated rather than hidden:
+
+- ⚠️ **Bot contamination:** the aiohttp run awarded 21.0% to `patchback[bot]`
+  because the ingest filter only excluded three hardcoded bot names. The
+  filter now quarantines any `*[bot]` login plus known automation accounts.
+  The committed JSON is left as-is for the record, not silently rewritten.
+- ⚠️ **Degenerate pytest run:** three of five contributors scored exactly
+  0.0% and the other two exactly 50.0% — a pattern consistent with scoring
+  collapse rather than discrimination. The same human (Ronny Pfannschmidt)
+  also appears under two different emails. We report it as a failure mode.
+- With n=3, Spearman r can only take values in {−1, −0.5, 0, 0.5, 1}, so the
+  two n=3 repos are weak evidence; the n=5 repos carry most of the signal.
 
 ---
 
@@ -100,7 +122,7 @@ Shapley enables **autonomous AI agents to transact and compensate one another**:
 
 - **Mathematical Integrity:** All 10 axiom tests pass (`test_axioms.py`), proving Efficiency, Symmetry, Dummy Player, Additivity, and Monotonicity.
 - **Deterministic Demo:** Created a 100% reproducible, zero-API-call demo mode with four realistic developer archetypes (Backend Architect, Documentation Specialist, Security Engineer, Refactoring Specialist) for pitch presentations.
-- **Full-Stack Execution:** From raw GitHub diffs to game theory formulas, AG Grid visualization, and real PayPal Payout sandbox execution in under 10 seconds.
+- **Full-Stack Execution:** From raw GitHub diffs to game theory formulas, AG Grid visualization, and real PayPal Payout sandbox execution. Demo mode returns the frozen result instantly. A live analysis is slower by design: the scorer paces Gemini calls at a 4.0s minimum interval (`MIN_INTERVAL` in `backend/semantic_scorer.py`) and scores every non-empty coalition once, so pacing alone is roughly 30 seconds for 3 contributors (8 coalitions, 7 scored) and about 2 minutes for 5 contributors (32 coalitions, 31 scored), before network time.
 
 ---
 
