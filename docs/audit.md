@@ -193,9 +193,10 @@ for this run. No Gemini calls were made by the suite.
 
 `node_modules` was already present in `frontend/`, so per instructions
 `npm ci` was not run. Command: `cd frontend && npm run build`.
-**Result: PASS, exit 0** (run twice; the second, clean run's output is quoted
-below — the first run also exited 0 with the same route table; a stale Next
-build lock from the first run had to be cleared before the re-run would start).
+**Result: PASS, exit 0.** The output quoted below is from a clean re-run. An
+earlier first run was terminated (exit 143) after reaching "Compiled
+successfully / Running TypeScript" when its lingering process was killed to
+clear a stale `.next` lock; it did not itself exit 0.
 
 Tail of the actual output:
 
