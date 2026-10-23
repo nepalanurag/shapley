@@ -31,6 +31,10 @@ from paypal_payouts import (
     PAYPAL_BASE,
     calculate_paypal_batch_fee,
     create_batch_payout,
+    paypal_http_open,
+    paypal_error_name,
+    fixture_replay_enabled,
+    env as _paypal_env,
 )
 
 log = logging.getLogger("shapley.escrow")
@@ -127,12 +131,14 @@ class PayPalEscrowManager:
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with paypal_http_open(req, timeout=30) as resp:
                 order_data = json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
-            err_body = e.read().decode("utf-8")
-            log.error(f"PayPal Orders v2 error: {e.code} {err_body}")
-            raise RuntimeError(f"PayPal Orders v2 Error ({e.code}): {err_body}")
+            # Never log or propagate the raw error body (it can carry
+            # account identifiers); surface only the error name.
+            err_name = paypal_error_name(e.read().decode("utf-8"))
+            log.error(f"PayPal Orders v2 error: {e.code} {err_name}".rstrip())
+            raise RuntimeError(f"PayPal Orders v2 Error ({e.code}): {err_name or 'unknown'}")
 
         order_id = order_data["id"]
         status = order_data.get("status", "CREATED")
@@ -210,13 +216,13 @@ class PayPalEscrowManager:
                     "PayPal-Request-Id": generate_idempotency_key("capture", authorization_id, formatted_amount)
                 }
             )
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with paypal_http_open(req, timeout=30) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 log.info(f"PayPal real capture successful: {data.get('id')} for auth {authorization_id}")
                 return data
         except urllib.error.HTTPError as e:
-            err_body = e.read().decode("utf-8")
-            log.warning(f"PayPal capture API call for {authorization_id} returned {e.code}: {err_body}")
+            err_name = paypal_error_name(e.read().decode("utf-8"))
+            log.warning(f"PayPal capture API call for {authorization_id} returned {e.code}: {err_name or 'unknown'}")
             return None
         except Exception as e:
             log.warning(f"PayPal capture API error: {e}")
@@ -235,15 +241,15 @@ class PayPalEscrowManager:
                     "PayPal-Request-Id": generate_idempotency_key("void", authorization_id)
                 }
             )
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with paypal_http_open(req, timeout=30) as resp:
                 if resp.status == 204:
                     log.info(f"PayPal real void successful (204 No Content) for {authorization_id}")
                     return {"status": "VOIDED", "http_status": 204}
                 body = resp.read().decode("utf-8")
                 return json.loads(body) if body else {"status": "VOIDED"}
         except urllib.error.HTTPError as e:
-            err_body = e.read().decode("utf-8")
-            log.warning(f"PayPal void API call for {authorization_id} returned {e.code}: {err_body}")
+            err_name = paypal_error_name(e.read().decode("utf-8"))
+            log.warning(f"PayPal void API call for {authorization_id} returned {e.code}: {err_name or 'unknown'}")
             return None
         except Exception as e:
             log.warning(f"PayPal void API error: {e}")
@@ -260,7 +266,7 @@ class PayPalEscrowManager:
                     "Content-Type": "application/json",
                 }
             )
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with paypal_http_open(req, timeout=15) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 log.info(f"Queried live PayPal order {order_id}: status={data.get('status')}")
                 return data
@@ -463,6 +469,80 @@ class PayPalEscrowManager:
             }
         }
 
+    def verify_webhook_detailed(
+        self,
+        transmission_id: str,
+        transmission_time: str,
+        cert_url: str,
+        auth_algo: str,
+        transmission_sig: str,
+        raw_body: str,
+    ) -> Dict[str, Any]:
+        """Verify a webhook via PayPal's verify-webhook-signature API.
+
+        POSTs the transmission headers, the configured webhook id
+        (PAYPAL_WEBHOOK_ID) and the parsed event to
+        /v1/notifications/verify-webhook-signature and trusts the event
+        ONLY when PayPal answers verification_status == "SUCCESS".
+        Anything else — FAILURE, an HTTP error, a missing webhook id or
+        missing credentials outside fixture replay — is NOT verified.
+
+        Returns {"verified": bool, "mode": str} where mode is one of:
+          "paypal_api"       — PayPal itself returned SUCCESS
+          "unverified_demo"  — fixture replay: no network verification is
+                               possible, so the result is honestly
+                               labelled unverified (never verified:true)
+          "rejected"         — verification failed or could not run
+        """
+        if not transmission_id or not transmission_sig or not transmission_time:
+            return {"verified": False, "mode": "rejected"}
+        if fixture_replay_enabled():
+            # Offline replay cannot ask PayPal to verify; never claim it did.
+            return {"verified": False, "mode": "unverified_demo"}
+
+        webhook_id = _paypal_env("PAYPAL_WEBHOOK_ID")
+        if not webhook_id:
+            log.warning("Webhook verification skipped: PAYPAL_WEBHOOK_ID is not configured")
+            return {"verified": False, "mode": "rejected"}
+        try:
+            webhook_event = json.loads(raw_body)
+        except Exception:
+            return {"verified": False, "mode": "rejected"}
+
+        try:
+            token = get_access_token()
+        except Exception:
+            log.warning("Webhook verification failed: no PayPal access token available")
+            return {"verified": False, "mode": "rejected"}
+
+        payload = {
+            "auth_algo": auth_algo,
+            "cert_url": cert_url,
+            "transmission_id": transmission_id,
+            "transmission_sig": transmission_sig,
+            "transmission_time": transmission_time,
+            "webhook_id": webhook_id,
+            "webhook_event": webhook_event,
+        }
+        req = urllib.request.Request(
+            f"{PAYPAL_BASE}/v1/notifications/verify-webhook-signature",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+        )
+        try:
+            with paypal_http_open(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        except Exception as e:
+            log.warning(f"Webhook verification request failed: {type(e).__name__}")
+            return {"verified": False, "mode": "rejected"}
+        if data.get("verification_status") == "SUCCESS":
+            return {"verified": True, "mode": "paypal_api"}
+        log.warning("Webhook verification returned a non-SUCCESS status")
+        return {"verified": False, "mode": "rejected"}
+
     def verify_webhook_signature(
         self,
         transmission_id: str,
@@ -472,11 +552,15 @@ class PayPalEscrowManager:
         transmission_sig: str,
         raw_body: str,
     ) -> bool:
-        """Verify the cryptographic authenticity of incoming PayPal webhook notifications."""
-        if not transmission_id or not transmission_sig:
-            return False
-        # In sandbox, assert header presence and valid timestamp
-        return bool(transmission_id and transmission_time and transmission_sig)
+        """Boolean form of verify_webhook_detailed (real PayPal check)."""
+        return self.verify_webhook_detailed(
+            transmission_id=transmission_id,
+            transmission_time=transmission_time,
+            cert_url=cert_url,
+            auth_algo=auth_algo,
+            transmission_sig=transmission_sig,
+            raw_body=raw_body,
+        )["verified"]
 
 
 # Singleton

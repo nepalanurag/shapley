@@ -197,7 +197,8 @@ def main():
     for email, data in contributors.items():
         total_add = sum(c["additions"] for c in data["commits"])
         total_del = sum(c["deletions"] for c in data["commits"])
-        print(f"  {data['name']} ({email}): "
+        # Names only in output: email addresses are never printed/logged.
+        print(f"  {data['name']}: "
               f"{len(data['commits'])} commits, +{total_add}/-{total_del}")
 
     # Save for next stage

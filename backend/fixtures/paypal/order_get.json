@@ -1,0 +1,1 @@
+{"id":"FIXTUREORDERID00000","intent":"AUTHORIZE","purchase_units":[{"amount":{"currency_code":"USD","value":"0.00"},"payments":{"authorizations":[{"id":"FIXTUREAUTHORIZATION1","status":"CREATED"}]},"reference_id":"shapley_phase1"}],"status":"APPROVED"}

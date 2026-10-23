@@ -1,0 +1,1 @@
+{"batch_header":{"batch_status":"PENDING","payout_batch_id":"FIXTUREBATCHID00000","sender_batch_id":"fixture-sender-batch"},"links":[{"href":"https://api-m.sandbox.paypal.com/v1/payments/payouts/FIXTUREBATCHID00000","method":"GET","rel":"self"}]}

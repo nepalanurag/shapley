@@ -9,6 +9,7 @@ Tests:
 5. GAAP invoice statement generation.
 6. Asynchronous PayPal webhook signature verification.
 """
+import json
 import os
 import sys
 import unittest
@@ -112,20 +113,66 @@ def test_sponsor_portfolio_and_invoice_accounting():
     assert "merkle_root" in invoice["invoice"]
 
 
+class _FakePayPalResponse:
+    def __init__(self, payload, status=200):
+        self.status = status
+        self._body = json.dumps(payload).encode("utf-8")
+
+    def read(self):
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def _mock_paypal_transport(req, timeout=30):
+    """Mocked PayPal HTTP layer: token + verify-webhook-signature.
+
+    PayPal answers SUCCESS for any transmission_sig except "FORGED",
+    which it answers FAILURE — mirroring the real API contract.
+    """
+    if "/v1/oauth2/token" in req.full_url:
+        return _FakePayPalResponse({"access_token": "TEST-TOKEN", "expires_in": 32400})
+    if "/v1/notifications/verify-webhook-signature" in req.full_url:
+        payload = json.loads(req.data.decode("utf-8"))
+        assert payload["webhook_id"] == "TEST-WEBHOOK-ID"
+        status = "FAILURE" if payload["transmission_sig"] == "FORGED" else "SUCCESS"
+        return _FakePayPalResponse({"verification_status": status})
+    raise AssertionError(f"Unexpected URL in mocked transport: {req.full_url}")
+
+
 def test_paypal_webhook_signature_verification():
-    """Verify PayPal webhook notification signature processing."""
+    """Verify webhook signatures via PayPal's verify-webhook-signature API.
+
+    The HTTP layer is mocked: a valid signature (PayPal answers SUCCESS)
+    is accepted, a forged one (FAILURE) is rejected, and a missing
+    signature is rejected without any API call.
+    """
+    import urllib.request
+    from unittest import mock
+
     mgr = PayPalEscrowManager()
-    valid = mgr.verify_webhook_signature(
+    headers = dict(
         transmission_id="84920412-8821-4190-b183",
         transmission_time="2026-10-17T08:00:00Z",
         cert_url="https://api.sandbox.paypal.com/v1/notifications/certs/CERT-1234",
         auth_algo="SHA256withRSA",
-        transmission_sig="MEUCIQC1x824...",
-        raw_body='{"event_type": "PAYMENT.AUTHORIZATION.CREATED"}'
     )
-    assert valid is True
+    body = '{"id": "WH-TEST-1", "event_type": "PAYMENT.AUTHORIZATION.CREATED"}'
+    with mock.patch.dict(os.environ, {"PAYPAL_WEBHOOK_ID": "TEST-WEBHOOK-ID"}):
+        with mock.patch.object(urllib.request, "urlopen", _mock_paypal_transport):
+            valid = mgr.verify_webhook_signature(
+                transmission_sig="MEUCIQC1x824...", raw_body=body, **headers)
+            assert valid is True
 
-    # Missing sig fails
+            forged = mgr.verify_webhook_signature(
+                transmission_sig="FORGED", raw_body=body, **headers)
+            assert forged is False
+
+    # Missing sig fails (no API call needed)
     invalid = mgr.verify_webhook_signature(
         transmission_id="1234",
         transmission_time="2026-10-17T08:00:00Z",

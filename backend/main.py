@@ -209,6 +209,11 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits):
 
 @asynccontextmanager
 async def lifespan(app):
+    # Sandbox-only hard fail at startup: a live PayPal base host or a live
+    # PAYPAL_MODE refuses startup with an explicit error. (The same guard
+    # also runs at PayPal client init in paypal_payouts.)
+    from paypal_payouts import assert_sandbox_only
+    assert_sandbox_only()
     yield
 
 app = FastAPI(title="Shapley API", version="1.0.0", lifespan=lifespan)
@@ -611,11 +616,13 @@ async def paypal_webhook(request: Request):
     algo = headers.get("PAYPAL-AUTH-ALGO", "")
     sig = headers.get("PAYPAL-TRANSMISSION-SIG", "")
 
-    # Verify authenticity in EVERY environment. Previously an invalid
-    # signature was rejected only when ENVIRONMENT == "production" and the
-    # handler returned verified: true regardless — a forged webhook was
-    # acknowledged as verified in any non-production deployment.
-    is_valid = escrow_manager.verify_webhook_signature(
+    # Verify authenticity BEFORE the payload is trusted or acted on, in
+    # EVERY environment: the signature is checked by PayPal itself via
+    # POST /v1/notifications/verify-webhook-signature, and only a
+    # verification_status of SUCCESS counts as verified. FAILURE, an HTTP
+    # error, or a missing PAYPAL_WEBHOOK_ID / credentials outside a demo
+    # context all reject with 401 and the event is not processed.
+    result = escrow_manager.verify_webhook_detailed(
         transmission_id=t_id,
         transmission_time=t_time,
         cert_url=cert_url,
@@ -623,8 +630,14 @@ async def paypal_webhook(request: Request):
         transmission_sig=sig,
         raw_body=raw_body
     )
-    if not is_valid:
-        raise HTTPException(status_code=401, detail="Invalid PayPal webhook signature")
+    verified = bool(result["verified"])
+    if not verified:
+        # The only non-401 path is an explicitly labelled demo/fixture
+        # context, where the event is processed but reported as
+        # unverified — never verified: true.
+        from paypal_payouts import demo_mode_enabled
+        if not (result["mode"] == "unverified_demo" and demo_mode_enabled()):
+            raise HTTPException(status_code=401, detail="Invalid PayPal webhook signature")
 
     # Dedupe: PayPal retries deliveries; reconcile each event id once.
     try:
@@ -634,10 +647,14 @@ async def paypal_webhook(request: Request):
     if event_id:
         with _webhook_lock:
             if event_id in _seen_webhook_event_ids:
-                return {"status": "DUPLICATE", "verified": True, "event_id": event_id}
+                return {"status": "DUPLICATE", "verified": verified, "event_id": event_id}
             _seen_webhook_event_ids.add(event_id)
 
-    return {"status": "SUCCESS", "verified": True, "event_id": event_id, "reconciled_at": time.time()}
+    response = {"status": "SUCCESS", "verified": verified, "event_id": event_id,
+                "reconciled_at": time.time()}
+    if not verified:
+        response["verification"] = "unverified_demo"
+    return response
 
 
 # ============================================================================
@@ -722,7 +739,9 @@ def get_sponsor_paypal_connect_url():
         "partner_id": "PARTNER_SHAPLEY_PROTOCOL",
         "requested_scopes": ["PAYOUTS", "DELAYED_CAPTURE", "ORDERS_V2"],
         "connected": True,
-        "business_email": os.environ.get("PAYPAL_SANDBOX_BUSINESS_EMAIL", "sb-t5nzj53303983@business.example.com")
+        # Env-driven only: sandbox account emails are never hard-coded
+        # and never logged. Empty when PAYPAL_SANDBOX_BUSINESS_EMAIL unset.
+        "business_email": os.environ.get("PAYPAL_SANDBOX_BUSINESS_EMAIL", "")
     }
 
 

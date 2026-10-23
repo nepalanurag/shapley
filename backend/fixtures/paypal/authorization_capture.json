@@ -1,0 +1,1 @@
+{"amount":{"currency_code":"USD","value":"0.00"},"final_capture":true,"id":"FIXTURECAPTUREID000","links":[{"href":"https://api-m.sandbox.paypal.com/v2/payments/captures/FIXTURECAPTUREID000","method":"GET","rel":"self"}],"status":"COMPLETED"}

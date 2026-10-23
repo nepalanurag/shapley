@@ -15,6 +15,7 @@ import os
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from typing import Dict, List, Optional, Any
@@ -27,6 +28,7 @@ from financial_math import (
     amount_to_minor_units,
     minor_units_to_amount_str,
     currency_exponent,
+    generate_idempotency_key,
 )
 
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
@@ -52,7 +54,169 @@ def env(key, default=None):
     return os.environ.get(key) or ENV.get(key, default)
 
 
-PAYPAL_BASE = "https://api-m.sandbox.paypal.com"
+SANDBOX_PAYPAL_BASE = "https://api-m.sandbox.paypal.com"
+LIVE_PAYPAL_HOST = "api-m.paypal.com"
+
+
+def assert_sandbox_only(base_url: Optional[str] = None, mode: Optional[str] = None):
+    """Hard fail if a live PayPal endpoint or live mode is selected.
+
+    Shapley is sandbox-only. A live base host (api-m.paypal.com, selectable
+    via the PAYPAL_BASE_URL override) or a live PAYPAL_MODE value is a
+    configuration error and must refuse loudly at client init / startup
+    rather than silently moving real money.
+    """
+    resolved_base = base_url if base_url is not None else env("PAYPAL_BASE_URL", SANDBOX_PAYPAL_BASE)
+    resolved_mode = (mode if mode is not None else env("PAYPAL_MODE", "sandbox") or "sandbox")
+    host = urllib.parse.urlparse(resolved_base).hostname or ""
+    if host == LIVE_PAYPAL_HOST:
+        raise RuntimeError(
+            f"Refusing to use live PayPal endpoint '{host}': Shapley is sandbox-only. "
+            "Set PAYPAL_BASE_URL to https://api-m.sandbox.paypal.com (or unset it)."
+        )
+    if str(resolved_mode).strip().lower() in ("live", "production"):
+        raise RuntimeError(
+            f"Refusing to start with PAYPAL_MODE='{resolved_mode}': Shapley is sandbox-only. "
+            "Set PAYPAL_MODE=sandbox."
+        )
+
+
+def resolve_paypal_base() -> str:
+    """Resolve the PayPal base URL, enforcing the sandbox-only guard."""
+    base = env("PAYPAL_BASE_URL", SANDBOX_PAYPAL_BASE) or SANDBOX_PAYPAL_BASE
+    assert_sandbox_only(base)
+    return base.rstrip("/")
+
+
+PAYPAL_BASE = resolve_paypal_base()
+
+# ---------------------------------------------------------------------------
+# Deterministic fixture-replay transport (PAYPAL_FIXTURE_REPLAY=1)
+#
+# When enabled, every PayPal HTTP call is served from committed JSON
+# fixtures under backend/fixtures/paypal/ instead of the network, with
+# resource ids derived deterministically (SHA-256) from the request, so
+# the escrow demo flow runs end to end with the network unreachable and
+# produces byte-identical results across runs (apart from wall-clock
+# timestamp fields stamped by callers, e.g. `created_at` / `released_at`
+# in the payout/capture result dicts).
+# ---------------------------------------------------------------------------
+
+FIXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "paypal")
+
+
+def fixture_replay_enabled() -> bool:
+    return str(env("PAYPAL_FIXTURE_REPLAY", "") or "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def demo_mode_enabled() -> bool:
+    """Demo context: fixture replay on, or DEMO_MODE explicitly true."""
+    if fixture_replay_enabled():
+        return True
+    return str(env("DEMO_MODE", "") or "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _deterministic_fixture_id(seed: str, length: int = 17) -> str:
+    """Derive a PayPal-shaped (uppercase alphanumeric) id from a seed."""
+    digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()
+    alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    return "".join(alphabet[int(digest[i:i + 2], 16) % len(alphabet)]
+                   for i in range(0, length * 2, 2))
+
+
+class _FixtureResponse:
+    """Minimal stand-in for an urllib response, served from a fixture."""
+
+    def __init__(self, payload: Optional[dict] = None, status: int = 200, raw: bytes = b""):
+        self.status = status
+        self._body = raw if payload is None else json.dumps(payload).encode("utf-8")
+
+    def read(self):
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def _load_fixture(name: str) -> dict:
+    with open(os.path.join(FIXTURES_DIR, name)) as f:
+        return json.load(f)
+
+
+def _fixture_response(req) -> _FixtureResponse:
+    """Build a deterministic fixture response for a PayPal request."""
+    url = req.full_url
+    path = urllib.parse.urlparse(url).path
+    method = req.get_method()
+    body = {}
+    if req.data:
+        try:
+            body = json.loads(req.data.decode("utf-8"))
+        except Exception:
+            body = {}
+
+    if path == "/v1/oauth2/token":
+        return _FixtureResponse(_load_fixture("oauth_token.json"))
+    if path == "/v2/checkout/orders" and method == "POST":
+        fixture = _load_fixture("order_create.json")
+        order_id = _deterministic_fixture_id("order:" + (req.data or b"").decode("utf-8", "replace"))
+        fixture["id"] = order_id
+        for link in fixture.get("links", []):
+            if link.get("rel") == "approve":
+                link["href"] = f"https://www.sandbox.paypal.com/checkoutnow?token={order_id}"
+        return _FixtureResponse(fixture, status=201)
+    if path.startswith("/v2/checkout/orders/") and method == "GET":
+        fixture = _load_fixture("order_get.json")
+        fixture["id"] = path.rsplit("/", 1)[-1]
+        return _FixtureResponse(fixture)
+    if path.startswith("/v2/payments/authorizations/") and path.endswith("/capture"):
+        fixture = _load_fixture("authorization_capture.json")
+        auth_id = path.split("/")[4]
+        fixture["id"] = _deterministic_fixture_id(f"capture:{auth_id}:{(req.data or b'').decode('utf-8', 'replace')}")
+        if isinstance(body.get("amount"), dict):
+            fixture["amount"] = body["amount"]
+        return _FixtureResponse(fixture, status=201)
+    if path.startswith("/v2/payments/authorizations/") and path.endswith("/void"):
+        return _FixtureResponse(None, status=204)
+    if path == "/v1/payments/payouts" and method == "POST":
+        fixture = _load_fixture("payout_create.json")
+        sender_batch_id = body.get("sender_batch_header", {}).get("sender_batch_id", "")
+        fixture["batch_header"]["payout_batch_id"] = _deterministic_fixture_id(f"payout:{sender_batch_id}")
+        fixture["batch_header"]["sender_batch_id"] = sender_batch_id
+        return _FixtureResponse(fixture, status=201)
+    if path.startswith("/v1/payments/payouts/") and method == "GET":
+        fixture = _load_fixture("payout_status.json")
+        fixture["batch_header"]["payout_batch_id"] = path.rsplit("/", 1)[-1]
+        return _FixtureResponse(fixture)
+    raise RuntimeError(f"Fixture replay: no fixture recorded for {method} {path}")
+
+
+def paypal_http_open(req, timeout: int = 30):
+    """Single transport for every PayPal HTTP call in payouts + escrow.
+
+    Fixture replay (PAYPAL_FIXTURE_REPLAY=1) short-circuits the network;
+    otherwise this is exactly urllib.request.urlopen.
+    """
+    if fixture_replay_enabled():
+        return _fixture_response(req)
+    return urllib.request.urlopen(req, timeout=timeout)
+
+
+def paypal_error_name(body: str) -> str:
+    """Extract only the machine-readable PayPal error name from a body.
+
+    Full error bodies are never logged or returned to callers: they can
+    carry account identifiers. The `name` field (e.g. RESOURCE_NOT_FOUND)
+    is safe to surface.
+    """
+    try:
+        name = json.loads(body).get("name", "")
+        return str(name)[:64] if name else ""
+    except Exception:
+        return ""
 
 # Financial Circuit Breaker Limits
 MAX_BATCH_AMOUNT_USD = float(env("SHAPLEY_MAX_BATCH_USD", "10000.0"))
@@ -101,6 +265,10 @@ def calculate_paypal_batch_fee(num_recipients: int) -> Dict[str, Any]:
 
 def get_access_token():
     """Retrieve OAuth2 Bearer token from PayPal."""
+    assert_sandbox_only()
+    if fixture_replay_enabled():
+        # Replay mode never touches the network or real credentials.
+        return _load_fixture("oauth_token.json")["access_token"]
     if (_token_cache["token"] and
             time.time() < _token_cache["expires_at"] - 60):
         return _token_cache["token"]
@@ -119,7 +287,7 @@ def get_access_token():
             "Content-Type": "application/x-www-form-urlencoded",
         },
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with paypal_http_open(req, timeout=30) as resp:
         data = json.loads(resp.read())
         token = data["access_token"]
         expires_in = data.get("expires_in", 32400)
@@ -145,7 +313,10 @@ def _friendly_paypal_error(code, body):
     if "duplicate" in body_lower or "already" in body_lower:
         return ("This payout appears to be a duplicate. "
                 "Check the payout status instead of resubmitting.")
-    return f"PayPal error ({code}): {body[:200]}"
+    # Never echo the raw body: it can carry account identifiers. Surface
+    # only the machine-readable error name.
+    name = paypal_error_name(body)
+    return f"PayPal error ({code}): {name}" if name else f"PayPal error ({code})"
 
 
 def create_batch_payout(
@@ -244,10 +415,13 @@ def create_batch_payout(
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
+            # Idempotency: deterministic per logical payout (derived from
+            # the sender_batch_id), so a retry reuses the same key.
+            "PayPal-Request-Id": generate_idempotency_key("payout", batch_id),
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with paypal_http_open(req, timeout=60) as resp:
             result = json.loads(resp.read())
     except urllib.error.HTTPError as e:
         body = e.read().decode()[:500]
@@ -278,7 +452,7 @@ def get_payout_status(payout_batch_id: str) -> Dict[str, Any]:
         f"{PAYPAL_BASE}/v1/payments/payouts/{payout_batch_id}",
         headers={"Authorization": f"Bearer {token}"},
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with paypal_http_open(req, timeout=30) as resp:
         result = json.loads(resp.read())
 
     items = []

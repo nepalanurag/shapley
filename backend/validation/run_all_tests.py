@@ -27,6 +27,7 @@ SCRIPTS = [
     ("PayPal Orders v2 Escrow Invariants", "test_paypal_escrow.py"),
     ("Contributor Claims, RBAC & Hackathon Pot Solvency", "test_claims_and_onboarding.py"),
     ("Phase 1 Hardening (Seeded MC, Efficiency, Money)", "test_phase1_hardening.py"),
+    ("Phase 2 Hardening (Failure Modes)", "test_phase2_hardening.py"),
 ]
 
 
