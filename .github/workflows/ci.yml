@@ -1,8 +1,11 @@
 name: CI
 
-# Runs the full validation suite and the frontend build on every push and
-# pull request, with NO secrets configured: the live PayPal integration
-# test skips cleanly when PAYPAL_CLIENT_ID/PAYPAL_CLIENT_SECRET are absent
+# Verification only — nothing deploys from GitHub Actions (the backend
+# deploys from Render, the frontend from Vercel). Two checks run on every
+# push and pull request: the frontend build, and the cold-clone job, which
+# runs ONLY the commands the README gives a stranger (including the full
+# validation suite inside that flow). The live PayPal integration test
+# skips cleanly when PAYPAL_CLIENT_ID/PAYPAL_CLIENT_SECRET are absent
 # (unittest skipUnless in backend/validation/test_paypal_escrow.py), and
 # demo mode needs no credentials.
 on:
@@ -10,26 +13,6 @@ on:
   pull_request:
 
 jobs:
-  backend-validation:
-    name: Backend validation suite
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
-
-      - name: Run Validation Suite
-        run: python backend/validation/run_all_tests.py
-
   frontend-build:
     name: Frontend build
     runs-on: ubuntu-latest
