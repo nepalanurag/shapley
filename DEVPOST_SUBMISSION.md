@@ -122,7 +122,7 @@ Shapley enables **autonomous AI agents to transact and compensate one another**:
 
 - **Mathematical Integrity:** All 10 axiom tests pass (`test_axioms.py`), proving Efficiency, Symmetry, Dummy Player, Additivity, and Monotonicity.
 - **Deterministic Demo:** Created a 100% reproducible, zero-API-call demo mode with four realistic developer archetypes (Backend Architect, Documentation Specialist, Security Engineer, Refactoring Specialist) for pitch presentations.
-- **Full-Stack Execution:** From raw GitHub diffs to game theory formulas, AG Grid visualization, and real PayPal Payout sandbox execution in under 10 seconds.
+- **Full-Stack Execution:** From raw GitHub diffs to game theory formulas, AG Grid visualization, and real PayPal Payout sandbox execution. Demo mode returns the frozen result instantly. A live analysis is slower by design: the scorer paces Gemini calls at a 4.0s minimum interval (`MIN_INTERVAL` in `backend/semantic_scorer.py`) and scores every non-empty coalition once, so pacing alone is roughly 30 seconds for 3 contributors (8 coalitions, 7 scored) and about 2 minutes for 5 contributors (32 coalitions, 31 scored), before network time.
 
 ---
 

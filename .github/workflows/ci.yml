@@ -78,7 +78,7 @@ jobs:
           node-version: '20'
 
       - name: Create virtual environment
-        run: python -m venv .venv
+        run: python3 -m venv .venv
 
       - name: Install backend dependencies (README)
         run: .venv/bin/pip install -r backend/requirements.txt
