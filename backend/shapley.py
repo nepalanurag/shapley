@@ -262,6 +262,49 @@ def bootstrap_share_cis(per_player_samples: Dict[int, List[float]],
 
 # ── Exact Shapley (n <= 15) ────────────────────────────────────────
 
+def shapley_values_from_marginal_table(
+        marginal_table: Dict[Any, float], n: int) -> Dict[int, float]:
+    """Shapley values from a marginal table: the ONE weighted-sum loop.
+
+    marginal_table[(S, i)] must hold v(S + {i}) - v(S) for every
+    S not containing i. This is the single factorial-weighted summation
+    every exact path in this module funnels through.
+    """
+    shapley = {i: 0.0 for i in range(n)}
+    n_factorial = math.factorial(n)
+    for S in all_coalitions(n):
+        s_size = len(S)
+        for i in range(n):
+            if i in S:
+                continue
+            weight = (math.factorial(s_size) *
+                      math.factorial(n - s_size - 1)) / n_factorial
+            shapley[i] += weight * marginal_table[(frozenset(S), i)]
+    return shapley
+
+
+def shapley_values_from_value_table(
+        value_table: Dict[frozenset, float], n: int) -> Dict[int, float]:
+    """RAW exact Shapley values from a complete value table.
+
+    The pre-repair, pre-flooring core exposed for verification
+    (Phase 3 property/oracle tests): the value table is used exactly
+    as given — no value-function repair, no payout flooring — so the
+    Shapley axioms can be tested against the mathematics itself rather
+    than against the transforms the production path applies on top.
+    Production callers should use compute_shapley, which repairs the
+    scorer's table and floors payouts deliberately (module docstring).
+    """
+    marginal_table: Dict[Any, float] = {}
+    for S in all_coalitions(n):
+        for i in range(n):
+            if i in S:
+                continue
+            marginal_table[(frozenset(S), i)] = (
+                value_table[frozenset(S | {i})] - value_table[frozenset(S)])
+    return shapley_values_from_marginal_table(marginal_table, n)
+
+
 def compute_shapley(
     contributor_diffs: Dict[int, List[str]],
     contributor_names: Optional[Dict[int, str]] = None,
@@ -371,17 +414,9 @@ def compute_shapley(
             marginal_table[(frozenset(S), i)] = (
                 value_table[frozenset(S | {i})] - value_table[frozenset(S)])
 
-    # Shapley values from the shared marginal table.
-    shapley = {i: 0.0 for i in range(n)}
-    n_factorial = math.factorial(n)
-    for S in all_subs:
-        s_size = len(S)
-        for i in range(n):
-            if i in S:
-                continue
-            weight = (math.factorial(s_size) *
-                      math.factorial(n - s_size - 1)) / n_factorial
-            shapley[i] += weight * marginal_table[(frozenset(S), i)]
+    # Shapley values from the shared marginal table (the one
+    # weighted-sum loop, shared with the raw verification core).
+    shapley = shapley_values_from_marginal_table(marginal_table, n)
 
     # ── Efficiency assertion (pre-flooring) ────────────────────
     v_empty = value_table[frozenset()]

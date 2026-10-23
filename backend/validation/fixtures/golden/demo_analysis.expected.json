@@ -1,0 +1,296 @@
+{
+  "api_calls": 0,
+  "contributors": [
+    {
+      "additions": 1240,
+      "commits": 8,
+      "deletions": 310,
+      "email": "maya@example.com",
+      "name": "Maya Chen",
+      "payout_usd": 470.0,
+      "shapley_value": 44.7,
+      "share_ci_high": 47.0,
+      "share_ci_low": 47.0,
+      "share_pct": 47.0
+    },
+    {
+      "additions": 180,
+      "commits": 5,
+      "deletions": 60,
+      "email": "david@example.com",
+      "name": "David Park",
+      "payout_usd": 160.0,
+      "shapley_value": 15.2,
+      "share_ci_high": 16.0,
+      "share_ci_low": 16.0,
+      "share_pct": 16.0
+    },
+    {
+      "additions": 195,
+      "commits": 6,
+      "deletions": 85,
+      "email": "sara@example.com",
+      "name": "Sara Ahmed",
+      "payout_usd": 316.0,
+      "shapley_value": 30.0,
+      "share_ci_high": 31.6,
+      "share_ci_low": 31.6,
+      "share_pct": 31.6
+    },
+    {
+      "additions": 2400,
+      "commits": 3,
+      "deletions": 1800,
+      "email": "tom@example.com",
+      "name": "Tom Rivera",
+      "payout_usd": 54.0,
+      "shapley_value": 5.2,
+      "share_ci_high": 5.4,
+      "share_ci_low": 5.4,
+      "share_pct": 5.4
+    }
+  ],
+  "demo_mode": true,
+  "evaluations": [
+    {
+      "coalition": [],
+      "confidence": 1.0,
+      "members": [],
+      "reasoning": "Empty coalition has zero value.",
+      "score": 0
+    },
+    {
+      "coalition": [
+        0
+      ],
+      "confidence": 0.92,
+      "members": [
+        "Maya Chen"
+      ],
+      "reasoning": "Maya's auth refactor is the architectural backbone. High complexity, unblocks all other work.",
+      "score": 72
+    },
+    {
+      "coalition": [
+        1
+      ],
+      "confidence": 0.85,
+      "members": [
+        "David Park"
+      ],
+      "reasoning": "David's utility functions are solid but replaceable boilerplate.",
+      "score": 35
+    },
+    {
+      "coalition": [
+        2
+      ],
+      "confidence": 0.88,
+      "members": [
+        "Sara Ahmed"
+      ],
+      "reasoning": "Sara's API integration handles edge cases well. Moderate complexity, clear functional impact.",
+      "score": 58
+    },
+    {
+      "coalition": [
+        3
+      ],
+      "confidence": 0.95,
+      "members": [
+        "Tom Rivera"
+      ],
+      "reasoning": "Tom's doc updates are helpful but low technical complexity.",
+      "score": 12
+    },
+    {
+      "coalition": [
+        0,
+        1
+      ],
+      "confidence": 0.9,
+      "members": [
+        "Maya Chen",
+        "David Park"
+      ],
+      "reasoning": "Maya's architecture plus David's utilities form a working core. Strong synergy.",
+      "score": 78
+    },
+    {
+      "coalition": [
+        0,
+        2
+      ],
+      "confidence": 0.91,
+      "members": [
+        "Maya Chen",
+        "Sara Ahmed"
+      ],
+      "reasoning": "Maya's backend with Sara's API layer is nearly feature-complete. Excellent complementarity.",
+      "score": 85
+    },
+    {
+      "coalition": [
+        0,
+        3
+      ],
+      "confidence": 0.89,
+      "members": [
+        "Maya Chen",
+        "Tom Rivera"
+      ],
+      "reasoning": "Maya's code with Tom's docs is well-documented but docs add marginal technical value.",
+      "score": 74
+    },
+    {
+      "coalition": [
+        1,
+        2
+      ],
+      "confidence": 0.87,
+      "members": [
+        "David Park",
+        "Sara Ahmed"
+      ],
+      "reasoning": "David and Sara's combined work is functional but lacks Maya's architectural foundation.",
+      "score": 62
+    },
+    {
+      "coalition": [
+        1,
+        3
+      ],
+      "confidence": 0.86,
+      "members": [
+        "David Park",
+        "Tom Rivera"
+      ],
+      "reasoning": "Utilities plus docs without core architecture. Limited standalone value.",
+      "score": 40
+    },
+    {
+      "coalition": [
+        2,
+        3
+      ],
+      "confidence": 0.88,
+      "members": [
+        "Sara Ahmed",
+        "Tom Rivera"
+      ],
+      "reasoning": "Sara's integration with documentation is presentable but missing backend depth.",
+      "score": 60
+    },
+    {
+      "coalition": [
+        0,
+        1,
+        2
+      ],
+      "confidence": 0.93,
+      "members": [
+        "Maya Chen",
+        "David Park",
+        "Sara Ahmed"
+      ],
+      "reasoning": "Full technical team. Architecture, utilities, and API integration combine into a robust product.",
+      "score": 92
+    },
+    {
+      "coalition": [
+        0,
+        1,
+        3
+      ],
+      "confidence": 0.9,
+      "members": [
+        "Maya Chen",
+        "David Park",
+        "Tom Rivera"
+      ],
+      "reasoning": "Strong technical core with documentation. Missing Sara's API polish.",
+      "score": 80
+    },
+    {
+      "coalition": [
+        0,
+        2,
+        3
+      ],
+      "confidence": 0.91,
+      "members": [
+        "Maya Chen",
+        "Sara Ahmed",
+        "Tom Rivera"
+      ],
+      "reasoning": "Architecture, API, and docs. Well-rounded but missing David's utility layer.",
+      "score": 88
+    },
+    {
+      "coalition": [
+        1,
+        2,
+        3
+      ],
+      "confidence": 0.87,
+      "members": [
+        "David Park",
+        "Sara Ahmed",
+        "Tom Rivera"
+      ],
+      "reasoning": "Functional product without Maya's architectural backbone. Works but fragile.",
+      "score": 65
+    },
+    {
+      "coalition": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "confidence": 0.94,
+      "members": [
+        "Maya Chen",
+        "David Park",
+        "Sara Ahmed",
+        "Tom Rivera"
+      ],
+      "reasoning": "Complete team output. Production-ready with architecture, features, API, and documentation.",
+      "score": 95
+    }
+  ],
+  "num_coalitions": 16,
+  "provenance": {
+    "algorithm": "exact_all_coalitions",
+    "baseline": 0.0,
+    "ci_method": "exact_no_sampling_error",
+    "efficiency_check": "passed",
+    "efficiency_tol": 1e-09,
+    "input_hash": "26bec2bdaf8229944fe8a852d5763983697b510ab4d070099b87dbcc62b2a575",
+    "model": "frozen-fixture (precomputed gemini scores)",
+    "model_hash": "4ba62667f3f24d6f5fc490538596be04123f0f2089c8223fe1a3c1e25c2ca94a",
+    "n_samples": 16,
+    "seed": null,
+    "share_cis": {
+      "0": {
+        "high": 47.0,
+        "low": 47.0
+      },
+      "1": {
+        "high": 16.0,
+        "low": 16.0
+      },
+      "2": {
+        "high": 31.6,
+        "low": 31.6
+      },
+      "3": {
+        "high": 5.4,
+        "low": 5.4
+      }
+    }
+  },
+  "repo": "demo/acme-project",
+  "summary": "Maya Chen delivered the foundational auth and architectural backbone (47.0%), while Sara Ahmed built the core external API integration (31.6%). David Park contributed utility functions (16.0%), and Tom Rivera performed documentation and linter formatting passes (5.4% vs 67.0% naive LOC).",
+  "total_amount": 1000.0
+}

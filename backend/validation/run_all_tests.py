@@ -28,6 +28,9 @@ SCRIPTS = [
     ("Contributor Claims, RBAC & Hackathon Pot Solvency", "test_claims_and_onboarding.py"),
     ("Phase 1 Hardening (Seeded MC, Efficiency, Money)", "test_phase1_hardening.py"),
     ("Phase 2 Hardening (Failure Modes)", "test_phase2_hardening.py"),
+    ("Phase 3 Axiom Property Tests (Hypothesis)", "test_axioms_property.py"),
+    ("Phase 3 Independent Oracle (shap / brute-force)", "test_shapley_oracle.py"),
+    ("Phase 3 Golden Fixtures (byte-compared)", "test_golden_fixtures.py"),
 ]
 
 
