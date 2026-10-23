@@ -50,8 +50,17 @@ ENV = load_env()
 
 
 def env(key, default=None):
-    """Read from os.environ first (Render/hosting), fall back to .env file."""
-    return os.environ.get(key) or ENV.get(key, default)
+    """Read from os.environ first (Render/hosting), fall back to .env file.
+
+    An empty or whitespace-only value counts as unset in BOTH sources:
+    .env.example ships keys with empty values (``SHAPLEY_MAX_BATCH_USD=``),
+    and the README flow copies it verbatim, so an empty string must never
+    reach a numeric conversion like ``float(env(...))``.
+    """
+    for value in (os.environ.get(key), ENV.get(key)):
+        if value is not None and str(value).strip() != "":
+            return value
+    return default
 
 
 SANDBOX_PAYPAL_BASE = "https://api-m.sandbox.paypal.com"

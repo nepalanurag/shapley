@@ -23,7 +23,7 @@ from ast_quarantine import quarantine_diff
 CREDENTIAL = "custom.google-gemini"
 HOSTS = ["generativelanguage.googleapis.com"]
 ENV_VAR = "GEMINI_API_KEY"
-DEFAULT_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+DEFAULT_MODEL = (os.environ.get("GEMINI_MODEL") or "").strip() or "gemini-2.5-flash"
 FALLBACK_MODELS = [DEFAULT_MODEL, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
 MODELS = list(dict.fromkeys(FALLBACK_MODELS))
 BASE = "https://generativelanguage.googleapis.com/v1beta"
@@ -31,7 +31,19 @@ BASE = "https://generativelanguage.googleapis.com/v1beta"
 # In-memory cache: coalition hash -> score result
 _cache = {}
 _last_call = 0
-MIN_INTERVAL = float(os.environ.get("GEMINI_MIN_INTERVAL", "4.0"))
+def _env_float(name, default):
+    """float(env var) where an empty/whitespace value counts as unset.
+
+    .env.example ships ``GEMINI_MIN_INTERVAL=`` (empty); the README flow
+    copies it verbatim, and float("") would crash this module at import.
+    """
+    raw = os.environ.get(name)
+    if raw is None or str(raw).strip() == "":
+        return float(default)
+    return float(raw)
+
+
+MIN_INTERVAL = _env_float("GEMINI_MIN_INTERVAL", 4.0)
 
 
 def sanitize_diff(text: str) -> str:

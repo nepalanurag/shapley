@@ -31,6 +31,7 @@ SCRIPTS = [
     ("Phase 3 Axiom Property Tests (Hypothesis)", "test_axioms_property.py"),
     ("Phase 3 Independent Oracle (shap / brute-force)", "test_shapley_oracle.py"),
     ("Phase 3 Golden Fixtures (byte-compared)", "test_golden_fixtures.py"),
+    (".env.example Startup Regression", "test_env_example_startup.py"),
 ]
 
 

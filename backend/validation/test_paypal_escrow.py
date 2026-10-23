@@ -23,7 +23,20 @@ from paypal_payouts import env as _paypal_env
 # the real PayPal OAuth + Orders v2 endpoints. Without sandbox credentials it
 # skips cleanly so the rest of the suite (local escrow invariants) still runs
 # and CI is honestly green on machines with no secrets configured.
-HAS_PAYPAL_CREDS = bool(_paypal_env("PAYPAL_CLIENT_ID") and _paypal_env("PAYPAL_CLIENT_SECRET"))
+# The .env.example placeholder values ("your_sandbox_..._here") are NOT
+# credentials: counting them as present made the live test run — and fail
+# with a 401 — on every cold clone that followed the README.
+def _is_real_credential(value):
+    if not value or not str(value).strip():
+        return False
+    v = str(value).strip().lower()
+    return not (v.startswith("your_") or "placeholder" in v)
+
+
+HAS_PAYPAL_CREDS = bool(
+    _is_real_credential(_paypal_env("PAYPAL_CLIENT_ID"))
+    and _is_real_credential(_paypal_env("PAYPAL_CLIENT_SECRET"))
+)
 requires_paypal_creds = unittest.skipUnless(
     HAS_PAYPAL_CREDS,
     "live PayPal integration test: set PAYPAL_CLIENT_ID/PAYPAL_CLIENT_SECRET to run",
@@ -162,7 +175,14 @@ def test_paypal_webhook_signature_verification():
         auth_algo="SHA256withRSA",
     )
     body = '{"id": "WH-TEST-1", "event_type": "PAYMENT.AUTHORIZATION.CREATED"}'
-    with mock.patch.dict(os.environ, {"PAYPAL_WEBHOOK_ID": "TEST-WEBHOOK-ID"}):
+    # Dummy credentials are part of the mock setup: get_access_token refuses
+    # to build a token request with no credentials at all, before the mocked
+    # transport can answer. Without them this test only passed on machines
+    # whose real .env happened to supply credentials.
+    with mock.patch.dict(os.environ, {
+            "PAYPAL_WEBHOOK_ID": "TEST-WEBHOOK-ID",
+            "PAYPAL_CLIENT_ID": "test-client-id",
+            "PAYPAL_CLIENT_SECRET": "test-client-secret"}):
         with mock.patch.object(urllib.request, "urlopen", _mock_paypal_transport):
             valid = mgr.verify_webhook_signature(
                 transmission_sig="MEUCIQC1x824...", raw_body=body, **headers)
