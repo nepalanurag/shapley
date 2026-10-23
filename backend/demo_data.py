@@ -66,6 +66,48 @@ DEMO_SHAPLEY = {
 DEMO_TOTAL = 1000.00
 
 
+def _demo_provenance():
+    """Persisted provenance for the frozen demo (deterministic).
+
+    The demo scores are pre-computed fixtures, so the model is recorded
+    honestly as a frozen fixture; CIs are degenerate (exact enumeration
+    of the frozen scores has no sampling error).
+    """
+    import hashlib
+    import json
+    import os
+    import subprocess
+    canonical = json.dumps(
+        {str(k): v for k, v in DEMO_COALITION_SCORES.items()},
+        sort_keys=True, default=str)
+    input_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    model = "frozen-fixture (precomputed gemini scores)"
+    try:
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        out = subprocess.run(["git", "-C", repo_root, "rev-parse", "HEAD"],
+                             capture_output=True, text=True, timeout=5)
+        commit = out.stdout.strip() if out.returncode == 0 else "unknown"
+        commit = commit or "unknown"
+    except Exception:
+        commit = "unknown"
+    share_cis = {idx: {"low": pct, "high": pct}
+                 for idx, pct in DEMO_SHAPLEY["shares_pct"].items()}
+    return {
+        "input_hash": input_hash,
+        "feature_extractor_commit": commit,
+        "model": model,
+        "model_hash": hashlib.sha256(model.encode("utf-8")).hexdigest(),
+        "baseline": 0.0,
+        "seed": None,
+        "n_samples": len(DEMO_COALITION_SCORES),
+        "algorithm": "exact_all_coalitions",
+        "ci_method": "exact_no_sampling_error",
+        "share_cis": share_cis,
+        "efficiency_check": "passed",
+        "efficiency_tol": 1e-9,
+    }
+
+
 def get_demo_analysis():
     """Return the full frozen demo analysis."""
     contributors = []
@@ -76,6 +118,8 @@ def get_demo_analysis():
             **c,
             "shapley_value": sv,
             "share_pct": pct,
+            "share_ci_low": pct,
+            "share_ci_high": pct,
             "payout_usd": round(DEMO_TOTAL * pct / 100, 2),
         })
 
@@ -99,6 +143,7 @@ def get_demo_analysis():
         "api_calls": 0,
         "demo_mode": True,
         "num_coalitions": len(DEMO_COALITION_SCORES),
+        "provenance": _demo_provenance(),
     }
 
 

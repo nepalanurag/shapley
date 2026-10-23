@@ -34,6 +34,21 @@ export interface Evaluation {
   scoring_mode?: string;
 }
 
+export interface Provenance {
+  input_hash: string;
+  feature_extractor_commit: string;
+  model: string;
+  model_hash: string;
+  baseline: number;
+  seed: number | null;
+  n_samples: number;
+  algorithm: string;
+  ci_method: string;
+  share_cis: Record<string, { low: number; high: number }>;
+  efficiency_check: string;
+  efficiency_tol: number;
+}
+
 export interface AnalysisResult {
   repo: string;
   total_amount: number;
@@ -43,6 +58,10 @@ export interface AnalysisResult {
   api_calls: number;
   num_coalitions: number;
   demo_mode?: boolean;
+  // Persisted provenance record produced by the backend Shapley engine.
+  // All displayed attribution numbers come from the API response (this
+  // record's lineage), never from an on-the-fly recomputation in the UI.
+  provenance?: Provenance;
 }
 
 export async function fetchDemo(): Promise<AnalysisResult> {

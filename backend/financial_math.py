@@ -14,6 +14,61 @@ import hashlib
 from decimal import Decimal, ROUND_DOWN, ROUND_HALF_EVEN
 from typing import Dict, List, Tuple, Any
 
+# ISO 4217 minor-unit exponents: number of decimal digits between the major
+# unit and the smallest cash unit (USD/EUR cents = 2, JPY yen = 0, BHD fils
+# = 3). All money in this codebase is carried as integer minor units (or
+# Decimal major units quantised to this exponent) — never as raw floats —
+# and PayPal API amount strings are formatted from minor units via
+# minor_units_to_amount_str so a zero-exponent currency never gets a
+# spurious ".00" suffix and a two-exponent currency always gets exactly two.
+CURRENCY_EXPONENTS: Dict[str, int] = {
+    "USD": 2, "EUR": 2, "GBP": 2, "CHF": 2, "CAD": 2, "AUD": 2, "NZD": 2,
+    "SGD": 2, "HKD": 2, "INR": 2, "CNY": 2, "BRL": 2, "MXN": 2, "SEK": 2,
+    "NOK": 2, "DKK": 2, "PLN": 2, "ZAR": 2, "TRY": 2, "ILS": 2, "AED": 2,
+    "JPY": 0, "KRW": 0, "VND": 0, "ISK": 0, "CLP": 0, "PYG": 0, "UGX": 0,
+    "BHD": 3, "KWD": 3, "OMR": 3, "JOD": 3, "TND": 3,
+}
+DEFAULT_CURRENCY_EXPONENT = 2
+
+
+def currency_exponent(currency: str) -> int:
+    """ISO 4217 exponent for a currency code (default 2 for unlisted codes)."""
+    return CURRENCY_EXPONENTS.get(str(currency).upper(), DEFAULT_CURRENCY_EXPONENT)
+
+
+def amount_to_minor_units(amount: float | Decimal | str, currency: str = "USD") -> int:
+    """Convert a major-unit amount to integer minor units for `currency`.
+
+    Uses Decimal arithmetic quantised to the currency's ISO 4217 exponent
+    (ROUND_HALF_EVEN), so 10.50 USD -> 1050 and 1050 JPY -> 1050.
+    """
+    exp = currency_exponent(currency)
+    quantum = Decimal(1).scaleb(-exp)  # 0.01 for exp=2, 1 for exp=0
+    d = Decimal(str(amount)).quantize(quantum, rounding=ROUND_HALF_EVEN)
+    return int(d * (10 ** exp))
+
+
+def minor_units_to_amount_str(minor_units: int, currency: str = "USD") -> str:
+    """Format integer minor units as a PayPal API amount string.
+
+    The string is built from the integer minor units using the currency's
+    ISO 4217 exponent: 1050 USD -> '10.50', 1050 JPY -> '1050',
+    1050 BHD -> '1.050'. No float is involved at any point.
+    """
+    exp = currency_exponent(currency)
+    minor_units = int(minor_units)
+    if exp == 0:
+        return str(minor_units)
+    sign = "-" if minor_units < 0 else ""
+    abs_minor = abs(minor_units)
+    whole, frac = divmod(abs_minor, 10 ** exp)
+    return f"{sign}{whole}.{frac:0{exp}d}"
+
+
+# PayPal-facing alias: every PayPal amount string in paypal_payouts.py /
+# paypal_escrow.py is produced through this formatter from integer minor units.
+format_paypal_amount = minor_units_to_amount_str
+
 
 def generate_idempotency_key(prefix: str, *components: Any) -> str:
     """Derive a deterministic, collision-resistant idempotency key via SHA-256.
@@ -28,14 +83,12 @@ def generate_idempotency_key(prefix: str, *components: Any) -> str:
 
 def usd_to_cents(amount_usd: float | Decimal | str) -> int:
     """Convert USD amount to integer cents deterministically."""
-    d = Decimal(str(amount_usd)).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)
-    return int(d * 100)
+    return amount_to_minor_units(amount_usd, "USD")
 
 
 def cents_to_usd_str(cents: int) -> str:
     """Format integer cents as standard USD currency string (e.g. 1050 -> '10.50')."""
-    d = Decimal(cents) / Decimal(100)
-    return f"{d:.2f}"
+    return minor_units_to_amount_str(cents, "USD")
 
 
 def allocate_exact_cents(
@@ -114,6 +167,46 @@ def allocate_exact_cents(
     for k, c in result.items():
         assert c >= 0, f"Negative cent allocation for {k}: {c}"
 
+    return result
+
+
+def allocate_exact_minor_units(
+    total_minor: int,
+    shares_pct: Dict[Any, float]
+) -> Dict[Any, int]:
+    """Hare-Niemeyer allocation in the minor units of any currency.
+
+    Identical integer arithmetic to allocate_exact_cents (the method is
+    currency-agnostic: a minor unit is a minor unit), so for a
+    zero-exponent currency such as JPY total_minor is yen itself.
+    Guarantees sum(allocations) == total_minor exactly.
+    """
+    return allocate_exact_cents(int(total_minor), shares_pct)
+
+
+def distribute_captured_amount(
+    captured_minor: int,
+    fee_minor: int,
+    shares_pct: Dict[Any, float],
+    currency: str = "USD",
+) -> Dict[Any, int]:
+    """Allocate (captured - fees) in minor units under largest-remainder.
+
+    This is the conservation contract for the capture path:
+    sum(allocations) == captured_minor - fee_minor exactly, for any ISO 4217
+    currency exponent. Returns the minor-unit allocation; callers format
+    PayPal strings with minor_units_to_amount_str(allocation, currency).
+    """
+    if fee_minor < 0:
+        raise ValueError(f"Fee cannot be negative: {fee_minor}")
+    distributable = int(captured_minor) - int(fee_minor)
+    if distributable < 0:
+        raise ValueError(
+            f"Fees ({fee_minor}) exceed captured amount ({captured_minor})")
+    result = allocate_exact_minor_units(distributable, shares_pct)
+    assert sum(result.values()) == distributable, (
+        f"Invariant Violation: allocations sum to {sum(result.values())}, "
+        f"expected captured-fees = {distributable} ({currency})")
     return result
 
 

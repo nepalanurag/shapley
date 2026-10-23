@@ -58,8 +58,8 @@ def run_audit(args):
         print(f"    - {data['name']}: {len(data['commits'])} commits, {len(diffs)} diffs")
 
     clear_cache()
-    if len(contributors) > 5:
-        print(f"\n[*] N={len(contributors)} > 5: Running Adaptive Castro Monte Carlo Permutation Sampling...")
+    if len(contributors) > 15:
+        print(f"\n[*] N={len(contributors)} > 15: Running seeded antithetic Monte Carlo Permutation Sampling with bootstrap CIs...")
         result = monte_carlo_shapley(
             contributor_diffs,
             contributor_names,
@@ -69,7 +69,7 @@ def run_audit(args):
             verbose=False
         )
     else:
-        print(f"\n[*] N={len(contributors)} <= 5: Running Exact Characteristic Subset Evaluation (2^{len(contributors)} = {2**len(contributors)})...")
+        print(f"\n[*] N={len(contributors)} <= 15: Running Exact Characteristic Subset Evaluation (2^{len(contributors)} = {2**len(contributors)})...")
         result = compute_shapley(
             contributor_diffs,
             contributor_names,

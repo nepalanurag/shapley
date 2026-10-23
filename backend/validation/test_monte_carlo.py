@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validation: Monte Carlo Permutation Sampling & PAC Convergence Suite.
+"""Validation: Monte Carlo Permutation Sampling (antithetic pairs, seeded) Suite.
 
 Tests:
   1. Convergence on Glove Game: Left + Right glove (symmetric 50/50).
@@ -78,4 +78,4 @@ if __name__ == "__main__":
     print("PASS: test_monte_carlo_glove_game (50/50 convergence verified)")
     test_monte_carlo_additive_game()
     print("PASS: test_monte_carlo_additive_game (30/50/20 convergence verified)")
-    print("\nALL MONTE CARLO PAC CONVERGENCE TESTS PASSED (2/2)")
+    print("\nALL MONTE CARLO ANTITHETIC TESTS PASSED (2/2)")

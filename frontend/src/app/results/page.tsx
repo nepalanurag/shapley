@@ -237,7 +237,12 @@ function ResultsContent() {
           let pollDelay = 2500;
           const poll = async () => {
             const j = await pollAnalysis(jobId);
-            if (j.status === "complete") {
+            if (j.status === "complete" && j.provenance?.efficiency_check === "failed") {
+              // A result that failed the backend efficiency assertion
+              // must never render numbers: show the error state instead.
+              setError("Attribution failed its efficiency check; no results were produced.");
+              setStatus("failed");
+            } else if (j.status === "complete") {
               setData(j);
               setStatus("complete");
             } else if (j.status === "failed") {
@@ -854,6 +859,27 @@ function ResultsContent() {
             line/branch heuristic (Gemini unavailable), not from AI semantic
             evaluation. Treat those shares as low-confidence estimates. Affected
             coalitions are flagged in the audit view.
+          </div>
+        )}
+
+        {/* Provenance: persisted record from the backend Shapley engine.
+            Displayed values are read from this record / the API response,
+            never recomputed in the browser. */}
+        {data.provenance && (
+          <div className="bg-[#121316] border border-[#1e2024] rounded-xl p-5 mb-8 font-mono text-xs text-zinc-400">
+            <h3 className="text-zinc-300 font-semibold mb-2">Provenance</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+              <span>Algorithm: {data.provenance.algorithm}</span>
+              <span>CI method: {data.provenance.ci_method}</span>
+              <span>Model: {data.provenance.model}</span>
+              <span>Model hash: {data.provenance.model_hash.slice(0, 12)}…</span>
+              <span>Seed: {data.provenance.seed ?? "n/a (exact)"}</span>
+              <span>Samples: {data.provenance.n_samples}</span>
+              <span>Baseline v(∅): {data.provenance.baseline}</span>
+              <span>Efficiency check: {data.provenance.efficiency_check}</span>
+              <span>Input hash: {data.provenance.input_hash.slice(0, 12)}…</span>
+              <span>Extractor commit: {data.provenance.feature_extractor_commit.slice(0, 12)}…</span>
+            </div>
           </div>
         )}
 

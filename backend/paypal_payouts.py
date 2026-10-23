@@ -21,7 +21,13 @@ from typing import Dict, List, Optional, Any
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from financial_math import usd_to_cents, cents_to_usd_str
+from financial_math import (
+    usd_to_cents,
+    cents_to_usd_str,
+    amount_to_minor_units,
+    minor_units_to_amount_str,
+    currency_exponent,
+)
 
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
 
@@ -145,14 +151,22 @@ def _friendly_paypal_error(code, body):
 def create_batch_payout(
     shares: List[Dict[str, Any]],
     total_amount: Optional[float] = None,
-    idempotency_key: Optional[str] = None
+    idempotency_key: Optional[str] = None,
+    currency: str = "USD"
 ) -> Dict[str, Any]:
     """Create a batch payout with institutional financial safeguards.
+
+    All money is handled in integer minor units for `currency` (ISO 4217
+    exponent: USD/EUR=2, JPY=0, ...); PayPal amount strings are formatted
+    from those minor units via minor_units_to_amount_str, never from a
+    float format spec.
 
     Args:
         shares: list of {"email": str, "amount": float, "note": str}
         total_amount: optional total to validate against
         idempotency_key: optional; generated if not provided
+        currency: ISO 4217 currency code (default USD, the historical
+            behaviour of this function)
 
     Returns:
         {"batch_id": str, "sender_batch_id": str, "status": str, "fee_usd": float}
@@ -162,28 +176,32 @@ def create_batch_payout(
     if len(shares) > MAX_RECIPIENTS:
         raise ValueError(f"Too many recipients: {len(shares)} (max {MAX_RECIPIENTS})")
 
+    # Minimum payable amount: 0.01 major units, at least 1 minor unit.
+    min_minor = max(1, amount_to_minor_units(MIN_RECIPIENT_AMOUNT_USD, currency))
     total_cents = 0
     for s in shares:
         if "email" not in s or "amount" not in s:
             raise ValueError(f"Share missing email/amount: {s}")
-        amt_cents = usd_to_cents(s["amount"])
-        if amt_cents < usd_to_cents(MIN_RECIPIENT_AMOUNT_USD):
+        amt_cents = amount_to_minor_units(s["amount"], currency)
+        if amt_cents < min_minor:
             raise ValueError(f"Amount too small for {s['email']}: {s['amount']}")
         total_cents += amt_cents
 
-    calculated_total_usd = float(cents_to_usd_str(total_cents))
+    calculated_total_str = minor_units_to_amount_str(total_cents, currency)
+    calculated_total_usd = float(calculated_total_str)
 
-    # Circuit breaker: maximum batch ceiling
+    # Circuit breaker: maximum batch ceiling (denominated in the payout
+    # currency's major units, as before for USD).
     if calculated_total_usd > MAX_BATCH_AMOUNT_USD:
         raise ValueError(
             f"Batch amount ${calculated_total_usd:.2f} exceeds financial ceiling of ${MAX_BATCH_AMOUNT_USD:.2f}"
         )
 
     if total_amount is not None:
-        expected_cents = usd_to_cents(total_amount)
+        expected_cents = amount_to_minor_units(total_amount, currency)
         if total_cents != expected_cents:
             raise ValueError(
-                f"Share total ${calculated_total_usd:.2f} != expected ${total_amount:.2f}"
+                f"Share total ${calculated_total_str} != expected ${total_amount:.2f}"
             )
 
     batch_id = idempotency_key or f"shapley_{uuid.uuid4().hex[:12]}_{int(time.time())}"
@@ -199,10 +217,11 @@ def create_batch_payout(
 
     items = []
     for s in shares:
-        formatted_amt = cents_to_usd_str(usd_to_cents(s["amount"]))
+        formatted_amt = minor_units_to_amount_str(
+            amount_to_minor_units(s["amount"], currency), currency)
         items.append({
             "recipient_type": "EMAIL",
-            "amount": {"value": formatted_amt, "currency": "USD"},
+            "amount": {"value": formatted_amt, "currency": currency},
             "receiver": s["email"],
             "note": s.get("note", "Shapley fair-share payout")[:200],
             "sender_item_id": f"item_{uuid.uuid4().hex[:8]}",
@@ -243,6 +262,8 @@ def create_batch_payout(
         "status": header.get("batch_status"),
         "fee_usd": fee_data["total_fee_usd"],
         "total_disbursed_usd": round(calculated_total_usd + fee_data["total_fee_usd"], 2),
+        "currency": currency,
+        "total_minor_units": total_cents,
         "created_at": time.time(),
     }
 

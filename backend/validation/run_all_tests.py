@@ -4,7 +4,7 @@
 Runs the full spectrum of mathematical, financial, cryptographic, and protocol tests:
   1. Game-Theoretic Axiom Tests (Efficiency, Symmetry, Dummy Player, Monotonicity)
   2. Financial Math Property Tests (10,000 fuzz runs of Hare-Niemeyer exact-penny conservation)
-  3. PAC Monte Carlo Permutation Tests (Antithetic sampling convergence on known games)
+  3. Monte Carlo Permutation Tests (Seeded antithetic sampling convergence on known games)
   4. Cryptographic Merkle Audit Tests (Tamper-evidence, leaf verification)
   5. Prompt Injection Defense Tests (Adversarial diff sanitization)
   6. Model Context Protocol (MCP) Compliance Tests
@@ -17,7 +17,7 @@ import sys
 SCRIPTS = [
     ("Axiomatic Game Theory", "test_axioms.py"),
     ("Exact-Penny Financial Math (10,000 Fuzz)", "test_financial_math.py"),
-    ("PAC Monte Carlo Antithetic Convergence", "test_monte_carlo.py"),
+    ("Monte Carlo Antithetic Convergence", "test_monte_carlo.py"),
     ("Cryptographic Merkle Audit Trail", "test_merkle_audit.py"),
     ("Adversarial Prompt Injection Defense", "test_prompt_injection.py"),
     ("Model Context Protocol (MCP) Compliance", "test_mcp_protocol.py"),
@@ -26,6 +26,7 @@ SCRIPTS = [
     ("MCP Chat & Webhook Protocol Integration", "test_mcp_chat.py"),
     ("PayPal Orders v2 Escrow Invariants", "test_paypal_escrow.py"),
     ("Contributor Claims, RBAC & Hackathon Pot Solvency", "test_claims_and_onboarding.py"),
+    ("Phase 1 Hardening (Seeded MC, Efficiency, Money)", "test_phase1_hardening.py"),
 ]
 
 

@@ -100,72 +100,6 @@ class PayoutRequest(BaseModel):
 
 # ── Background analysis ─────────────────────────────────────────
 
-def _compute_share_cis(result, n_runs=200, noise=5.0):
-    """Monte Carlo confidence intervals for payout shares.
-
-    Perturbs each coalition score by uniform noise in [-noise, +noise],
-    recomputes Shapley shares, and returns 95% CI per contributor.
-    Pure math, no API calls.
-    """
-    import math
-    import random
-
-    evaluations = result.get("evaluations", [])
-    n = len(result.get("contributor_names", {}))
-    if n < 2 or n > 5 or not isinstance(evaluations, list) or not evaluations:
-        return {}
-
-    # Build score map from evaluations
-    base_scores = {}
-    for ev in evaluations:
-        key = frozenset(ev["coalition"])
-        base_scores[key] = ev["score"]
-
-    def shapley_shares(scores):
-        # Exact Shapley from score dict
-        shap = {i: 0.0 for i in range(n)}
-        n_fact = math.factorial(n)
-        for mask in range(2 ** n):
-            S = {i for i in range(n) if mask & (1 << i)}
-            for i in range(n):
-                if i in S:
-                    continue
-                s_size = len(S)
-                w = (math.factorial(s_size) *
-                     math.factorial(n - s_size - 1)) / n_fact
-                v_with = scores.get(frozenset(S | {i}), 0)
-                v_without = scores.get(frozenset(S), 0)
-                # Apply monotonicity: v(S|i) >= v(S)
-                v_with = max(v_with, v_without)
-                shap[i] += w * (v_with - v_without)
-        clamped = {i: max(0.0, v) for i, v in shap.items()}
-        total = sum(clamped.values())
-        if total > 0:
-            return {i: v / total * 100 for i, v in clamped.items()}
-        return {i: 100.0 / n for i in range(n)}
-
-    all_shares = {i: [] for i in range(n)}
-    for _ in range(n_runs):
-        noisy = {}
-        for key, score in base_scores.items():
-            if len(key) == 0:
-                noisy[key] = 0
-            else:
-                noisy[key] = max(0, min(100,
-                    score + random.uniform(-noise, noise)))
-        shares = shapley_shares(noisy)
-        for i in range(n):
-            all_shares[i].append(shares[i])
-
-    cis = {}
-    for i in range(n):
-        vals = sorted(all_shares[i])
-        lo = vals[int(0.025 * n_runs)]
-        hi = vals[int(0.975 * n_runs)]
-        cis[i] = {"low": round(lo, 1), "high": round(hi, 1)}
-    return cis
-
-
 def _run_analysis(job_id, repo_url, total_amount, max_commits):
     """Background worker: ingest → score → Shapley."""
     def update(status, **kw):
@@ -184,7 +118,9 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits):
         if len(contributors) < 2:
             update("failed", error=f"Need ≥2 contributors, found {len(contributors)}")
             return
-        use_monte_carlo = len(contributors) > 5
+        # Routing: exact enumeration for n <= 15, Monte Carlo above
+        # (single threshold, matching backend/shapley.py EXACT_MAX_N).
+        use_monte_carlo = len(contributors) > 15
         if use_monte_carlo:
             update("scoring", note=f"Using Monte Carlo approximation for {len(contributors)} contributors")
 
@@ -207,14 +143,21 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits):
         clear_cache()
         if use_monte_carlo:
             from shapley import monte_carlo_shapley
-            result = monte_carlo_shapley(contributor_diffs, contributor_names)
+            result = monte_carlo_shapley(
+                contributor_diffs, contributor_names,
+                total_amount_usd=total_amount)
         else:
-            result = compute_shapley(contributor_diffs, contributor_names)
+            result = compute_shapley(
+                contributor_diffs, contributor_names,
+                total_amount_usd=total_amount)
 
-        # Compute 95% confidence intervals via Monte Carlo perturbation.
-        # Perturb each coalition score ±5, recompute shares 200 times.
-        # This quantifies how sensitive payouts are to scoring noise.
-        ci_data = _compute_share_cis(result, n_runs=200, noise=5.0)
+        # Confidence intervals come from the single Shapley implementation
+        # in backend/shapley.py (exact: degenerate; Monte Carlo:
+        # percentile bootstrap over the per-permutation marginal samples).
+        # They are centred on the published point estimates above because
+        # they are derived from the same computation — there is no second
+        # Shapley derivation in this module anymore.
+        ci_data = result.get("share_cis", {})
 
         # Build response
         contribs = []
@@ -252,8 +195,12 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits):
                api_calls=result["api_calls"],
                num_coalitions=result["num_coalitions"],
                merkle_receipt=result.get("merkle_receipt"),
-               monotonicity_fixes=result.get("monotonicity_fixes", []))
+               monotonicity_fixes=result.get("monotonicity_fixes", []),
+               provenance=result.get("provenance"))
     except Exception as e:
+        # Includes ShapleyEfficiencyError from backend/shapley.py: the job
+        # is marked failed and no result numbers are ever exposed, so the
+        # UI renders its explicit error state instead of a result.
         with _jobs_lock:
             _jobs[job_id].update({"status": "failed", "error": str(e)[:500]})
 

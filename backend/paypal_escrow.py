@@ -23,6 +23,8 @@ from financial_math import (
     cents_to_usd_str,
     allocate_exact_cents,
     generate_idempotency_key,
+    amount_to_minor_units,
+    minor_units_to_amount_str,
 )
 from paypal_payouts import (
     get_access_token,
@@ -78,13 +80,19 @@ class PayPalEscrowManager:
         merkle_root: Optional[str] = None,
         return_url: str = "http://127.0.0.1:3000/results?escrow=approved",
         cancel_url: str = "http://127.0.0.1:3000/results?escrow=cancelled",
+        currency: str = "USD",
     ) -> Dict[str, Any]:
-        """Call PayPal Orders v2 API to create an authorization hold order."""
+        """Call PayPal Orders v2 API to create an authorization hold order.
+
+        Money is carried in integer minor units for `currency` (ISO 4217
+        exponent); the PayPal amount string is formatted from those minor
+        units, never with a float format spec.
+        """
         if pool_usd <= 0:
             raise ValueError(f"Escrow pool must be positive: {pool_usd}")
 
-        pool_cents = usd_to_cents(pool_usd)
-        formatted_amount = f"{pool_usd:.2f}"
+        pool_cents = amount_to_minor_units(pool_usd, currency)
+        formatted_amount = minor_units_to_amount_str(pool_cents, currency)
         token = get_access_token()
         idempotency_key = generate_idempotency_key("order", repo_url, formatted_amount, phase_id)
 
@@ -95,7 +103,7 @@ class PayPalEscrowManager:
                     "reference_id": f"shapley_{phase_id}",
                     "description": f"Shapley Escrow: {repo_url} ({phase_id})",
                     "amount": {
-                        "currency_code": "USD",
+                        "currency_code": currency,
                         "value": formatted_amount,
                     },
                 }
@@ -143,6 +151,8 @@ class PayPalEscrowManager:
             "phase_id": phase_id,
             "pool_usd": pool_usd,
             "pool_cents": pool_cents,
+            "pool_minor_units": pool_cents,
+            "currency": currency,
             "status": "HELD_IN_ESCROW" if status in ("CREATED", "SAVED") else status,
             "authorization_id": f"AUTH-PP-{order_id}",
             "custodian": "PayPal Inc. (Two-Phase Authorization Custody)",
@@ -166,20 +176,28 @@ class PayPalEscrowManager:
             "authorization_id": vault_record["authorization_id"],
             "pool_usd": pool_usd,
             "pool_cents": pool_cents,
+            "pool_minor_units": pool_cents,
+            "currency": currency,
             "custodian": vault_record["custodian"],
             "approval_url": approval_url,
             "merkle_root": vault_record["merkle_root"],
             "idempotency_key": idempotency_key,
         }
 
-    def _call_paypal_capture_api(self, authorization_id: str, amount_usd: float) -> Optional[Dict[str, Any]]:
-        """Call real PayPal Payments v2 API POST /v2/payments/authorizations/{authorization_id}/capture."""
+    def _call_paypal_capture_api(self, authorization_id: str, amount_usd: float, currency: str = "USD") -> Optional[Dict[str, Any]]:
+        """Call real PayPal Payments v2 API POST /v2/payments/authorizations/{authorization_id}/capture.
+
+        The amount string is formatted from integer minor units using the
+        currency's ISO 4217 exponent.
+        """
         try:
             token = get_access_token()
+            formatted_amount = minor_units_to_amount_str(
+                amount_to_minor_units(amount_usd, currency), currency)
             payload = {
                 "amount": {
-                    "currency_code": "USD",
-                    "value": f"{amount_usd:.2f}"
+                    "currency_code": currency,
+                    "value": formatted_amount
                 },
                 "is_final_capture": True
             }
@@ -189,7 +207,7 @@ class PayPalEscrowManager:
                 headers={
                     "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json",
-                    "PayPal-Request-Id": generate_idempotency_key("capture", authorization_id, f"{amount_usd:.2f}")
+                    "PayPal-Request-Id": generate_idempotency_key("capture", authorization_id, formatted_amount)
                 }
             )
             with urllib.request.urlopen(req, timeout=30) as resp:
@@ -264,19 +282,26 @@ class PayPalEscrowManager:
         if vault.get("disputed"):
             raise ValueError(f"Escrow vault '{escrow_id}' is locked under dispute")
 
-        # Validate exact penny conservation
-        total_payout_usd = sum(float(s["amount"]) for s in shares)
-        total_payout_cents = sum(usd_to_cents(s["amount"]) for s in shares)
+        # Validate exact minor-unit conservation (integer arithmetic in
+        # the vault's currency; "pool_cents" is the USD name for the same
+        # minor-unit count).
+        vault_currency = vault.get("currency", "USD")
+        total_payout_cents = sum(
+            amount_to_minor_units(s["amount"], vault_currency) for s in shares)
+        expected_minor = vault.get("pool_minor_units", vault["pool_cents"])
 
-        if total_payout_cents != vault["pool_cents"]:
+        if total_payout_cents != expected_minor:
             raise ValueError(
-                f"Disbursement mismatch: shares sum to ${total_payout_usd:.2f} "
-                f"({total_payout_cents} cents), expected ${vault['pool_usd']:.2f} "
-                f"({vault['pool_cents']} cents). Zero leakage allowed."
+                f"Disbursement mismatch: shares sum to "
+                f"{minor_units_to_amount_str(total_payout_cents, vault_currency)} "
+                f"({total_payout_cents} minor units), expected "
+                f"{minor_units_to_amount_str(expected_minor, vault_currency)} "
+                f"({expected_minor} minor units). Zero leakage allowed."
             )
 
         # Attempt real PayPal capture if live authorization exists
-        paypal_capture = self._call_paypal_capture_api(vault["authorization_id"], vault["pool_usd"])
+        paypal_capture = self._call_paypal_capture_api(
+            vault["authorization_id"], vault["pool_usd"], currency=vault_currency)
         if paypal_capture and paypal_capture.get("id"):
             capture_id = paypal_capture["id"]
             live_captured = True
@@ -289,6 +314,7 @@ class PayPalEscrowManager:
             shares=shares,
             total_amount=vault["pool_usd"],
             idempotency_key=f"capture_{vault['order_id']}",
+            currency=vault_currency,
         )
 
         fee_info = calculate_paypal_batch_fee(len(shares))
