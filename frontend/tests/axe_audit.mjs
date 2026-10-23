@@ -24,9 +24,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://127.0.0.1:3000';
-const OUT_PATH = join(
+// Phase 4 re-runs set AXE_OUT / AXE_PHASE so the new numbers are recorded
+// NEXT TO the Phase 3 baseline instead of overwriting it.
+const OUT_PATH = process.env.AXE_OUT || join(
   dirname(fileURLToPath(import.meta.url)),
   '..', '..', 'backend', 'validation', 'axe_baseline_phase3.json');
+const PHASE = Number(process.env.AXE_PHASE || 3);
 
 function summarise(results) {
   const bySeverity = { critical: 0, serious: 0, moderate: 0, minor: 0 };
@@ -74,7 +77,7 @@ async function main() {
   await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
 
   const baseline = {
-    phase: 3,
+    phase: PHASE,
     target: 'zero critical violations by end of Phase 4 (THRESHOLDS.md SS5)',
     url,
     axe_core_version: '4.14.0',
@@ -91,7 +94,7 @@ async function main() {
 
   await browser.close();
   writeFileSync(OUT_PATH, JSON.stringify(baseline, null, 2) + '\n');
-  console.log(`\nBaseline written to backend/validation/axe_baseline_phase3.json`);
+  console.log(`\nAxe results written to ${OUT_PATH}`);
 }
 
 main().catch((err) => {

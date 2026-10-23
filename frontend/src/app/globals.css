@@ -1,14 +1,43 @@
 @import "tailwindcss";
 
+/*
+ * Phase 4 design tokens.
+ *
+ * Type: ONE family — Inter (loaded in layout.tsx as --font-inter) — carries
+ * display and body. The sans, mono and serif utilities all resolve to it in
+ * this view, and every number renders with tabular figures (body rule +
+ * .tabular-numbers), so ledger columns never jitter.
+ *
+ * Signed-contribution ramp (diverging, semantic):
+ *   toward the decision (Δv > 0): green family
+ *     ink  #6fe3a5   step backgrounds #14231c / #173527 / #1b4530
+ *   against the decision (Δv < 0): orange-red family
+ *     ink  #ffa08a   step backgrounds #2a1712 / #381c11 / #472512
+ *   neutral (Δv = 0): muted ink #a9b0ba on the plain panel.
+ * Steps are magnitude buckets |Δv| / max|Δv| in (0, 1/3], (1/3, 2/3], (2/3, 1].
+ * Contrast of every ink/background pair above was measured before shipping
+ * (all >= 6.8:1; see the Phase 4 report). Flat surfaces only: no gradients,
+ * no drop shadows in the results view.
+ */
 :root {
-  --background: #0c0d0e;
-  --foreground: #ededed;
-  --card: #121316;
-  --card-border: #1e2024;
-  --accent-primary: #e4e5e7;
-  --accent-action: #2563eb;
-  --accent-ledger: #22c55e;
-  --muted: #8a8f98;
+  --background: #101214;
+  --foreground: #f4f5f6;
+  --card: #17191c;
+  --card-2: #1d2024;
+  --card-border: #2b2f36;
+  --accent-primary: #f4f5f6;
+  --accent-action: #8ecbff;
+  --accent-ledger: #6fe3a5;
+  --muted: #a9b0ba;
+  --focus-ring: #8ecbff;
+  --pos-ink: #6fe3a5;
+  --pos-bg-1: #14231c;
+  --pos-bg-2: #173527;
+  --pos-bg-3: #1b4530;
+  --neg-ink: #ffa08a;
+  --neg-bg-1: #2a1712;
+  --neg-bg-2: #381c11;
+  --neg-bg-3: #472512;
 }
 
 @theme inline {
@@ -16,12 +45,16 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-border: var(--card-border);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
-  background-color: #0c0d0e;
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
   min-height: 100vh;
   letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
@@ -33,26 +66,21 @@ body {
   font-feature-settings: "tnum" 1, "zero" 1;
 }
 
-/* Solid Opaque Ledger Cards */
+/* Visible keyboard focus on every interactive element. */
+:focus-visible {
+  outline: 2px solid var(--focus-ring) !important;
+  outline-offset: 2px;
+}
+
+/* Solid Opaque Ledger Panels (flat: border only, no shadow) */
 .ledger-panel {
-  background: #121316;
-  border: 1px solid #1e2024;
+  background: var(--card);
+  border: 1px solid var(--card-border);
 }
 
 .ledger-panel-subtle {
-  background: #0f1013;
-  border: 1px solid #1a1c20;
-}
-
-.shimmer-sweep {
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
-  background-size: 200% 100%;
-  animation: shimmerSweep 3s infinite linear;
-}
-
-@keyframes shimmerSweep {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  background: #131518;
+  border: 1px solid #22252b;
 }
 
 .btn-interactive {
@@ -70,4 +98,14 @@ body {
 @keyframes modalFadeIn {
   from { opacity: 0; transform: scale(0.98); }
   to { opacity: 1; transform: scale(1); }
+}
+
+/* prefers-reduced-motion: no animation or transition runs. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

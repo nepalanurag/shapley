@@ -1,0 +1,32 @@
+{
+  "phase": 4,
+  "target": "zero critical violations by end of Phase 4 (THRESHOLDS.md SS5)",
+  "url": "http://127.0.0.1:3000/results?demo=true",
+  "axe_core_version": "4.14.0",
+  "views": {
+    "results (demo)": {
+      "violation_rule_count": 0,
+      "by_severity": {
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0
+      },
+      "violations": [],
+      "passes_count": 46,
+      "incomplete_count": 1
+    },
+    "results + methodology explainer (demo)": {
+      "violation_rule_count": 0,
+      "by_severity": {
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0
+      },
+      "violations": [],
+      "passes_count": 46,
+      "incomplete_count": 1
+    }
+  }
+}

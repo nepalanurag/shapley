@@ -32,19 +32,19 @@ GridModuleRegistry.registerModules([GridAllCommunityModule]);
 ChartModuleRegistry.registerModules([ChartAllCommunityModule]);
 
 const darkTheme = themeQuartz.withParams({
-  backgroundColor: "#0c0d0e",
-  foregroundColor: "#ededed",
-  headerBackgroundColor: "#121316",
-  oddRowBackgroundColor: "#0f1012",
-  borderColor: "#1e2024",
-  headerFontFamily: "var(--font-mono)",
-  cellFontFamily: "var(--font-mono)",
-  accentColor: "#2563eb",
+  backgroundColor: "#101214",
+  foregroundColor: "#f4f5f6",
+  headerBackgroundColor: "#17191c",
+  oddRowBackgroundColor: "#131518",
+  borderColor: "#2b2f36",
+  headerFontFamily: "var(--font-sans)",
+  cellFontFamily: "var(--font-sans)",
+  accentColor: "#8ecbff",
 });
 
 export default function ResultsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0c0d0e]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#101214]" />}>
       <ResultsContent />
     </Suspense>
   );
@@ -88,6 +88,13 @@ function ResultsContent() {
   const [baselineMetric, setBaselineMetric] = useState<"shapley" | "loc" | "commits">("shapley");
   const [activeGridTab, setActiveGridTab] = useState<"contributors" | "coalitions">("contributors");
   const [hoveredMarginal, setHoveredMarginal] = useState<{ name: string; deltas: number[]; avg: number } | null>(null);
+  // Coalition lattice (Phase 4 hero): the selected coalition key and the
+  // player whose marginal gains are shown on the cells. Both sync with the
+  // marginal-contribution ledger (waterfall) rendered beside the lattice.
+  const [selectedCoalitionKey, setSelectedCoalitionKey] = useState<string | null>(null);
+  const [pinnedPlayer, setPinnedPlayer] = useState<string | null>(null);
+  const [hoverPlayer, setHoverPlayer] = useState<string | null>(null);
+  const [expandedSizes, setExpandedSizes] = useState<Record<number, boolean>>({});
   const gridRef = useRef<any>(null);
   const gridApiRef = useRef<any>(null);
   const coalitionGridRef = useRef<any>(null);
@@ -204,6 +211,183 @@ function ResultsContent() {
     }).sort((a, b) => b.score - a.score);
   }, [data, marginalDeltasMap]);
 
+  // ── Coalition lattice data ─────────────────────────────────────────────
+  // Every number below is read from the persisted API result
+  // (data.evaluations + data.contributors + provenance). The only work done
+  // here is presentation: indexing evaluations by member set, grouping by
+  // coalition size, and subtracting two persisted v(S) values to display a
+  // marginal gain. Nothing is re-scored or re-estimated in the browser.
+  const coalitionKey = (members: string[]) => JSON.stringify([...members].sort());
+
+  const lattice = useMemo(() => {
+    if (!data || !data.evaluations) return null;
+    const players = data.contributors.map((c) => c.name);
+    const n = players.length;
+    const valueByKey = new Map<string, number>();
+    data.evaluations.forEach((e) => valueByKey.set(coalitionKey(e.members), e.score));
+    const totalCoalitions = Math.pow(2, n);
+    const evaluatedCount = valueByKey.size;
+    // The full grid renders when every coalition was evaluated and the grid
+    // is at most 512 cells. Otherwise coalitions are grouped by size with
+    // expandable groups — the count text always states how many exist, and
+    // a Monte Carlo result states how many were actually evaluated. The
+    // lattice is never silently truncated.
+    const fullGrid = evaluatedCount >= totalCoalitions && totalCoalitions <= 512;
+    const bySize: Map<number, string[][]> = new Map();
+    data.evaluations.forEach((e) => {
+      const k = e.members.length;
+      if (!bySize.has(k)) bySize.set(k, []);
+      bySize.get(k)!.push([...e.members].sort());
+    });
+    bySize.forEach((list) => list.sort((a, b) => coalitionKey(a).localeCompare(coalitionKey(b))));
+    return { players, n, valueByKey, totalCoalitions, evaluatedCount, fullGrid, bySize };
+  }, [data]);
+
+  const focusPlayer = hoverPlayer ?? pinnedPlayer;
+
+  // Marginal gain of adding the focus player to each coalition, from
+  // persisted values only: Δ = v(S ∪ {i}) − v(S), or v(S) − v(S \ {i})
+  // when i is already in S. Null when either side was not evaluated.
+  const marginalFor = (members: string[]): number | null => {
+    if (!lattice || !focusPlayer) return null;
+    const { valueByKey } = lattice;
+    if (members.includes(focusPlayer)) {
+      const without = valueByKey.get(coalitionKey(members.filter((m) => m !== focusPlayer)));
+      const withP = valueByKey.get(coalitionKey(members));
+      if (without === undefined || withP === undefined) return null;
+      return Math.round((withP - without) * 10) / 10;
+    }
+    const withP = valueByKey.get(coalitionKey([...members, focusPlayer]));
+    const without = valueByKey.get(coalitionKey(members));
+    if (without === undefined || withP === undefined) return null;
+    return Math.round((withP - without) * 10) / 10;
+  };
+
+  const maxAbsMarginal = useMemo(() => {
+    if (!lattice || !focusPlayer) return 0;
+    let max = 0;
+    lattice.valueByKey.forEach((_v, key) => {
+      const members = JSON.parse(key) as string[];
+      const d = marginalFor(members);
+      if (d !== null) max = Math.max(max, Math.abs(d));
+    });
+    return max;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lattice, focusPlayer]);
+
+  // Signed ramp: bucket |Δ| into the three documented background steps
+  // (globals.css). Δ > 0 toward the decision (green family), Δ < 0 against
+  // (orange-red family), Δ = 0 neutral.
+  const rampStyle = (delta: number | null): { background: string; color: string } => {
+    if (delta === null || delta === 0 || maxAbsMarginal === 0)
+      return { background: "var(--card-2)", color: "var(--muted)" };
+    const bucket = Math.min(3, Math.max(1, Math.ceil((Math.abs(delta) / maxAbsMarginal) * 3)));
+    return delta > 0
+      ? { background: `var(--pos-bg-${bucket})`, color: "var(--pos-ink)" }
+      : { background: `var(--neg-bg-${bucket})`, color: "var(--neg-ink)" };
+  };
+
+  const selectedMembers = useMemo(() => {
+    if (!lattice) return [];
+    if (selectedCoalitionKey === null) return [...lattice.players];
+    try {
+      const parsed = JSON.parse(selectedCoalitionKey) as string[];
+      return lattice.players.filter((p) => parsed.includes(p));
+    } catch {
+      return [...lattice.players];
+    }
+  }, [lattice, selectedCoalitionKey]);
+
+  // Waterfall chain for the selected coalition: prefixes in contributor
+  // order. Each step's Δ and running total are differences/values of
+  // persisted v(S); a step whose prefix was not evaluated shows "n/a"
+  // rather than an invented number.
+  const waterfallSteps = useMemo(() => {
+    if (!lattice) return [];
+    const steps: { members: string[]; added: string | null; delta: number | null; value: number | null }[] = [];
+    let prefix: string[] = [];
+    let prev = lattice.valueByKey.get(coalitionKey([]));
+    steps.push({ members: [], added: null, delta: null, value: prev ?? null });
+    selectedMembers.forEach((p) => {
+      const next = [...prefix, p];
+      const v = lattice.valueByKey.get(coalitionKey(next));
+      steps.push({
+        members: next,
+        added: p,
+        delta: v !== undefined && prev !== undefined ? Math.round((v - prev) * 10) / 10 : null,
+        value: v ?? null,
+      });
+      prefix = next;
+      prev = v;
+    });
+    return steps;
+  }, [lattice, selectedMembers]);
+
+  const binom = (nn: number, kk: number) => {
+    if (kk < 0 || kk > nn) return 0;
+    let r = 1;
+    for (let i = 0; i < kk; i++) r = (r * (nn - i)) / (i + 1);
+    return Math.round(r);
+  };
+
+  const renderCoalitionCell = (members: string[]) => {
+    if (!lattice) return null;
+    const key = coalitionKey(members);
+    const v = lattice.valueByKey.get(key);
+    const delta = marginalFor(members);
+    const isSelected = coalitionKey(selectedMembers) === key;
+    const ramp = rampStyle(delta);
+    const shortLabel =
+      members.length === 0 ? "∅ empty set" : members.map((m) => m.split(" ")[0]).join(" + ");
+    // Accessible name comes from the visible text itself (label-in-name);
+    // fuller context (full member names, the marginal-gain sentence) is
+    // attached via aria-describedby instead of an aria-label override.
+    const descId = `coalition-desc-${members.length}-${members
+      .map((m) => m.replace(/\W/g, ""))
+      .join("-")}`;
+    return (
+      <button
+        key={key}
+        type="button"
+        aria-pressed={isSelected}
+        aria-describedby={descId}
+        onClick={() => setSelectedCoalitionKey(key)}
+        className={`text-left border p-2 min-w-[104px] flex-1 sm:flex-none sm:w-[136px] rounded-[2px] transition-colors ${
+          isSelected ? "outline outline-2 outline-offset-[-2px] outline-[#8ecbff]" : ""
+        }`}
+        style={{
+          background:
+            focusPlayer && delta !== null ? ramp.background : "var(--card-2)",
+          borderColor: isSelected ? "var(--focus-ring)" : "var(--card-border)",
+        }}
+      >
+        <span className="block text-[11px] font-medium text-[#f4f5f6] leading-tight break-words">
+          {shortLabel}
+        </span>
+        <span className="block text-sm font-semibold tabular-nums mt-1">
+          v(S) {v !== undefined ? v.toFixed(1) : "n/a"}
+        </span>
+        {focusPlayer && (
+          <span
+            className="block text-[11px] tabular-nums mt-0.5"
+            style={{ color: delta !== null ? ramp.color : "var(--muted)" }}
+          >
+            {delta !== null
+              ? `Δ ${focusPlayer.split(" ")[0]} ${delta > 0 ? "+" : ""}${delta.toFixed(1)}`
+              : "Δ not evaluated"}
+          </span>
+        )}
+        <span id={descId} className="sr-only">
+          Coalition members: {members.length === 0 ? "none (empty set)" : members.join(", ")}.
+          Value {v !== undefined ? v.toFixed(1) : "not evaluated"}.
+          {focusPlayer && delta !== null
+            ? ` Marginal gain of adding ${focusPlayer}: ${delta > 0 ? "+" : ""}${delta.toFixed(1)}.`
+            : ""}
+        </span>
+      </button>
+    );
+  };
+
   const copyMarkdown = () => {
     if (!data) return;
     const lines = [
@@ -307,12 +491,12 @@ function ResultsContent() {
         sortable: true,
         cellRenderer: (p: any) => (
           <div className="flex items-center gap-2 py-0.5">
-            <div className="w-6 h-6 rounded bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-xs text-zinc-300 font-mono">
+            <div className="w-6 h-6 rounded-[2px] bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-xs text-zinc-300 font-mono">
               {p.value?.charAt(0)}
             </div>
             <div className="leading-tight">
               <span className="font-medium text-white block text-xs">{p.value}</span>
-              <span className="text-[10px] text-zinc-500 font-mono">{p.data?.email}</span>
+              <span className="text-[10px] text-zinc-400 font-mono">{p.data?.email}</span>
             </div>
           </div>
         ),
@@ -325,7 +509,7 @@ function ResultsContent() {
         sortable: false,
         cellRenderer: (p: any) => {
           const deltas: number[] = p.value || [];
-          if (!deltas.length) return <span className="text-zinc-600 text-xs">-</span>;
+          if (!deltas.length) return <span className="text-zinc-400 text-xs">-</span>;
           const max = Math.max(...deltas, 1);
           const min = Math.min(...deltas, 0);
           const range = max - min || 1;
@@ -426,7 +610,7 @@ function ResultsContent() {
           <div className="flex items-center gap-1.5 py-1">
             <span className="font-mono text-xs text-blue-400 font-semibold">{p.value}</span>
             {p.data?.monotonicityAdjusted && (
-              <span className="text-[9px] bg-amber-900/40 text-amber-300 border border-amber-700/50 px-1 py-0.2 rounded font-sans">
+              <span className="text-[9px] bg-amber-900/40 text-amber-300 border border-amber-700/50 px-1 py-0.2 rounded-[2px] font-sans">
                 Monotonicity Shield
               </span>
             )}
@@ -508,7 +692,7 @@ function ResultsContent() {
           xKey: "contributor",
           yKey: "aiShare",
           yName: "AI Shapley Fair %",
-          fill: "#2563eb",
+          fill: "#6ea8fe",
           itemStyler: (params: any) => {
             if (!selectedContributor) return {};
             const isMatch = params.datum.contributor === selectedContributor.name;
@@ -546,7 +730,7 @@ function ResultsContent() {
           xKey: "contributor",
           yKey: "linesShare",
           yName: "Lines Changed % (Naive LOC)",
-          fill: "#3f3f46",
+          fill: "#8a8f98",
           itemStyler: (params: any) => {
             if (!selectedContributor) return {};
             const isMatch = params.datum.contributor === selectedContributor.name;
@@ -575,11 +759,11 @@ function ResultsContent() {
         position: "top",
         item: {
           label: {
-            color: "#ededed",
+            color: "#f4f5f6",
           },
         },
       },
-      background: { fill: "#0c0d0e" },
+      background: { fill: "#101214" },
     };
   }, [data, selectedContributor, displayedContributors]);
 
@@ -676,7 +860,7 @@ function ResultsContent() {
 
   if (status === "loading" || status === "ingesting" || status === "scoring" || status === "computing_shapley" || status === "queued") {
     return (
-      <main className="min-h-screen bg-[#0c0d0e] text-zinc-100 flex items-center justify-center font-mono">
+      <main className="min-h-screen bg-[#101214] text-zinc-100 flex items-center justify-center font-mono">
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-2 border-zinc-700 border-t-zinc-200 mx-auto mb-4"></div>
           <p className="text-zinc-400">
@@ -693,11 +877,11 @@ function ResultsContent() {
 
   if (status === "failed" || !data) {
     return (
-      <main className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center">
+      <main className="min-h-screen bg-[#101214] text-zinc-100 flex items-center justify-center">
         <div className="text-center max-w-md">
           <p className="text-red-400 mb-4">{error || "Something went wrong"}</p>
           <button onClick={() => router.push("/")}
-            className="bg-zinc-800 hover:bg-zinc-700 px-6 py-2 rounded-lg">
+            className="bg-zinc-800 hover:bg-zinc-700 px-6 py-2 rounded-[2px]">
             Back
           </button>
         </div>
@@ -706,10 +890,10 @@ function ResultsContent() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="max-w-6xl mx-auto px-6 py-8">
+    <main className="min-h-screen bg-[#101214] text-zinc-100">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs text-zinc-500 mb-4">
+        <div className="flex items-center gap-2 text-xs text-zinc-400 mb-4">
           <button onClick={() => router.push("/")} className="hover:text-zinc-300 transition-colors">
             Home
           </button>
@@ -720,13 +904,13 @@ function ResultsContent() {
         </div>
 
         {/* Persona Switcher Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-1.5 bg-[#121316] border border-[#1e2024] rounded-xl mb-6">
-          <div className="grid grid-cols-3 sm:flex items-center gap-1 p-0.5 bg-[#0c0d0e] rounded-lg text-xs font-mono border border-[#1e2024] w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-1.5 bg-[#17191c] border border-[#2b2f36] rounded-[2px] mb-6">
+          <div className="grid grid-cols-3 sm:flex items-center gap-1 p-0.5 bg-[#101214] rounded-[2px] text-xs font-mono border border-[#2b2f36] w-full sm:w-auto">
             <button
               onClick={() => setCurrentPersona("lead")}
-              className={`px-2 sm:px-3 py-1.5 rounded-md transition-colors text-center ${
+              className={`px-2 sm:px-3 py-1.5 rounded-[2px] transition-colors text-center ${
                 currentPersona === "lead"
-                  ? "bg-[#1e2024] text-white font-semibold"
+                  ? "bg-[#2b2f36] text-white font-semibold"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
@@ -735,9 +919,9 @@ function ResultsContent() {
             </button>
             <button
               onClick={() => setCurrentPersona("sponsor")}
-              className={`px-2 sm:px-3 py-1.5 rounded-md transition-colors text-center ${
+              className={`px-2 sm:px-3 py-1.5 rounded-[2px] transition-colors text-center ${
                 currentPersona === "sponsor"
-                  ? "bg-[#1e2024] text-white font-semibold"
+                  ? "bg-[#2b2f36] text-white font-semibold"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
@@ -746,9 +930,9 @@ function ResultsContent() {
             </button>
             <button
               onClick={() => setCurrentPersona("member")}
-              className={`px-2 sm:px-3 py-1.5 rounded-md transition-colors text-center ${
+              className={`px-2 sm:px-3 py-1.5 rounded-[2px] transition-colors text-center ${
                 currentPersona === "member"
-                  ? "bg-[#1e2024] text-white font-semibold"
+                  ? "bg-[#2b2f36] text-white font-semibold"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
@@ -760,7 +944,7 @@ function ResultsContent() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowPotModal(true)}
-              className="px-3 py-1.5 rounded-lg bg-[#0c0d0e] hover:bg-zinc-900 border border-[#1e2024] text-emerald-400 text-xs font-mono flex items-center justify-center gap-2 transition-colors w-full sm:w-auto"
+              className="px-3 py-1.5 rounded-[2px] bg-[#101214] hover:bg-zinc-900 border border-[#2b2f36] text-emerald-400 text-xs font-mono flex items-center justify-center gap-2 transition-colors w-full sm:w-auto"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               Hackathon Pot Solvency ($2,500)
@@ -777,7 +961,7 @@ function ResultsContent() {
               {data.repo} · ${data.total_amount.toFixed(2)} USD pool ·{" "}
               {data.num_coalitions} coalitions evaluated
               {data.demo_mode && (
-                <span className="ml-2 bg-yellow-900/60 border border-yellow-700/50 text-yellow-200 text-xs px-2 py-0.5 rounded font-sans font-semibold">
+                <span className="ml-2 bg-yellow-900/60 border border-yellow-700/50 text-yellow-200 text-xs px-2 py-0.5 rounded-[2px] font-sans font-semibold">
                   DEMO MODE
                 </span>
               )}
@@ -786,7 +970,7 @@ function ResultsContent() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowCommandPalette(true)}
-              className="bg-zinc-900/90 hover:bg-zinc-800 px-3 py-1.5 rounded-lg text-xs font-semibold border border-zinc-700/80 flex items-center gap-2 transition-all text-zinc-300 shadow-sm shimmer-sweep"
+              className="bg-zinc-900/90 hover:bg-zinc-800 px-3 py-1.5 rounded-[2px] text-xs font-semibold border border-zinc-700/80 flex items-center gap-2 transition-all text-zinc-300"
               title="Quick Action Command Palette (⌘K)"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400">
@@ -794,39 +978,39 @@ function ResultsContent() {
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
               <span>Command</span>
-              <kbd className="text-[10px] font-mono bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-700">⌘K</kbd>
+              <kbd className="text-[10px] font-mono bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-[2px] border border-zinc-700">⌘K</kbd>
             </button>
             <button
               onClick={() => setShowMerkleModal(true)}
-              className="bg-emerald-950/60 hover:bg-emerald-900/60 px-3.5 py-2 rounded-lg text-xs font-semibold border border-emerald-700/60 flex items-center gap-2 transition-colors text-emerald-300"
+              className="bg-emerald-950/60 hover:bg-emerald-900/60 px-3.5 py-2 rounded-[2px] text-xs font-semibold border border-emerald-700/60 flex items-center gap-2 transition-colors text-emerald-300"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               Merkle Root Verified
             </button>
             <button
               onClick={copyMarkdown}
-              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-[2px] text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
               {copiedMd ? "Copied Markdown!" : "Copy PR Markdown"}
             </button>
             <button
               onClick={() => setShowChatModal(true)}
-              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-[2px] text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
               Chat Alerts
             </button>
             <button
               onClick={() => setShowActionModal(true)}
-              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-[2px] text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
               CI/CD Action
             </button>
             <button
               onClick={exportCSV}
-              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-[2px] text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -836,12 +1020,12 @@ function ResultsContent() {
               Export CSV
             </button>
             <button onClick={() => router.push(`/audit?demo=${params.get("demo")}&job=${params.get("job") || ""}`)}
-              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 transition-colors text-zinc-200">
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-[2px] text-xs font-semibold border border-zinc-700 transition-colors text-zinc-200">
               View Audit Trail
             </button>
             <button
               onClick={() => setShowRepoModal(true)}
-              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
+              className="bg-zinc-800 hover:bg-zinc-700 px-3.5 py-2 rounded-[2px] text-xs font-semibold border border-zinc-700 flex items-center gap-1.5 transition-colors text-zinc-200"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
               + Analyze Another Repo
@@ -849,10 +1033,205 @@ function ResultsContent() {
           </div>
         </div>
 
+        {/* Coalition lattice hero (Phase 4): the 2^n coalition grid is the
+            primary artifact of this view, not a tab. Every value shown is a
+            persisted coalition evaluation; selecting a coalition here
+            highlights its ledger steps, and selecting a ledger step selects
+            the coalition here. */}
+        {lattice && (
+          <section
+            aria-labelledby="lattice-heading"
+            className="bg-[#17191c] border border-[#2b2f36] rounded-[2px] p-4 sm:p-5 mb-8"
+          >
+            <h2 id="lattice-heading" className="text-lg font-semibold text-[#f4f5f6]">
+              Coalition lattice
+            </h2>
+            <p className="text-sm text-zinc-400 leading-relaxed mt-1 mb-4">
+              Every coalition the engine evaluated, with its persisted value v(S).{" "}
+              {lattice.fullGrid
+                ? `All ${lattice.totalCoalitions} coalitions (2^${lattice.n}) are shown.`
+                : lattice.evaluatedCount >= lattice.totalCoalitions
+                  ? `All ${lattice.totalCoalitions} coalitions (2^${lattice.n}) exist; they are grouped by coalition size so the grid stays readable, and every group expands to the full set.`
+                  : `${lattice.evaluatedCount} of ${lattice.totalCoalitions} coalitions (2^${lattice.n}) were evaluated in this sampled result; every evaluated coalition is shown, grouped by size.`}{" "}
+              Select a coalition to trace its marginal-contribution ledger. Hover or
+              select a contributor to see the marginal gain of adding them to each
+              coalition.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-2 mb-5">
+              <span className="text-xs text-zinc-400">Marginal gain of adding:</span>
+              {lattice.players.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  aria-pressed={pinnedPlayer === p}
+                  onClick={() => setPinnedPlayer(pinnedPlayer === p ? null : p)}
+                  onMouseEnter={() => setHoverPlayer(p)}
+                  onMouseLeave={() => setHoverPlayer(null)}
+                  onFocus={() => setHoverPlayer(p)}
+                  onBlur={() => setHoverPlayer(null)}
+                  className={`px-2.5 py-1.5 text-xs border rounded-[2px] transition-colors ${
+                    pinnedPlayer === p
+                      ? "bg-[#1d2024] text-white border-[#8ecbff] font-semibold"
+                      : "bg-[#131518] text-zinc-300 border-[#2b2f36] hover:text-white"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+              {focusPlayer && (
+                <span className="text-xs text-zinc-400">
+                  Showing Δ for {focusPlayer}
+                  {pinnedPlayer ? " (selected)" : " (hover)"}
+                </span>
+              )}
+            </div>
+
+            <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
+              <div>
+                {lattice.fullGrid
+                  ? [...lattice.bySize.keys()]
+                      .sort((a, b) => a - b)
+                      .map((k) => (
+                        <div key={k} className="mb-3.5">
+                          <div className="text-xs text-zinc-400 mb-1.5">
+                            |S| = {k} · {lattice.bySize.get(k)!.length}{" "}
+                            {lattice.bySize.get(k)!.length === 1 ? "coalition" : "coalitions"}
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {lattice.bySize.get(k)!.map((members) => renderCoalitionCell(members))}
+                          </div>
+                        </div>
+                      ))
+                  : Array.from({ length: lattice.n + 1 }, (_, k) => {
+                      const evaluated = lattice.bySize.get(k) ?? [];
+                      const total = binom(lattice.n, k);
+                      const open = expandedSizes[k] ?? k === selectedMembers.length;
+                      return (
+                        <div key={k} className="mb-2 border border-[#2b2f36] rounded-[2px]">
+                          <button
+                            type="button"
+                            aria-expanded={open}
+                            onClick={() =>
+                              setExpandedSizes((prev) => ({ ...prev, [k]: !open }))
+                            }
+                            className="w-full flex items-center justify-between px-3 py-2 text-xs text-zinc-300 bg-[#131518] hover:text-white transition-colors"
+                          >
+                            <span>
+                              |S| = {k} · {total} coalitions
+                              {evaluated.length < total
+                                ? ` · ${evaluated.length} evaluated`
+                                : ""}
+                            </span>
+                            <span>{open ? "Hide" : "Show"}</span>
+                          </button>
+                          {open && (
+                            <div className="flex flex-wrap gap-1.5 p-2">
+                              {evaluated.length > 0
+                                ? evaluated.map((members) => renderCoalitionCell(members))
+                                : <span className="text-xs text-zinc-400">No coalition of this size was evaluated.</span>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-4 text-[11px] text-zinc-400">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-[2px] border border-[#2b2f36]" style={{ background: "var(--pos-bg-2)" }} />
+                    Δv &gt; 0: toward the decision (adds value)
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-[2px] border border-[#2b2f36]" style={{ background: "var(--neg-bg-2)" }} />
+                    Δv &lt; 0: against the decision (removes value)
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-[2px] border border-[#2b2f36]" style={{ background: "var(--card-2)" }} />
+                    Δv = 0 or no contributor selected: neutral
+                  </span>
+                </div>
+              </div>
+
+              <div className="border border-[#2b2f36] bg-[#131518] rounded-[2px] p-3.5">
+                <h3 className="text-sm font-semibold text-[#f4f5f6]">
+                  Marginal-contribution ledger
+                </h3>
+                <p className="text-xs text-zinc-400 leading-relaxed mt-1 mb-3">
+                  Building{" "}
+                  {selectedMembers.length === 0
+                    ? "the empty coalition"
+                    : `{ ${selectedMembers.join(", ")} }`}{" "}
+                  one contributor at a time, in contributor order. Select any step
+                  to inspect that coalition in the lattice.
+                </p>
+                <ol className="space-y-1.5">
+                  {waterfallSteps.map((step) => {
+                    const key = coalitionKey(step.members);
+                    const isSel = key === coalitionKey(selectedMembers);
+                    const ramp = rampStyle(step.delta);
+                    const phi = step.added
+                      ? data.contributors.find((c) => c.name === step.added)
+                      : null;
+                    return (
+                      <li key={key}>
+                        <button
+                          type="button"
+                          aria-current={isSel ? "true" : undefined}
+                          onClick={() => setSelectedCoalitionKey(key)}
+                          className={`w-full flex items-center justify-between gap-2 text-left border rounded-[2px] px-2.5 py-2 bg-[#1d2024] transition-colors ${
+                            isSel ? "outline outline-2 outline-offset-[-2px] outline-[#8ecbff]" : ""
+                          }`}
+                          style={{
+                            borderColor: isSel ? "var(--focus-ring)" : "var(--card-border)",
+                          }}
+                        >
+                          <span className="text-xs min-w-0">
+                            {step.added ? (
+                              <>
+                                Add <strong className="text-[#f4f5f6]">{step.added}</strong>
+                                {phi && (
+                                  <span className="block text-[11px] text-zinc-400 tabular-nums">
+                                    Shapley φ {phi.shapley_value.toFixed(1)} · share{" "}
+                                    {phi.share_pct.toFixed(1)}%
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-zinc-300">Start: empty coalition ∅</span>
+                            )}
+                          </span>
+                          <span className="text-right shrink-0">
+                            {step.added && (
+                              <span
+                                className="block text-xs tabular-nums font-medium"
+                                style={{ color: step.delta !== null ? ramp.color : "var(--muted)" }}
+                              >
+                                Δ {step.delta !== null ? `${step.delta > 0 ? "+" : ""}${step.delta.toFixed(1)}` : "n/a"}
+                              </span>
+                            )}
+                            <span className="block text-sm font-semibold tabular-nums">
+                              v = {step.value !== null ? step.value.toFixed(1) : "n/a"}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
+                <p className="text-[11px] text-zinc-400 mt-3 leading-relaxed">
+                  Each Δ is v(S ∪ {"{i}"}) − v(S) between two persisted evaluations.
+                  A contributor&apos;s Shapley value φ averages this gain over every
+                  order; the steps above follow the contributor order only.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Heuristic-fallback warning: shown when any coalition was scored
             by the objective heuristic because Gemini was unavailable. */}
         {data.evaluations?.some((e) => e.scoring_mode === "heuristic_fallback") && (
-          <div className="bg-red-950/40 border border-red-900 rounded-xl p-4 mb-8 text-sm text-red-300">
+          <div className="bg-red-950/40 border border-red-900 rounded-[2px] p-4 mb-8 text-sm text-red-300">
             ⚠ <strong>Heuristic fallback:</strong>{" "}
             {data.evaluations.filter((e) => e.scoring_mode === "heuristic_fallback").length}{" "}
             of {data.evaluations.length} coalition scores came from the objective
@@ -866,8 +1245,8 @@ function ResultsContent() {
             Displayed values are read from this record / the API response,
             never recomputed in the browser. */}
         {data.provenance && (
-          <div className="bg-[#121316] border border-[#1e2024] rounded-xl p-5 mb-8 font-mono text-xs text-zinc-400">
-            <h3 className="text-zinc-300 font-semibold mb-2">Provenance</h3>
+          <div className="bg-[#17191c] border border-[#2b2f36] rounded-[2px] p-5 mb-8 font-mono text-xs text-zinc-400">
+            <h2 className="text-sm text-zinc-300 font-semibold mb-2">Provenance</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
               <span>Algorithm: {data.provenance.algorithm}</span>
               <span>CI method: {data.provenance.ci_method}</span>
@@ -885,15 +1264,15 @@ function ResultsContent() {
 
         {/* Executive Summary Card */}
         {data.summary && (
-          <div className="bg-[#121316] border border-[#1e2024] rounded-xl p-5 mb-8 flex items-start gap-4 animate-rise">
-            <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center flex-shrink-0 mt-0.5 font-mono text-xs font-bold">
+          <div className="bg-[#17191c] border border-[#2b2f36] rounded-[2px] p-5 mb-8 flex items-start gap-4 animate-rise">
+            <div className="w-8 h-8 rounded-[2px] bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center flex-shrink-0 mt-0.5 font-mono text-xs font-bold">
               AI
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between mb-1">
-                <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider font-mono">
+                <h2 className="text-sm font-semibold text-zinc-300">
                   AI Contribution Synthesis
-                </h3>
+                </h2>
                 <button
                   onClick={() => setShowMath(!showMath)}
                   className="text-xs text-zinc-400 hover:text-white font-mono underline flex items-center gap-1"
@@ -910,21 +1289,21 @@ function ResultsContent() {
 
         {/* Game Theory Explainer Dropdown */}
         {showMath && (
-          <div className="bg-[#121316] border border-[#1e2024] rounded-xl p-6 mb-8 text-sm text-zinc-300 animate-rise shadow-lg">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-[#1e2024]">
-              <h4 className="font-semibold text-zinc-100 flex items-center gap-2 font-mono">
-                <span className="w-5 h-5 rounded bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center text-xs font-serif font-bold">
+          <div className="bg-[#17191c] border border-[#2b2f36] rounded-[2px] p-6 mb-8 text-sm text-zinc-300 animate-rise">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-[#2b2f36]">
+              <h2 className="font-semibold text-zinc-100 flex items-center gap-2">
+                <span className="w-5 h-5 rounded-[2px] bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center text-xs font-serif font-bold">
                   &phi;
                 </span>
                 How Shapley Calculates Fair Shares
-              </h4>
+              </h2>
               
-              <div className="flex items-center gap-1 bg-[#0c0d0e] p-1 rounded-lg border border-[#1e2024] text-xs font-mono">
+              <div className="flex items-center gap-1 bg-[#101214] p-1 rounded-[2px] border border-[#2b2f36] text-xs font-mono">
                 <button
                   onClick={() => setExplainerTab("simple")}
-                  className={`px-3 py-1 rounded-md transition-all font-medium ${
+                  className={`px-3 py-1 rounded-[2px] transition-all font-medium ${
                     explainerTab === "simple"
-                      ? "bg-[#1e2024] text-white font-semibold"
+                      ? "bg-[#2b2f36] text-white font-semibold"
                       : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
@@ -932,9 +1311,9 @@ function ResultsContent() {
                 </button>
                 <button
                   onClick={() => setExplainerTab("math")}
-                  className={`px-3 py-1 rounded-md transition-all font-medium ${
+                  className={`px-3 py-1 rounded-[2px] transition-all font-medium ${
                     explainerTab === "math"
-                      ? "bg-[#1e2024] text-white font-semibold"
+                      ? "bg-[#2b2f36] text-white font-semibold"
                       : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
@@ -946,10 +1325,10 @@ function ResultsContent() {
             {explainerTab === "simple" ? (
               <div className="space-y-5 text-xs">
                 {/* The Missing Teammate Analogy */}
-                <div className="bg-[#0c0d0e] border border-[#1e2024] rounded-xl p-4 font-mono">
-                  <h5 className="font-bold text-white text-sm mb-1.5 flex items-center gap-2">
+                <div className="bg-[#101214] border border-[#2b2f36] rounded-[2px] p-4 font-mono">
+                  <h3 className="font-bold text-white text-sm mb-1.5 flex items-center gap-2">
                     The Marginal Contribution Axiom
-                  </h5>
+                  </h3>
                   <p className="text-zinc-300 leading-relaxed">
                     Software engineering is cooperative. How do you measure an engineer&apos;s real value? Not by typing speed or lines committed, but by how the team performs <strong>with them</strong> versus <strong>without them</strong>.
                   </p>
@@ -957,24 +1336,24 @@ function ResultsContent() {
 
                 {/* Real-World Contrast: Lines of Code vs True Impact */}
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="bg-[#0c0d0e] border border-rose-950/50 rounded-xl p-4 font-mono">
+                  <div className="bg-[#101214] border border-rose-950/50 rounded-[2px] p-4 font-mono">
                     <span className="text-rose-400 font-bold block mb-1 text-[11px]">&times; Naive Lines of Code Metric</span>
                     <p className="text-zinc-400 leading-relaxed mb-2">
                       If an engineer runs an automated linter (Prettier) to reformat 2,400 lines of whitespace, naive systems award them 50% of the entire bounty pool.
                     </p>
-                    <span className="text-zinc-500 text-[10px]">Result: Rewards spam, punishes real engineering.</span>
+                    <span className="text-zinc-400 text-[10px]">Result: Rewards spam, punishes real engineering.</span>
                   </div>
-                  <div className="bg-[#0c0d0e] border border-emerald-950/50 rounded-xl p-4 font-mono">
+                  <div className="bg-[#101214] border border-emerald-950/50 rounded-[2px] p-4 font-mono">
                     <span className="text-emerald-400 font-bold block mb-1 text-[11px]">&check; Shapley Cooperative Value</span>
                     <p className="text-zinc-400 leading-relaxed mb-2">
                       We simulate all combinations of team members. If your 5-line security patch turns a broken, vulnerable release into a rock-solid product, you are paid as an MVP.
                     </p>
-                    <span className="text-zinc-500 text-[10px]">Result: 100% fair, zero favoritism, exact-penny conservation.</span>
+                    <span className="text-zinc-400 text-[10px]">Result: 100% fair, zero favoritism, exact-penny conservation.</span>
                   </div>
                 </div>
 
                 {/* 3 Core Rules Pipeline */}
-                <div className="flex flex-col sm:flex-row items-stretch divide-y sm:divide-y-0 sm:divide-x divide-[#1e2024] border border-[#1e2024] bg-[#0c0d0e] rounded-xl overflow-hidden text-xs font-mono">
+                <div className="flex flex-col sm:flex-row items-stretch divide-y sm:divide-y-0 sm:divide-x divide-[#2b2f36] border border-[#2b2f36] bg-[#101214] rounded-[2px] overflow-hidden text-xs font-mono">
                   <div className="flex-1 p-3.5">
                     <span className="font-semibold text-white block mb-0.5">01 · Noise Filtering</span>
                     <span className="text-zinc-400 text-[11px] leading-tight block">AST syntax parsing isolates semantic logic from whitespace and formatting.</span>
@@ -992,17 +1371,17 @@ function ResultsContent() {
             ) : (
               <div>
                 <p className="text-zinc-400 mb-4 text-xs leading-relaxed">
-                  Calculates each contributor&apos;s expected marginal contribution across all possible team coalitions <code className="text-blue-300 bg-zinc-950 px-1.5 py-0.5 rounded border border-zinc-800 font-mono text-xs">S &sube; N \ &#123;i&#125;</code>:
+                  Calculates each contributor&apos;s expected marginal contribution across all possible team coalitions <code className="text-blue-300 bg-zinc-950 px-1.5 py-0.5 rounded-[2px] border border-zinc-800 font-mono text-xs">S &sube; N \ &#123;i&#125;</code>:
                 </p>
 
                 {/* Styled Mathematical Formula Container */}
-                <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800/90 mb-5 flex items-center justify-center overflow-x-auto">
+                <div className="bg-zinc-950 p-4 rounded-[2px] border border-zinc-800/90 mb-5 flex items-center justify-center overflow-x-auto">
                   <div className="flex items-center gap-3 font-serif text-sm sm:text-base text-zinc-200 select-none py-1">
                     <span className="text-blue-400 font-bold italic text-lg sm:text-xl">&phi;<sub>i</sub></span>
                     <span className="text-zinc-400 text-lg">&equals;</span>
                     <div className="flex items-center gap-1.5">
                       <div className="flex flex-col items-center">
-                        <span className="text-xs text-zinc-500 font-sans tracking-tighter">S &sube; N \ &#123;i&#125;</span>
+                        <span className="text-xs text-zinc-400 font-sans tracking-tighter">S &sube; N \ &#123;i&#125;</span>
                         <span className="text-xl text-blue-400 font-sans">&sum;</span>
                       </div>
                       <div className="inline-flex flex-col items-center text-center px-1 font-sans text-xs sm:text-sm">
@@ -1012,7 +1391,7 @@ function ResultsContent() {
                         <span className="pt-0.5 font-mono text-zinc-400">n!</span>
                       </div>
                       <span className="text-zinc-400 text-lg sm:text-xl">&times;</span>
-                      <div className="flex items-center gap-1 bg-zinc-900/90 border border-zinc-800 px-3 py-1.5 rounded-lg font-mono text-xs text-emerald-400">
+                      <div className="flex items-center gap-1 bg-zinc-900/90 border border-zinc-800 px-3 py-1.5 rounded-[2px] font-mono text-xs text-emerald-400">
                         <span>v(S &cup; &#123;i&#125;) &minus; v(S)</span>
                       </div>
                     </div>
@@ -1020,22 +1399,22 @@ function ResultsContent() {
                 </div>
 
                 <div className="grid sm:grid-cols-4 gap-3 text-xs">
-                  <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-lg">
+                  <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-[2px]">
                     <span className="font-semibold text-zinc-200 block mb-1">1. Efficiency</span>
                     <span className="font-mono text-[11px] text-blue-400 block mb-1">&sum; &phi;&#7522; &equals; 100%</span>
                     <span className="text-zinc-400 text-[11px] leading-tight block">Exact total bounty is distributed with 0 rounding leakage.</span>
                   </div>
-                  <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-lg">
+                  <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-[2px]">
                     <span className="font-semibold text-zinc-200 block mb-1">2. Symmetry</span>
                     <span className="font-mono text-[11px] text-blue-400 block mb-1">&phi;&#7522; &equals; &phi;&#11388; if &Delta;v equal</span>
                     <span className="text-zinc-400 text-[11px] leading-tight block">Contributors with equal marginal capability receive equal payout.</span>
                   </div>
-                  <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-lg">
+                  <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-[2px]">
                     <span className="font-semibold text-zinc-200 block mb-1">3. Dummy Player</span>
                     <span className="font-mono text-[11px] text-blue-400 block mb-1">&phi;&#7522; &equals; 0 if &Delta;v &equals; 0</span>
                     <span className="text-zinc-400 text-[11px] leading-tight block">Zero marginal utility code changes yield zero bounty.</span>
                   </div>
-                  <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-lg">
+                  <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-[2px]">
                     <span className="font-semibold text-zinc-200 block mb-1">4. Monotonicity</span>
                     <span className="font-mono text-[11px] text-emerald-400 block mb-1">v(S &cup; &#123;i&#125;) &ge; v(S)</span>
                     <span className="text-zinc-400 text-[11px] leading-tight block">Enforced strictly to prevent LLM temperature regressions.</span>
@@ -1047,7 +1426,7 @@ function ResultsContent() {
         )}
 
         <div className="grid lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
+          <div className="bg-zinc-900 rounded-[2px] border border-zinc-800 p-4">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="font-semibold">Attribution Comparison</h2>
@@ -1058,28 +1437,29 @@ function ResultsContent() {
               <AgCharts options={chartOptions as any} style={{ height: 300 }} />
             )}
           </div>
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 flex flex-col justify-between">
+          <div className="bg-zinc-900 rounded-[2px] border border-zinc-800 p-6 flex flex-col justify-between">
             <div>
               <h2 className="font-semibold mb-4">Summary &amp; Settlement</h2>
 
               {/* Real-time Pool Simulator */}
-              <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-3.5 mb-5">
+              <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-[2px] p-3.5 mb-5">
                 <div className="flex items-center justify-between mb-2 text-xs">
-                  <span className="text-zinc-400 font-medium">Bounty Pool Simulator</span>
+                  <label htmlFor="pool-slider" className="text-zinc-400 font-medium">Bounty Pool Simulator</label>
                   <span className="font-mono text-emerald-400 font-bold text-sm">
                     ${currentTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} USD
                   </span>
                 </div>
                 <input
+                  id="pool-slider"
                   type="range"
                   min="100"
                   max="10000"
                   step="50"
                   value={currentTotal}
                   onChange={(e) => setAdjustedAmount(parseFloat(e.target.value))}
-                  className="w-full accent-zinc-200 bg-zinc-800 h-1.5 rounded-lg cursor-pointer"
+                  className="w-full accent-zinc-200 bg-zinc-800 h-1.5 rounded-[2px] cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-zinc-500 mt-1.5 font-mono">
+                <div className="flex justify-between text-[10px] text-zinc-400 mt-1.5 font-mono">
                   <span>$100 min</span>
                   <span>$5,000</span>
                   <span>$10,000 max</span>
@@ -1105,7 +1485,7 @@ function ResultsContent() {
                     ${currentTotal.toFixed(2)}
                   </span>
                 </div>
-                <div className="flex justify-between text-xs text-zinc-500 pt-2 border-t border-zinc-800/60">
+                <div className="flex justify-between text-xs text-zinc-400 pt-2 border-t border-zinc-800/60">
                   <span>PayPal Batch Fee (${0.25} &times; {data.contributors.length})</span>
                   <span className="font-mono text-zinc-400">${(0.25 * data.contributors.length).toFixed(2)}</span>
                 </div>
@@ -1115,12 +1495,12 @@ function ResultsContent() {
               <button
                 onClick={handlePayout}
                 disabled={paying}
-                className="w-full mt-6 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium rounded-lg px-6 py-3 btn-interactive"
+                className="w-full mt-6 bg-green-800 hover:bg-green-700 disabled:opacity-50 text-white font-medium rounded-[2px] px-6 py-3 btn-interactive"
               >
                 {paying ? "Executing..." : "Execute Payout via PayPal"}
               </button>
             ) : (
-              <div className="mt-6 bg-green-950 border border-green-800 rounded-lg p-4 animate-pop">
+              <div className="mt-6 bg-green-950 border border-green-800 rounded-[2px] p-4 animate-pop">
                 <div className="flex items-center gap-3">
                   {payoutStatus === "SUCCESS" ? (
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="flex-shrink-0">
@@ -1138,11 +1518,11 @@ function ResultsContent() {
                        payoutStatus === "CANCELED" ? "Payout canceled" :
                        "Payout processing..."}
                     </p>
-                    <p className="text-sm text-green-300/70 mt-1 font-mono">
+                    <p className="text-sm text-green-300 mt-1 font-mono">
                       {payoutResult.batch_id}
                     </p>
                     {payoutStatus && payoutStatus !== "SUCCESS" && (
-                      <p className="text-xs text-green-300/50 mt-1">
+                      <p className="text-xs text-green-200 mt-1">
                         Status: {payoutStatus} — updating live
                       </p>
                     )}
@@ -1154,34 +1534,34 @@ function ResultsContent() {
         </div>
 
         {/* Phased Milestone & AI Co-Authorship Protocol Notice */}
-        <div className="bg-[#121316] border border-[#1e2024] rounded-xl p-5 mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 mb-3 border-b border-[#1e2024]">
+        <div className="bg-[#17191c] border border-[#2b2f36] rounded-[2px] p-5 mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 mb-3 border-b border-[#2b2f36]">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-              <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
+              <h2 className="text-sm font-bold text-white">
                 Human Pilot &amp; AI Co-Authorship Attribution Rule
-              </h3>
-              <span className="text-[10px] font-mono bg-[#0c0d0e] text-zinc-300 border border-[#1e2024] px-2 py-0.5 rounded">
+              </h2>
+              <span className="text-[10px] font-mono bg-[#101214] text-zinc-300 border border-[#2b2f36] px-2 py-0.5 rounded-[2px]">
                 RFC 2822 Trailer Provenance
               </span>
             </div>
-            <span className="text-[11px] font-mono text-zinc-500">Legal: AI Agents Route to Maintainer Wallets</span>
+            <span className="text-[11px] font-mono text-zinc-400">Legal: AI Agents Route to Maintainer Wallets</span>
           </div>
           <p className="text-zinc-400 text-xs leading-relaxed mb-3 font-mono">
-            When developers push commits generated with Claude, Cursor, Copilot, or Cline (e.g. <code className="text-zinc-200 bg-[#0c0d0e] px-1 py-0.5 rounded border border-[#1e2024]">Co-authored-by: Claude &lt;noreply@anthropic.com&gt;</code>), 
+            When developers push commits generated with Claude, Cursor, Copilot, or Cline (e.g. <code className="text-zinc-200 bg-[#101214] px-1 py-0.5 rounded-[2px] border border-[#2b2f36]">Co-authored-by: Claude &lt;noreply@anthropic.com&gt;</code>), 
             Shapley attributes financial disburse to the <strong>Human Pilot</strong> who authored the prompt, reviewed the code, validated the test suite, and GPG-signed the commit.
           </p>
-          <div className="flex flex-col sm:flex-row items-stretch divide-y sm:divide-y-0 sm:divide-x divide-[#1e2024] border border-[#1e2024] bg-[#0c0d0e] rounded-xl overflow-hidden text-xs font-mono">
+          <div className="flex flex-col sm:flex-row items-stretch divide-y sm:divide-y-0 sm:divide-x divide-[#2b2f36] border border-[#2b2f36] bg-[#101214] rounded-[2px] overflow-hidden text-xs font-mono">
             <div className="flex-1 p-3">
-              <span className="text-zinc-500 block text-[10px]">Human Pilot Leverage</span>
+              <span className="text-zinc-400 block text-[10px]">Human Pilot Leverage</span>
               <span className="text-white font-semibold">100% Direct Disbursement</span>
             </div>
             <div className="flex-1 p-3">
-              <span className="text-zinc-500 block text-[10px]">Synthetic Code Quarantine</span>
+              <span className="text-zinc-400 block text-[10px]">Synthetic Code Quarantine</span>
               <span className="text-zinc-300 font-semibold">AST Filters Boilerplate</span>
             </div>
             <div className="flex-1 p-3">
-              <span className="text-zinc-500 block text-[10px]">Autonomous Agent Bounties</span>
+              <span className="text-zinc-400 block text-[10px]">Autonomous Agent Bounties</span>
               <span className="text-emerald-400 font-semibold">PayPal Escrow Custody</span>
             </div>
           </div>
@@ -1203,7 +1583,7 @@ function ResultsContent() {
               className="absolute inset-0 bg-black/70 modal-backdrop"
               onClick={() => setShowConfirm(false)}
             />
-            <div className="relative bg-zinc-900 border border-zinc-700 rounded-xl p-6 max-w-md w-full modal-content">
+            <div className="relative bg-zinc-900 border border-zinc-700 rounded-[2px] p-6 max-w-md w-full modal-content">
               <h3 className="text-lg font-bold mb-2">Confirm Payout</h3>
               <p className="text-sm text-zinc-400 mb-4">
                 This will send{" "}
@@ -1213,7 +1593,7 @@ function ResultsContent() {
                 via PayPal Payouts to {displayedContributors.length} contributors.
                 This cannot be undone.
               </p>
-              <div className="bg-zinc-800 rounded-lg p-3 mb-4 max-h-48 overflow-y-auto">
+              <div className="bg-zinc-800 rounded-[2px] p-3 mb-4 max-h-48 overflow-y-auto">
                 {displayedContributors.map((c) => (
                   <div key={c.email} className="flex justify-between text-sm py-1 font-mono">
                     <span className="text-zinc-300 font-sans">{c.name}</span>
@@ -1226,18 +1606,18 @@ function ResultsContent() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowConfirm(false)}
-                  className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg px-4 py-2.5 btn-interactive"
+                  className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-[2px] px-4 py-2.5 btn-interactive"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmPayout}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg px-4 py-2.5 btn-interactive font-mono"
+                  className="flex-1 bg-green-800 hover:bg-green-700 text-white font-medium rounded-[2px] px-4 py-2.5 btn-interactive font-mono"
                 >
                   Send ${currentTotal.toFixed(2)}
                 </button>
               </div>
-              <p className="text-xs text-zinc-500 mt-3 text-center">
+              <p className="text-xs text-zinc-400 mt-3 text-center">
                 AI recommended these shares. You are confirming the execution.
               </p>
             </div>
@@ -1251,7 +1631,7 @@ function ResultsContent() {
               className="absolute inset-0 bg-black/70 modal-backdrop"
               onClick={() => setShowActionModal(false)}
             />
-            <div className="relative bg-zinc-900 border border-zinc-700 rounded-xl p-6 max-w-xl w-full modal-content">
+            <div className="relative bg-zinc-900 border border-zinc-700 rounded-[2px] p-6 max-w-xl w-full modal-content">
               <div className="flex items-center justify-between pb-3 mb-3 border-b border-zinc-800">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -1264,7 +1644,7 @@ function ResultsContent() {
               <p className="text-xs text-zinc-400 mb-3">
                 Drop this workflow into <code className="text-blue-300 font-mono">.github/workflows/shapley.yml</code> to automatically calculate and disburse developer bounties upon each release tag:
               </p>
-              <pre className="bg-zinc-950 p-3.5 rounded-lg text-xs font-mono text-zinc-300 border border-zinc-800 overflow-x-auto leading-relaxed mb-4">
+              <pre className="bg-zinc-950 p-3.5 rounded-[2px] text-xs font-mono text-zinc-300 border border-zinc-800 overflow-x-auto leading-relaxed mb-4">
 {`name: Shapley Release Bounty
 on:
   release:
@@ -1286,7 +1666,7 @@ jobs:
                     navigator.clipboard.writeText(`name: Shapley Release Bounty\non:\n  release:\n    types: [published]\n\njobs:\n  distribute:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Calculate Shapley Shares & Payout\n        run: |\n          curl -X POST ${appOrigin}/api/agent/evaluate \\\n            -H "Content-Type: application/json" \\\n            -d '{"repo_url": "${data.repo}", "total_amount": ${currentTotal}}'`);
                     alert("GitHub Action YAML copied to clipboard!");
                   }}
-                  className="bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                  className="bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold px-4 py-2 rounded-[2px] transition-colors"
                 >
                   Copy Workflow YAML
                 </button>
@@ -1302,10 +1682,10 @@ jobs:
               className="absolute inset-0 bg-black/70 modal-backdrop"
               onClick={() => setShowChatModal(false)}
             />
-            <div className="relative bg-[#121316] border border-[#1e2024] rounded-xl p-6 max-w-2xl w-full modal-content max-h-[90vh] overflow-y-auto font-mono">
-              <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#1e2024]">
+            <div className="relative bg-[#17191c] border border-[#2b2f36] rounded-[2px] p-6 max-w-2xl w-full modal-content max-h-[90vh] overflow-y-auto font-mono">
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#2b2f36]">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center font-mono text-xs font-bold">
+                  <div className="w-8 h-8 rounded-[2px] bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center font-mono text-xs font-bold">
                     WEB
                   </div>
                   <div>
@@ -1321,10 +1701,10 @@ jobs:
                 <button
                   type="button"
                   onClick={() => setChatPlatform("telegram")}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                  className={`px-3 py-1.5 rounded-[2px] font-semibold transition-colors ${
                     chatPlatform === "telegram"
-                      ? "bg-[#1e2024] text-white border border-zinc-600"
-                      : "bg-[#0c0d0e] hover:bg-zinc-800 text-zinc-400 border border-[#1e2024]"
+                      ? "bg-[#2b2f36] text-white border border-zinc-600"
+                      : "bg-[#101214] hover:bg-zinc-800 text-zinc-400 border border-[#2b2f36]"
                   }`}
                 >
                   Telegram Bot
@@ -1332,10 +1712,10 @@ jobs:
                 <button
                   type="button"
                   onClick={() => setChatPlatform("whatsapp")}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                  className={`px-3 py-1.5 rounded-[2px] font-semibold transition-colors ${
                     chatPlatform === "whatsapp"
-                      ? "bg-[#1e2024] text-white border border-zinc-600"
-                      : "bg-[#0c0d0e] hover:bg-zinc-800 text-zinc-400 border border-[#1e2024]"
+                      ? "bg-[#2b2f36] text-white border border-zinc-600"
+                      : "bg-[#101214] hover:bg-zinc-800 text-zinc-400 border border-[#2b2f36]"
                   }`}
                 >
                   WhatsApp Cloud
@@ -1343,10 +1723,10 @@ jobs:
                 <button
                   type="button"
                   onClick={() => setChatPlatform("slack")}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                  className={`px-3 py-1.5 rounded-[2px] font-semibold transition-colors ${
                     chatPlatform === "slack"
-                      ? "bg-[#1e2024] text-white border border-zinc-600"
-                      : "bg-[#0c0d0e] hover:bg-zinc-800 text-zinc-400 border border-[#1e2024]"
+                      ? "bg-[#2b2f36] text-white border border-zinc-600"
+                      : "bg-[#101214] hover:bg-zinc-800 text-zinc-400 border border-[#2b2f36]"
                   }`}
                 >
                   Slack Block Kit
@@ -1354,10 +1734,10 @@ jobs:
                 <button
                   type="button"
                   onClick={() => setChatPlatform("discord")}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                  className={`px-3 py-1.5 rounded-[2px] font-semibold transition-colors ${
                     chatPlatform === "discord"
-                      ? "bg-[#1e2024] text-white border border-zinc-600"
-                      : "bg-[#0c0d0e] hover:bg-zinc-800 text-zinc-400 border border-[#1e2024]"
+                      ? "bg-[#2b2f36] text-white border border-zinc-600"
+                      : "bg-[#101214] hover:bg-zinc-800 text-zinc-400 border border-[#2b2f36]"
                   }`}
                 >
                   Discord Embed
@@ -1368,9 +1748,9 @@ jobs:
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs text-zinc-400">
                   <span>Standard REST Webhook Payload ({chatPlatform}):</span>
-                  <span className="font-mono text-[11px] text-zinc-500">JSON-RPC 2.0 / MCP Compatible</span>
+                  <span className="font-mono text-[11px] text-zinc-400">JSON-RPC 2.0 / MCP Compatible</span>
                 </div>
-                <pre className="bg-[#0c0d0e] p-4 rounded-xl text-xs font-mono text-zinc-200 border border-[#1e2024] overflow-x-auto max-h-72 leading-relaxed select-all">
+                <pre className="bg-[#101214] p-4 rounded-[2px] text-xs font-mono text-zinc-200 border border-[#2b2f36] overflow-x-auto max-h-72 leading-relaxed select-all">
                   {(() => {
                     const payload =
                       chatPlatform === "telegram"
@@ -1453,11 +1833,11 @@ jobs:
                 </pre>
               </div>
 
-              <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-[#1e2024]">
+              <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-[#2b2f36]">
                 <button
                   type="button"
                   onClick={() => setShowChatModal(false)}
-                  className="px-4 py-2 bg-[#0c0d0e] hover:bg-zinc-800 text-zinc-300 text-xs font-semibold rounded-lg border border-[#1e2024] transition-colors"
+                  className="px-4 py-2 bg-[#101214] hover:bg-zinc-800 text-zinc-300 text-xs font-semibold rounded-[2px] border border-[#2b2f36] transition-colors"
                 >
                   Close
                 </button>
@@ -1543,7 +1923,7 @@ jobs:
                     navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
                     alert(`${chatPlatform.toUpperCase()} webhook payload copied to clipboard!`);
                   }}
-                  className="px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 font-sans"
+                  className="px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold rounded-[2px] transition-colors flex items-center gap-1.5 font-sans"
                 >
                   Copy {chatPlatform.charAt(0).toUpperCase() + chatPlatform.slice(1)} Payload
                 </button>
@@ -1553,16 +1933,16 @@ jobs:
         )}
 
         {/* PayPal Multi-Stakeholder Custodial Escrow Card */}
-        <div className="bg-gradient-to-r from-blue-950/30 via-zinc-900 to-zinc-900 border border-blue-600/40 rounded-xl p-4 sm:p-5 mb-6 shadow-lg shadow-blue-950/20">
+        <div className="bg-[#17191c] border border-[#2b2f36] rounded-[2px] p-4 sm:p-5 mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-4 border-b border-blue-900/30">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#0c0d0e] border border-[#1e2024] text-zinc-300 flex items-center justify-center font-mono font-bold text-xs">
+              <div className="w-8 h-8 rounded-[2px] bg-[#101214] border border-[#2b2f36] text-zinc-300 flex items-center justify-center font-mono font-bold text-xs">
                 PP
               </div>
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-white font-mono">PayPal Multi-Stakeholder Escrow</h3>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-[2px] bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
                     Vault: ESCROW-PP-ACTIVE
                   </span>
                 </div>
@@ -1574,7 +1954,7 @@ jobs:
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
               <div className="text-right hidden sm:block">
-                <span className="text-[10px] text-zinc-500 uppercase font-mono block">Escrow In Custody</span>
+                <span className="text-[10px] text-zinc-400 font-mono block">Escrow In Custody</span>
                 <span className="text-xs font-mono font-bold text-emerald-400 tabular-nums">${currentTotal.toFixed(2)} USD</span>
               </div>
 
@@ -1586,7 +1966,7 @@ jobs:
                 />
               ) : (
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                  <div className="flex items-center justify-between sm:justify-start gap-2 px-3 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-800/80 text-xs font-mono text-emerald-400">
+                  <div className="flex items-center justify-between sm:justify-start gap-2 px-3 py-1.5 rounded-[2px] bg-emerald-950/40 border border-emerald-800/80 text-xs font-mono text-emerald-400">
                     <span className="flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                       <span>Hold Authorized: <strong>${currentTotal.toFixed(2)}</strong></span>
@@ -1594,17 +1974,16 @@ jobs:
                     <button
                       onClick={() => setIsSlideAuthorized(false)}
                       title="Reset hold state for testing"
-                      className="text-[10px] text-zinc-500 hover:text-zinc-300 ml-1 underline cursor-pointer"
+                      className="text-[10px] text-zinc-400 hover:text-zinc-300 ml-1 underline cursor-pointer"
                     >
                       Reset
                     </button>
                   </div>
                   <button
                     onClick={() => setShowConfirm(true)}
-                    className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                    className="px-4 py-2 rounded-[2px] bg-emerald-800 hover:bg-emerald-700 text-white font-mono text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span>Execute Payout</span>
-                    <span>&rarr;</span>
                   </button>
                 </div>
               )}
@@ -1612,18 +1991,18 @@ jobs:
           </div>
 
           {/* Compact Quorum Consensus Pipeline Bar */}
-          <div className="flex flex-col sm:flex-row items-stretch divide-y sm:divide-y-0 sm:divide-x divide-[#1e2024] border border-[#1e2024] bg-[#0c0d0e] rounded-lg text-xs mb-3 font-mono">
+          <div className="flex flex-col sm:flex-row items-stretch divide-y sm:divide-y-0 sm:divide-x divide-[#2b2f36] border border-[#2b2f36] bg-[#101214] rounded-[2px] text-xs mb-3 font-mono">
             <div className="flex-1 flex items-center justify-between p-2.5">
               <span className="flex items-center gap-1.5 text-zinc-300">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> 1. Sponsor Deposit
               </span>
-              <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded">Authorized</span>
+              <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded-[2px]">Authorized</span>
             </div>
             <div className="flex-1 flex items-center justify-between p-2.5">
               <span className="flex items-center gap-1.5 text-zinc-300">
                 <span className={`w-1.5 h-1.5 rounded-full ${isSlideAuthorized ? "bg-emerald-400" : "bg-zinc-400"}`}></span> 2. PayPal Neutral Escrow
               </span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-[2px] ${
                 isSlideAuthorized 
                   ? "text-emerald-400 bg-emerald-950/60 border border-emerald-800/60" 
                   : "text-zinc-300 bg-zinc-900 border border-zinc-700"
@@ -1635,35 +2014,36 @@ jobs:
               <span className="flex items-center gap-1.5 text-zinc-300">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> 3. Maintainer Sign-off
               </span>
-              <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded">Merkle Verified</span>
+              <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded-[2px]">Merkle Verified</span>
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-zinc-400 pt-1 gap-1 font-mono">
             <span><strong>48-Hour Dispute Challenge Window:</strong> Active &bull; Exact-Penny conservation verified ($0.00 float)</span>
-            <span className="text-[10px] text-zinc-500">Idempotency: SHA-256 State-Locked</span>
+            <span className="text-[10px] text-zinc-400">Idempotency: SHA-256 State-Locked</span>
           </div>
         </div>
 
-        <div className="bg-[#121316] rounded-xl border border-[#1e2024] p-4 animate-rise stagger-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#1e2024] gap-3">
+        <h2 className="text-lg font-semibold text-[#f4f5f6] mb-3">Contributor ledger</h2>
+        <div className="bg-[#17191c] rounded-[2px] border border-[#2b2f36] p-4 animate-rise stagger-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#2b2f36] gap-3">
             <div className="flex items-center gap-2 font-mono">
               <button
                 onClick={() => setActiveGridTab("contributors")}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-3.5 py-1.5 rounded-[2px] text-xs font-semibold transition-all ${
                   activeGridTab === "contributors"
-                    ? "bg-[#1e2024] text-white border border-zinc-600"
-                    : "bg-[#0c0d0e] text-zinc-400 hover:text-white border border-[#1e2024]"
+                    ? "bg-[#2b2f36] text-white border border-zinc-600"
+                    : "bg-[#101214] text-zinc-400 hover:text-white border border-[#2b2f36]"
                 }`}
               >
                 Contributors (N={displayedContributors.length})
               </button>
               <button
                 onClick={() => setActiveGridTab("coalitions")}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-3.5 py-1.5 rounded-[2px] text-xs font-semibold transition-all ${
                   activeGridTab === "coalitions"
-                    ? "bg-[#1e2024] text-white border border-zinc-600"
-                    : "bg-[#0c0d0e] text-zinc-400 hover:text-white border border-[#1e2024]"
+                    ? "bg-[#2b2f36] text-white border border-zinc-600"
+                    : "bg-[#101214] text-zinc-400 hover:text-white border border-[#2b2f36]"
                 }`}
               >
                 Coalition Explorer (2^N={coalitionExplorerRows.length} Subsets)
@@ -1674,10 +2054,10 @@ jobs:
               {selectedContributor && (
                 <button
                   onClick={() => setSelectedContributor(null)}
-                  className="text-xs bg-[#0c0d0e] hover:bg-zinc-900 text-zinc-300 border border-[#1e2024] px-2.5 py-1 rounded-md flex items-center gap-1.5 transition-colors"
+                  className="text-xs bg-[#101214] hover:bg-zinc-900 text-zinc-300 border border-[#2b2f36] px-2.5 py-1 rounded-[2px] flex items-center gap-1.5 transition-colors"
                 >
                   <span>Filtering: <strong>{selectedContributor.name}</strong></span>
-                  <span className="text-zinc-500 hover:text-white">x</span>
+                  <span className="text-zinc-400 hover:text-white">x</span>
                 </button>
               )}
               <button
@@ -1692,15 +2072,15 @@ jobs:
           {activeGridTab === "contributors" && (
             <div className="pt-3 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">
+                <span className="text-[11px] text-zinc-400 font-semibold">
                   Model Bake-Off:
                 </span>
-                <div className="flex items-center bg-[#0c0d0e] p-0.5 rounded-lg border border-[#1e2024] text-xs">
+                <div className="flex items-center bg-[#101214] p-0.5 rounded-[2px] border border-[#2b2f36] text-xs">
                   <button
                     onClick={() => handleBaselineChange("shapley")}
-                    className={`px-2.5 py-1 rounded-md transition-all font-medium ${
+                    className={`px-2.5 py-1 rounded-[2px] transition-all font-medium ${
                       baselineMetric === "shapley"
-                        ? "bg-[#1e2024] text-white font-semibold"
+                        ? "bg-[#2b2f36] text-white font-semibold"
                         : "text-zinc-400 hover:text-zinc-200"
                     }`}
                   >
@@ -1708,9 +2088,9 @@ jobs:
                   </button>
                   <button
                     onClick={() => handleBaselineChange("loc")}
-                    className={`px-2.5 py-1 rounded-md transition-all font-medium ${
+                    className={`px-2.5 py-1 rounded-[2px] transition-all font-medium ${
                       baselineMetric === "loc"
-                        ? "bg-[#1e2024] text-white font-semibold"
+                        ? "bg-[#2b2f36] text-white font-semibold"
                         : "text-zinc-400 hover:text-zinc-200"
                     }`}
                   >
@@ -1718,9 +2098,9 @@ jobs:
                   </button>
                   <button
                     onClick={() => handleBaselineChange("commits")}
-                    className={`px-2.5 py-1 rounded-md transition-all font-medium ${
+                    className={`px-2.5 py-1 rounded-[2px] transition-all font-medium ${
                       baselineMetric === "commits"
-                        ? "bg-[#1e2024] text-white font-semibold"
+                        ? "bg-[#2b2f36] text-white font-semibold"
                         : "text-zinc-400 hover:text-zinc-200"
                     }`}
                   >
@@ -1754,7 +2134,7 @@ jobs:
 
           {editingEmails && data && (
             <div className="px-2 py-3 space-y-2 animate-fade">
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-zinc-400">
                 GitHub emails may not match PayPal accounts. Override them here.
               </p>
               {displayedContributors.map((c) => (
@@ -1769,7 +2149,7 @@ jobs:
                         [c.email]: e.target.value,
                       }))
                     }
-                    className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 font-mono text-xs"
+                    className="flex-1 bg-zinc-800 border border-zinc-700 rounded-[2px] px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 font-mono text-xs"
                     placeholder="paypal@email.com"
                   />
                 </div>
@@ -1801,7 +2181,7 @@ jobs:
                   <span className="text-blue-400 font-bold">&bull;</span>
                   <span><strong>Cross-Filtering:</strong> Click any contributor row to filter AG Chart bars, or click an AG Chart bar to center this grid.</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-zinc-500">
+                <div className="flex items-center gap-1.5 text-zinc-400">
                   <span>In-cell sparklines show <strong>&Delta;v_i(S)</strong> marginal stability across all 2^(N-1) subsets.</span>
                 </div>
               </div>
@@ -1833,7 +2213,7 @@ jobs:
               className="absolute inset-0 bg-black/80 transition-opacity"
               onClick={() => setSelectedContributor(null)}
             />
-            <div className="relative w-full max-w-xl bg-zinc-900 border border-zinc-700/80 rounded-2xl p-6 overflow-y-auto max-h-[90vh] shadow-2xl">
+            <div className="relative w-full max-w-xl bg-zinc-900 border border-zinc-700/80 rounded-[2px] p-6 overflow-y-auto max-h-[90vh]">
               <div>
                 <div className="flex items-center justify-between pb-4 border-b border-zinc-800 mb-6">
                   <div>
@@ -1848,7 +2228,7 @@ jobs:
                   </div>
                   <button
                     onClick={() => setSelectedContributor(null)}
-                    className="text-zinc-400 hover:text-white p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors"
+                    className="text-zinc-400 hover:text-white p-2 rounded-[2px] bg-zinc-800 hover:bg-zinc-700 transition-colors"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                   </button>
@@ -1856,35 +2236,35 @@ jobs:
 
                 {/* Share & Payout Hero in Drawer */}
                 <div className="grid grid-cols-2 gap-3 mb-6">
-                  <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3.5">
-                    <span className="text-zinc-500 text-xs block mb-1">Shapley Allocation</span>
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-[2px] p-3.5">
+                    <span className="text-zinc-400 text-xs block mb-1">Shapley Allocation</span>
                     <span className="text-2xl font-bold font-mono text-blue-400">
                       {selectedContributor.share_pct.toFixed(1)}%
                     </span>
-                    <span className="text-[10px] text-zinc-500 block mt-1">Marginal coalition weight</span>
+                    <span className="text-[10px] text-zinc-400 block mt-1">Marginal coalition weight</span>
                   </div>
-                  <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3.5">
-                    <span className="text-zinc-500 text-xs block mb-1">Calculated Payout</span>
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-[2px] p-3.5">
+                    <span className="text-zinc-400 text-xs block mb-1">Calculated Payout</span>
                     <span className="text-2xl font-bold font-mono text-emerald-400">
                       ${selectedContributor.payout_usd?.toFixed(2) ?? ((currentTotal * selectedContributor.share_pct) / 100).toFixed(2)}
                     </span>
-                    <span className="text-[10px] text-zinc-500 block mt-1">Exact-penny settlement</span>
+                    <span className="text-[10px] text-zinc-400 block mt-1">Exact-penny settlement</span>
                   </div>
                 </div>
 
                 {/* Physical AST & Git Signals */}
                 <div className="mb-6">
-                  <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+                  <h3 className="text-xs font-semibold text-zinc-400 mb-3">
                     Physical Code Signals &amp; AST Analysis
                   </h3>
-                  <div className="bg-zinc-950 rounded-xl border border-zinc-800 p-4 space-y-3 text-xs font-mono">
+                  <div className="bg-zinc-950 rounded-[2px] border border-zinc-800 p-4 space-y-3 text-xs font-mono">
                     <div className="flex justify-between items-center py-1 border-b border-zinc-800/60">
                       <span className="text-zinc-400">Total Commits</span>
                       <span className="text-white font-bold">{selectedContributor.commits}</span>
                     </div>
                     <div className="flex justify-between items-center py-1 border-b border-zinc-800/60">
                       <span className="text-zinc-400">Lines Inserted / Deleted</span>
-                      <span className="text-emerald-400">+{selectedContributor.additions} <span className="text-zinc-500">/</span> <span className="text-rose-400">-{selectedContributor.deletions}</span></span>
+                      <span className="text-emerald-400">+{selectedContributor.additions} <span className="text-zinc-400">/</span> <span className="text-rose-400">-{selectedContributor.deletions}</span></span>
                     </div>
                     <div className="flex justify-between items-center py-1 border-b border-zinc-800/60">
                       <span className="text-zinc-400">Net Churn Ratio</span>
@@ -1908,18 +2288,18 @@ jobs:
 
                 {/* Marginal Value Impact Explanation */}
                 <div>
-                  <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+                  <h3 className="text-xs font-semibold text-zinc-400 mb-3">
                     Game Theoretic Marginal Contribution
                   </h3>
-                  <div className="bg-zinc-950 rounded-xl border border-zinc-800 p-4 text-xs text-zinc-300 leading-relaxed">
+                  <div className="bg-zinc-950 rounded-[2px] border border-zinc-800 p-4 text-xs text-zinc-300 leading-relaxed">
                     <p className="mb-2">
                       Across all sampled permutation orders <span className="font-mono text-blue-400">&pi; &isin; &Pi;(N)</span> and antithetic mirrors <span className="font-mono text-blue-400">&pi;&apos;</span>, adding <strong className="text-white">{selectedContributor.name}</strong> to predecessor coalitions yielded an average marginal value jump of:
                     </p>
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 font-mono text-xs text-emerald-400 my-2 flex items-center justify-between">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-[2px] p-3 font-mono text-xs text-emerald-400 my-2 flex items-center justify-between">
                       <span>E[v(S &cup; &#123;{selectedContributor.name.split(" ")[0]}&#125;) &minus; v(S)]</span>
                       <span className="font-bold text-sm">+{selectedContributor.share_pct.toFixed(1)}%</span>
                     </div>
-                    <p className="text-zinc-500 text-[11px] mt-2">
+                    <p className="text-zinc-400 text-[11px] mt-2">
                       Protected by Lloyd Shapley Efficiency, Symmetry, Dummy Player, and Monotonicity axioms.
                     </p>
                   </div>
@@ -1929,7 +2309,7 @@ jobs:
               <div className="pt-6 border-t border-zinc-800 mt-6">
                 <button
                   onClick={() => setSelectedContributor(null)}
-                  className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-lg text-xs transition-colors"
+                  className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-[2px] text-xs transition-colors"
                 >
                   Close Inspection
                 </button>
@@ -1945,10 +2325,10 @@ jobs:
               className="absolute inset-0 bg-black/80"
               onClick={() => setShowMerkleModal(false)}
             />
-            <div className="relative bg-[#121316] border border-[#1e2024] rounded-xl p-6 max-w-xl w-full shadow-2xl">
-              <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#1e2024]">
+            <div className="relative bg-[#17191c] border border-[#2b2f36] rounded-[2px] p-6 max-w-xl w-full">
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#2b2f36]">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 text-emerald-400 flex items-center justify-center font-mono text-xs font-bold">
+                  <div className="w-8 h-8 rounded-[2px] bg-zinc-800 border border-zinc-700 text-emerald-400 flex items-center justify-center font-mono text-xs font-bold">
                     RFC
                   </div>
                   <div>
@@ -1956,34 +2336,34 @@ jobs:
                     <p className="text-[11px] text-zinc-400 font-mono">RFC-6962 SHA-256 Tamper-Evident Ledger</p>
                   </div>
                 </div>
-                <button onClick={() => setShowMerkleModal(false)} className="text-zinc-400 hover:text-white p-1.5 rounded-lg bg-zinc-800">&times;</button>
+                <button onClick={() => setShowMerkleModal(false)} className="text-zinc-400 hover:text-white p-1.5 rounded-[2px] bg-zinc-800">&times;</button>
               </div>
 
               <div className="space-y-4 text-xs font-mono">
                 <div>
                   <label className="text-zinc-400 block mb-1 font-medium">Merkle Root Hash (256-bit SHA-256)</label>
-                  <div className="bg-[#0c0d0e] p-2.5 rounded-lg border border-[#1e2024] font-mono text-[11px] text-emerald-400 break-all select-all">
+                  <div className="bg-[#101214] p-2.5 rounded-[2px] border border-[#2b2f36] font-mono text-[11px] text-emerald-400 break-all select-all">
                     88643cd1fe4e719119c4d29f8f2e26090c29f6f6d0fca8faef7d5f0b5d9095bb
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-zinc-300 font-mono text-[11px]">
-                  <div className="bg-[#0c0d0e] p-2.5 rounded-lg border border-[#1e2024]">
-                    <span className="text-zinc-500 block text-[10px]">Leaf Hash Standard</span>
+                  <div className="bg-[#101214] p-2.5 rounded-[2px] border border-[#2b2f36]">
+                    <span className="text-zinc-400 block text-[10px]">Leaf Hash Standard</span>
                     <span className="text-zinc-300">RFC 6962: SHA-256(0x00 || Leaf)</span>
                   </div>
-                  <div className="bg-[#0c0d0e] p-2.5 rounded-lg border border-[#1e2024]">
-                    <span className="text-zinc-500 block text-[10px]">Internal Node Hash</span>
+                  <div className="bg-[#101214] p-2.5 rounded-[2px] border border-[#2b2f36]">
+                    <span className="text-zinc-400 block text-[10px]">Internal Node Hash</span>
                     <span className="text-zinc-300">SHA-256(0x01 || Left || Right)</span>
                   </div>
                 </div>
 
                 <div>
                   <label className="text-zinc-400 block mb-1 font-medium">Offline Independent Verification</label>
-                  <p className="text-zinc-500 text-[11px] mb-2 leading-relaxed">
+                  <p className="text-zinc-400 text-[11px] mb-2 leading-relaxed">
                     Anyone can verify the attribution mathematical integrity offline without trusting Shapley's servers:
                   </p>
-                  <pre className="bg-[#0c0d0e] p-3 rounded-lg border border-[#1e2024] font-mono text-[11px] text-zinc-300 overflow-x-auto select-all">
+                  <pre className="bg-[#101214] p-3 rounded-[2px] border border-[#2b2f36] font-mono text-[11px] text-zinc-300 overflow-x-auto select-all">
 {`# 1. Download tamper-proof cryptographic receipt
 curl -sO ${appOrigin}/api/audit/receipt.json
 
@@ -1993,19 +2373,19 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 mt-5 pt-3 border-t border-[#1e2024]">
+              <div className="flex justify-end gap-2 mt-5 pt-3 border-t border-[#2b2f36]">
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText("88643cd1fe4e719119c4d29f8f2e26090c29f6f6d0fca8faef7d5f0b5d9095bb");
                     alert("Merkle Root copied!");
                   }}
-                  className="bg-[#0c0d0e] hover:bg-zinc-800 text-zinc-300 px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#1e2024]"
+                  className="bg-[#101214] hover:bg-zinc-800 text-zinc-300 px-3 py-1.5 rounded-[2px] text-xs font-semibold border border-[#2b2f36]"
                 >
                   Copy Root
                 </button>
                 <button
                   onClick={() => setShowMerkleModal(false)}
-                  className="bg-zinc-100 hover:bg-white text-zinc-950 px-4 py-1.5 rounded-lg text-xs font-semibold font-sans"
+                  className="bg-zinc-100 hover:bg-white text-zinc-950 px-4 py-1.5 rounded-[2px] text-xs font-semibold font-sans"
                 >
                   Done
                 </button>
@@ -2017,10 +2397,10 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
         {/* Custom Repository Modal */}
         {showRepoModal && (
           <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-zinc-900 border border-zinc-700/80 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+            <div className="bg-zinc-900 border border-zinc-700/80 rounded-[2px] max-w-lg w-full p-6 relative">
               <div className="flex items-center justify-between pb-4 mb-4 border-b border-zinc-800">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-[2px] bg-blue-600/20 text-blue-400 flex items-center justify-center">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
                     </svg>
@@ -2032,14 +2412,14 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                 </div>
                 <button
                   onClick={() => setShowRepoModal(false)}
-                  className="text-zinc-400 hover:text-white p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-base transition-colors"
+                  className="text-zinc-400 hover:text-white p-1 rounded-[2px] bg-zinc-800 hover:bg-zinc-700 text-base transition-colors"
                 >
                   &times;
                 </button>
               </div>
 
               {customRepoError && (
-                <div className="bg-red-950/50 border border-red-800 text-red-300 text-xs rounded-lg p-3 mb-4">
+                <div className="bg-red-950/50 border border-red-800 text-red-300 text-xs rounded-[2px] p-3 mb-4">
                   {customRepoError}
                 </div>
               )}
@@ -2052,7 +2432,7 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                     value={customRepo}
                     onChange={(e) => setCustomRepo(e.target.value)}
                     placeholder="e.g. tiangolo/fastapi, astral-sh/uv, or https://github.com/owner/repo"
-                    className="w-full bg-[#0c0d0e] border border-[#1e2024] rounded-xl px-3.5 py-2.5 text-zinc-100 placeholder-zinc-500 font-mono text-xs focus:outline-none focus:border-zinc-500"
+                    className="w-full bg-[#101214] border border-[#2b2f36] rounded-[2px] px-3.5 py-2.5 text-zinc-100 placeholder-zinc-400 font-mono text-xs focus:outline-none focus:border-zinc-500"
                   />
                 </div>
 
@@ -2064,10 +2444,10 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                         key={r}
                         type="button"
                         onClick={() => setCustomRepo(r)}
-                        className={`px-2.5 py-1 rounded font-mono text-[11px] transition-colors border ${
+                        className={`px-2.5 py-1 rounded-[2px] font-mono text-[11px] transition-colors border ${
                           customRepo === r
-                            ? "bg-[#1e2024] text-white border-zinc-500 font-semibold"
-                            : "bg-[#0c0d0e] hover:bg-zinc-800 text-zinc-400 border-[#1e2024]"
+                            ? "bg-[#2b2f36] text-white border-zinc-500 font-semibold"
+                            : "bg-[#101214] hover:bg-zinc-800 text-zinc-400 border-[#2b2f36]"
                         }`}
                       >
                         {r}
@@ -2082,21 +2462,21 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                     type="number"
                     value={customPool}
                     onChange={(e) => setCustomPool(e.target.value)}
-                    className="w-full bg-[#0c0d0e] border border-[#1e2024] rounded-xl px-3.5 py-2 text-zinc-100 font-mono text-xs focus:outline-none focus:border-zinc-500"
+                    className="w-full bg-[#101214] border border-[#2b2f36] rounded-[2px] px-3.5 py-2 text-zinc-100 font-mono text-xs focus:outline-none focus:border-zinc-500"
                   />
                 </div>
 
                 <div className="pt-3 border-t border-zinc-800 flex justify-end gap-2">
                   <button
                     onClick={() => setShowRepoModal(false)}
-                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg transition-colors"
+                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-[2px] transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleCustomAnalysis}
                     disabled={analyzingCustom}
-                    className="px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-950 disabled:opacity-50 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 font-sans"
+                    className="px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-950 disabled:opacity-50 text-xs font-semibold rounded-[2px] transition-colors flex items-center gap-1.5 font-sans"
                   >
                     {analyzingCustom ? (
                       <>
@@ -2122,7 +2502,7 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
               className="absolute inset-0 bg-black/80"
               onClick={() => setShowCommandPalette(false)}
             />
-            <div className="relative bg-[#111215] border border-zinc-700/80 rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden font-sans modal-enter">
+            <div className="relative bg-[#111215] border border-zinc-700/80 rounded-[2px] max-w-xl w-full overflow-hidden font-sans modal-enter">
               <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400">
                   <circle cx="11" cy="11" r="8"></circle>
@@ -2134,9 +2514,9 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                   value={commandPaletteQuery}
                   onChange={(e) => setCommandPaletteQuery(e.target.value)}
                   placeholder="Search actions, contributors, milestones, webhooks..."
-                  className="w-full bg-transparent text-sm text-white placeholder-zinc-500 focus:outline-none font-mono"
+                  className="w-full bg-transparent text-sm text-white placeholder-zinc-400 focus:outline-none font-mono"
                 />
-                <kbd className="text-[10px] font-mono bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-700">ESC</kbd>
+                <kbd className="text-[10px] font-mono bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-[2px] border border-zinc-700">ESC</kbd>
               </div>
 
               <div className="p-2 max-h-80 overflow-y-auto space-y-1 text-xs font-mono">
@@ -2226,13 +2606,13 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                     <button
                       key={idx}
                       onClick={item.action}
-                      className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-800 flex items-center justify-between text-zinc-200 transition-colors"
+                      className="w-full text-left px-3 py-2.5 rounded-[2px] hover:bg-zinc-800 flex items-center justify-between text-zinc-200 transition-colors"
                     >
                       <div className="flex items-center gap-2.5">
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#0c0d0e] border border-[#1e2024] text-zinc-400 font-bold">{item.tag}</span>
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-[2px] bg-[#101214] border border-[#2b2f36] text-zinc-400 font-bold">{item.tag}</span>
                         <span className="font-medium font-sans">{item.title}</span>
                       </div>
-                      <span className="text-[10px] font-mono text-zinc-500">{item.badge}</span>
+                      <span className="text-[10px] font-mono text-zinc-400">{item.badge}</span>
                     </button>
                   ))}
               </div>

@@ -219,7 +219,7 @@ export default function SlideToAuthorize({
           )}
         </div>
       </div>
-      <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 px-1">
+      <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400 px-1">
         <span>Step 1: Authorization Hold</span>
         {isAuthorized ? (
           <span className="text-emerald-400 font-medium">Locked in PayPal Escrow</span>
