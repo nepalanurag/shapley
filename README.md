@@ -85,6 +85,8 @@ Environment variables (one consistent set, mirroring `.env.example`):
 | `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET` | No | Only for the "Connect GitHub" repo picker |
 | `FRONTEND_URL` | No (default `http://localhost:3000`) | Frontend origin for the OAuth redirect |
 | `DEMO_MODE` | No | `true` serves frozen demo data with no API calls |
+| `PAYOUT_CONFIRM_TOKEN` | Recommended for deployments | When set, payout endpoints require an `X-Shapley-Confirm` header with this value; always required when `ENVIRONMENT=production` |
+| `ALLOWED_ORIGINS` | No | Comma-separated CORS origins (default: the localhost frontend origins) |
 
 Demo mode needs **no credentials at all** — it is the fastest way to see the
 product work.

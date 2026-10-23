@@ -12,6 +12,9 @@ function CallbackContent() {
 
   useEffect(() => {
     const code = params.get("code");
+    // The backend requires the OAuth state we were issued (CSRF check);
+    // forward it from the callback URL.
+    const state = params.get("state");
     if (!code) {
       setError("No authorization code received from GitHub.");
       return;
@@ -22,7 +25,7 @@ function CallbackContent() {
         const res = await fetch(`${API_BASE}/api/github/oauth-callback`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code }),
+          body: JSON.stringify({ code, state }),
         });
         if (!res.ok) {
           const err = await res.json();

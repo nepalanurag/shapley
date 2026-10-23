@@ -12,6 +12,7 @@ Provides standard JSON-RPC 2.0 tool execution for autonomous agent workflows:
 """
 import json
 import logging
+import os
 import time
 import uuid
 from typing import Dict, List, Optional, Any
@@ -399,6 +400,17 @@ async def mcp_jsonrpc_endpoint(request: Request):
         body = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON-RPC request payload")
+    # Money-moving tool calls require the same explicit confirmation token
+    # as POST /api/payout (X-Shapley-Confirm == PAYOUT_CONFIRM_TOKEN;
+    # enforced when a token is configured, and always in production).
+    _params = body.get("params") or {}
+    if body.get("method") == "tools/call" and _params.get("name") == "shapley_execute_payout":
+        _token = os.environ.get("PAYOUT_CONFIRM_TOKEN", "")
+        if _token:
+            if request.headers.get("X-Shapley-Confirm", "") != _token:
+                raise HTTPException(status_code=403, detail="Payout requires the X-Shapley-Confirm header matching PAYOUT_CONFIRM_TOKEN")
+        elif os.environ.get("ENVIRONMENT") == "production":
+            raise HTTPException(status_code=403, detail="PAYOUT_CONFIRM_TOKEN is not configured; payouts are disabled in production without it")
     return handle_mcp_message(body)
 
 

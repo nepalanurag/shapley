@@ -11,6 +11,7 @@ Endpoints:
 """
 import os
 import sys
+import json
 import time
 import uuid
 import threading
@@ -42,6 +43,8 @@ _jobs_lock = threading.Lock()
 _oauth_sessions = {}
 _oauth_states = {}  # state -> created_timestamp
 _oauth_lock = threading.Lock()
+_seen_webhook_event_ids = set()  # PayPal event ids already reconciled (dedupe)
+_webhook_lock = threading.Lock()
 
 JOB_TIMEOUT_SEC = 600  # 10 minutes max per analysis job
 JOB_TTL_SEC = 3600     # Keep completed jobs for 1 hour
@@ -263,12 +266,20 @@ async def lifespan(app):
 
 app = FastAPI(title="Shapley API", version="1.0.0", lifespan=lifespan)
 
-allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "*")
-origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+# CORS: explicit origin list. allow_origins=["*"] combined with
+# allow_credentials=True is an invalid browser combination, so the default
+# is the local frontend origins; deployments extend via ALLOWED_ORIGINS
+# (comma-separated) or FRONTEND_URL.
+_default_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+_frontend_url = os.environ.get("FRONTEND_URL", "")
+if _frontend_url and _frontend_url not in _default_origins:
+    _default_origins.append(_frontend_url)
+allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "")
+origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()] or _default_origins
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins if origins else ["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -325,9 +336,27 @@ def analyze_status(job_id: str):
     return {"job_id": job_id, **job_copy}
 
 
+def _require_payout_confirmation(request: Request):
+    """Gate money-moving endpoints behind an explicit confirmation token.
+
+    The caller must send the header `X-Shapley-Confirm` equal to the
+    PAYOUT_CONFIRM_TOKEN env var. Enforced whenever a token is configured,
+    and always in production (fail closed if production has no token set).
+    In local/demo runs without a token, the UI confirmation modal remains
+    the human-confirmation step.
+    """
+    token = os.environ.get("PAYOUT_CONFIRM_TOKEN", "")
+    if token:
+        if request.headers.get("X-Shapley-Confirm", "") != token:
+            raise HTTPException(403, "Payout requires the X-Shapley-Confirm header matching PAYOUT_CONFIRM_TOKEN")
+    elif os.environ.get("ENVIRONMENT") == "production":
+        raise HTTPException(403, "PAYOUT_CONFIRM_TOKEN is not configured; payouts are disabled in production without it")
+
+
 @app.post("/api/payout")
-def payout(req: PayoutRequest):
+def payout(req: PayoutRequest, request: Request):
     """Execute PayPal batch payout. Human-confirmed only; no LLM in this path."""
+    _require_payout_confirmation(request)
     from paypal_payouts import create_batch_payout
     log.info(f"Payout request: {len(req.shares)} recipients, total=${req.total_amount}")
     shares = [{"email": s.email, "amount": s.amount,
@@ -393,7 +422,7 @@ def github_oauth_url():
     params = urllib.parse.urlencode({
         "client_id": client_id,
         "redirect_uri": f"{frontend_url}/oauth/callback",
-        "scope": "repo read:user",
+        "scope": "public_repo read:user",
         "state": state,
     })
     return {"url": f"https://github.com/login/oauth/authorize?{params}", "demo_mode": False}
@@ -407,10 +436,16 @@ def github_oauth_callback(body: OAuthCallback):
 
     client_id, client_secret, _ = _github_oauth_config()
 
-    if body.state:
-        with _oauth_lock:
-            if body.state in _oauth_states:
-                del _oauth_states[body.state]
+    # CSRF protection: the state must be a value this server issued from
+    # /api/github/oauth-url, unexpired (15 min) and single-use. Previously
+    # the state was merely deleted when present, never compared, so any
+    # forged callback was accepted.
+    if not body.state:
+        raise HTTPException(400, "Missing OAuth state")
+    with _oauth_lock:
+        issued_at = _oauth_states.pop(body.state, None)
+    if issued_at is None or (time.time() - issued_at) > 900:
+        raise HTTPException(400, "Invalid or expired OAuth state")
 
     # Handle demo OAuth code when GitHub credentials are not configured
     if body.code == "demo_oauth_code_hackathon" or not (client_id and client_secret):
@@ -629,7 +664,10 @@ async def paypal_webhook(request: Request):
     algo = headers.get("PAYPAL-AUTH-ALGO", "")
     sig = headers.get("PAYPAL-TRANSMISSION-SIG", "")
 
-    # In sandbox or production, verify authenticity
+    # Verify authenticity in EVERY environment. Previously an invalid
+    # signature was rejected only when ENVIRONMENT == "production" and the
+    # handler returned verified: true regardless — a forged webhook was
+    # acknowledged as verified in any non-production deployment.
     is_valid = escrow_manager.verify_webhook_signature(
         transmission_id=t_id,
         transmission_time=t_time,
@@ -638,10 +676,21 @@ async def paypal_webhook(request: Request):
         transmission_sig=sig,
         raw_body=raw_body
     )
-    if not is_valid and os.environ.get("ENVIRONMENT") == "production":
+    if not is_valid:
         raise HTTPException(status_code=401, detail="Invalid PayPal webhook signature")
 
-    return {"status": "SUCCESS", "verified": True, "reconciled_at": time.time()}
+    # Dedupe: PayPal retries deliveries; reconcile each event id once.
+    try:
+        event_id = json.loads(raw_body).get("id", "")
+    except Exception:
+        event_id = ""
+    if event_id:
+        with _webhook_lock:
+            if event_id in _seen_webhook_event_ids:
+                return {"status": "DUPLICATE", "verified": True, "event_id": event_id}
+            _seen_webhook_event_ids.add(event_id)
+
+    return {"status": "SUCCESS", "verified": True, "event_id": event_id, "reconciled_at": time.time()}
 
 
 # ============================================================================

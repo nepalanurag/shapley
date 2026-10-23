@@ -76,9 +76,14 @@ export async function executePayout(
   shares: { email: string; amount: number; note?: string }[],
   totalAmount: number
 ): Promise<{ batch_id: string; status: string }> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  // Backend payout confirmation gate (see PAYOUT_CONFIRM_TOKEN in .env.example):
+  // when a confirm token is configured for the frontend build, send it.
+  const confirmToken = process.env.NEXT_PUBLIC_PAYOUT_CONFIRM_TOKEN;
+  if (confirmToken) headers["X-Shapley-Confirm"] = confirmToken;
   const res = await fetch(`${API_BASE}/api/payout`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ shares, total_amount: totalAmount }),
   });
   if (!res.ok) {
