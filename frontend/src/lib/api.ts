@@ -29,6 +29,9 @@ export interface Evaluation {
     unblocking: number;
   };
   monotonicity_adjusted?: boolean;
+  // "gemini_semantic" = scored by Gemini; "heuristic_fallback" = Gemini was
+  // unavailable and the score is the objective line/branch heuristic only.
+  scoring_mode?: string;
 }
 
 export interface AnalysisResult {

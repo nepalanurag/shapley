@@ -85,27 +85,51 @@ def extract_objective_code_signals(diffs: List[str]) -> Dict[str, Any]:
 
     core_exts = ('.py', '.ts', '.tsx', '.js', '.jsx', '.rs', '.go', '.c', '.cpp', '.h', '.java', '.kt', '.swift', '.rb', '.sql')
     doc_exts = ('.md', '.txt', '.rst', '.json', '.yml', '.yaml', '.toml', '.lock', '.svg', '.png')
-    test_patterns = ('test', 'spec', '__tests__', '_test')
 
     branch_keywords = (r'\bif\b', r'\belif\b', r'\belse\b', r'\bfor\b', r'\bwhile\b', r'\btry\b', r'\bexcept\b', r'\bcatch\b', r'\bswitch\b', r'\bcase\b')
 
-    for diff in diffs:
-        is_test = any(tp in diff.lower() for tp in test_patterns)
-        is_doc = any(diff.lower().endswith(ext) or ext in diff.lower() for ext in doc_exts)
-        is_core = any(ext in diff.lower() for ext in core_exts) or not is_doc
+    def classify_path(path: str) -> str:
+        """Classify a changed file as 'test', 'doc', or 'core' from its PATH.
 
+        (Fix 2026-10-22: this used to substring-match the whole diff text,
+        so any diff merely mentioning the word "test" counted all its lines
+        as test lines, and any diff mentioning ".md" counted as docs.)
+        """
+        p = (path or "").lower()
+        parts = p.split('/')
+        base = parts[-1]
+        if any(base.endswith(ext) for ext in doc_exts):
+            return 'doc'
+        if any(seg in ('test', 'tests', '__tests__', 'spec', 'specs') for seg in parts[:-1]):
+            return 'test'
+        if (base.startswith('test_') or base.startswith('test.') or '_test.' in base
+                or '.test.' in base or '.spec.' in base):
+            return 'test'
+        return 'core'
+
+    for diff in diffs:
+        current = 'core'  # content before any file header counts as code
         for line in diff.splitlines():
+            if line.startswith('diff --git '):
+                # "diff --git a/<path> b/<path>"
+                path = line.split(' b/', 1)[1] if ' b/' in line else ''
+                current = classify_path(path)
+                continue
+            if line.startswith('+++ b/'):
+                current = classify_path(line[6:])
+                continue
             if line.startswith('+') and not line.startswith('+++'):
                 total_adds += 1
-                if is_test:
+                if current == 'test':
                     test_lines += 1
-                elif is_doc:
+                elif current == 'doc':
                     doc_lines += 1
                 else:
                     core_lines += 1
-                for kw in branch_keywords:
-                    if re.search(kw, line):
-                        branch_count += 1
+                if current != 'doc':
+                    for kw in branch_keywords:
+                        if re.search(kw, line):
+                            branch_count += 1
             elif line.startswith('-') and not line.startswith('---'):
                 total_dels += 1
 
@@ -293,6 +317,7 @@ Respond with JSON only:
 
         scored = {
             "score": composite_score,
+            "scoring_mode": "gemini_semantic",
             "semantic_score": semantic_total,
             "objective_score": obj_score,
             "reasoning": str(parsed.get("reasoning", ""))[:500],
@@ -302,12 +327,20 @@ Respond with JSON only:
             "injection_warnings": quarantine_warnings,
         }
     except Exception as e:
+        # HONESTY (fix 2026-10-22): when Gemini is unavailable the score is
+        # the objective line/branch heuristic ONLY. It must never be
+        # presented as an AI semantic evaluation: scoring_mode flags it and
+        # the flag propagates through shapley evaluations to the API and
+        # the results/audit UI.
         print(f"  [scoring fallback to objective metrics: {e}]", file=sys.stderr)
         scored = {
             "score": round(obj_score),
+            "scoring_mode": "heuristic_fallback",
             "semantic_score": 0,
             "objective_score": obj_score,
-            "reasoning": f"Objective AST baseline evaluated: {e}",
+            "reasoning": (f"Heuristic fallback (Gemini unavailable: {e}). "
+                          "This score is the objective line/branch metric only, "
+                          "NOT an AI semantic evaluation."),
             "confidence": 0.4,
             "rubric": {"complexity": round(obj_score * 0.25), "impact": round(obj_score * 0.25),
                        "originality": round(obj_score * 0.25), "unblocking": round(obj_score * 0.25)},

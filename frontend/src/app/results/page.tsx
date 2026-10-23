@@ -844,6 +844,19 @@ function ResultsContent() {
           </div>
         </div>
 
+        {/* Heuristic-fallback warning: shown when any coalition was scored
+            by the objective heuristic because Gemini was unavailable. */}
+        {data.evaluations?.some((e) => e.scoring_mode === "heuristic_fallback") && (
+          <div className="bg-red-950/40 border border-red-900 rounded-xl p-4 mb-8 text-sm text-red-300">
+            ⚠ <strong>Heuristic fallback:</strong>{" "}
+            {data.evaluations.filter((e) => e.scoring_mode === "heuristic_fallback").length}{" "}
+            of {data.evaluations.length} coalition scores came from the objective
+            line/branch heuristic (Gemini unavailable), not from AI semantic
+            evaluation. Treat those shares as low-confidence estimates. Affected
+            coalitions are flagged in the audit view.
+          </div>
+        )}
+
         {/* Executive Summary Card */}
         {data.summary && (
           <div className="bg-[#121316] border border-[#1e2024] rounded-xl p-5 mb-8 flex items-start gap-4 animate-rise">
