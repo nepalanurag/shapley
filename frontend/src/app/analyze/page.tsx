@@ -71,13 +71,13 @@ function AnalyzeContent() {
 
   if (error) {
     return (
-      <main className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center">
+      <main className="min-h-screen bg-[#0c0d0e] text-[#ededed] flex items-center justify-center">
         <div className="text-center max-w-md animate-scale-in">
-          <div className="text-red-400 text-lg mb-2">Analysis failed</div>
-          <p className="text-zinc-400 text-sm mb-6">{error}</p>
+          <div className="text-rose-400 text-lg mb-2 font-semibold">Analysis failed</div>
+          <p className="text-zinc-400 text-sm mb-6 font-mono">{error}</p>
           <button
             onClick={() => router.push("/")}
-            className="bg-zinc-800 hover:bg-zinc-700 px-6 py-2 rounded-lg btn-interactive"
+            className="bg-[#121316] hover:bg-zinc-800 text-zinc-200 border border-[#1e2024] px-6 py-2 rounded-lg font-mono text-xs btn-interactive transition-colors"
           >
             Try Again
           </button>
@@ -147,7 +147,7 @@ function AnalyzeContent() {
 
 export default function AnalyzePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-zinc-950" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#0c0d0e]" />}>
       <AnalyzeContent />
     </Suspense>
   );

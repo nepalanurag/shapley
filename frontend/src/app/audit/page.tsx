@@ -14,11 +14,14 @@ import { fetchDemo, pollAnalysis, Evaluation } from "@/lib/api";
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 const darkTheme = themeQuartz.withParams({
-  backgroundColor: "#18181b",
-  foregroundColor: "#f4f4f5",
-  headerBackgroundColor: "#27272a",
-  oddRowBackgroundColor: "#1c1c1f",
-  borderColor: "#3f3f46",
+  backgroundColor: "#0c0d0e",
+  foregroundColor: "#ededed",
+  headerBackgroundColor: "#121316",
+  oddRowBackgroundColor: "#0f1012",
+  borderColor: "#1e2024",
+  headerFontFamily: "var(--font-mono)",
+  cellFontFamily: "var(--font-mono)",
+  accentColor: "#2563eb",
 });
 
 function AuditContent() {
@@ -138,45 +141,45 @@ function AuditContent() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center">
-        <p className="text-zinc-400">Loading audit trail...</p>
+      <main className="min-h-screen bg-[#0c0d0e] text-[#ededed] flex items-center justify-center">
+        <p className="text-zinc-400 font-mono text-sm">Loading audit trail...</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-[#0c0d0e] text-[#ededed]">
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Audit Trail</h1>
-            <p className="text-zinc-400 mt-1">
-              Every AI evaluation the Shapley engine used. Full transparency.
+            <h1 className="text-3xl font-bold tracking-tight">Audit Trail</h1>
+            <p className="text-zinc-400 mt-1 text-sm font-mono">
+              Cryptographic evaluation log across all coalitions.
             </p>
           </div>
           <div className="flex gap-2">
             <button
               onClick={downloadJSON}
-              className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-sm border border-zinc-700 btn-interactive"
+              className="bg-[#121316] hover:bg-zinc-800 text-zinc-200 px-4 py-2 rounded-lg text-xs font-mono border border-[#1e2024] btn-interactive transition-colors"
             >
               Export JSON
             </button>
             <button
               onClick={downloadCSV}
-              className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-sm border border-zinc-700 btn-interactive"
+              className="bg-[#121316] hover:bg-zinc-800 text-zinc-200 px-4 py-2 rounded-lg text-xs font-mono border border-[#1e2024] btn-interactive transition-colors"
             >
               Export CSV
             </button>
             <button
               onClick={() => router.back()}
-              className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-sm border border-zinc-700 btn-interactive"
+              className="bg-[#121316] hover:bg-zinc-800 text-zinc-200 px-4 py-2 rounded-lg text-xs font-mono border border-[#1e2024] btn-interactive transition-colors"
             >
               Back
             </button>
           </div>
         </div>
 
-        <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
+        <div className="bg-[#121316] rounded-xl border border-[#1e2024] p-4">
           <div className="ag-theme-quartz" style={{ height: 600 }}>
             <AgGridReact
               theme={darkTheme}
@@ -210,7 +213,7 @@ function AuditContent() {
 
 export default function AuditPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-zinc-950" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#0c0d0e]" />}>
       <AuditContent />
     </Suspense>
   );

@@ -877,7 +877,7 @@ function ResultsContent() {
 
   if (status === "failed" || !data) {
     return (
-      <main className="min-h-screen bg-[#101214] text-zinc-100 flex items-center justify-center">
+      <main className="min-h-screen bg-[#0c0d0e] text-[#ededed] flex items-center justify-center">
         <div className="text-center max-w-md">
           <p className="text-red-400 mb-4">{error || "Something went wrong"}</p>
           <button onClick={() => router.push("/")}
@@ -890,7 +890,7 @@ function ResultsContent() {
   }
 
   return (
-    <main className="min-h-screen bg-[#101214] text-zinc-100">
+    <main className="min-h-screen bg-[#0c0d0e] text-[#ededed]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-zinc-400 mb-4">

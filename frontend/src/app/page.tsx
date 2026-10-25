@@ -121,16 +121,16 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-[#0c0d0e] text-[#ededed]">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
         <div className="text-center mb-12 animate-rise">
           <h1 className="text-5xl font-bold tracking-tight mb-4">
             Shapley
           </h1>
           <p className="text-xl text-zinc-400 max-w-2xl mx-auto">
-            Fair revenue splits for collaborative work. AI evaluates each
-            contributor&apos;s real impact, game theory calculates fair shares,
-            PayPal executes the payout.
+            Algorithmic revenue settlement for open source. Semantic evaluation scores
+            code impact, Lloyd Shapley cooperative game theory calculates marginal shares,
+            and PayPal executes exact-penny batch payouts.
           </p>
         </div>
 
@@ -327,7 +327,7 @@ export default function Home() {
                 Simulating every combination of team members collaborating: <em>&ldquo;How much does the project suffer if you&apos;re not on the team?&rdquo;</em> If a 5-line security patch turns a vulnerable repo into an enterprise release, the allocation is proportional to marginal value.
               </p>
               <div className="text-[11px] text-emerald-400 font-mono">
-                Formula: Payout = Marginal Capability &rarr; 100% fair, zero favoritism.
+                Formula: Payout = Marginal Contribution &phi;&#7522;(v) &rarr; Provable axiomatic efficiency &amp; zero float dust.
               </div>
             </div>
           </div>
