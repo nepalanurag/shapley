@@ -311,7 +311,7 @@ export default function Home() {
                 <h3 className="text-xs font-bold text-rose-400 uppercase tracking-wider font-mono">Naive LOC Metric</h3>
               </div>
               <p className="text-xs text-zinc-300 leading-relaxed mb-3">
-                Someone runs an automated linter (Prettier) to reformat 2,400 lines of whitespace. Naive platforms award them 50% of the entire bounty. Meanwhile, the security researcher who patched a critical exploit in 5 lines gets 1%.
+                Someone runs an automated linter (Prettier) to reformat 2,400 lines of whitespace. Naive platforms award them 50% of the entire grant pool. Meanwhile, the security researcher who patched a critical exploit in 5 lines gets 1%.
               </p>
               <div className="text-[11px] text-zinc-500 font-mono">
                 Formula: Payout = Lines Changed &rarr; Rewards spam, punishes problem-solvers.

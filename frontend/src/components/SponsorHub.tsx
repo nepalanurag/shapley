@@ -138,11 +138,11 @@ export default function SponsorHub({
       <div className="border border-[#1e2024] bg-[#121316] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="w-8 h-8 bg-zinc-900 border border-zinc-700 text-emerald-400 flex items-center justify-center font-mono font-bold text-xs rounded-lg flex-shrink-0 mt-0.5">
-            POT
+            HOLD
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-semibold text-white">Active Hackathon Prize Pot: pallets/jinja ($2,500.00 USD)</h3>
+              <h3 className="text-sm font-semibold text-white">Active Hackathon Grant Pool: pallets/jinja ($2,500.00 USD)</h3>
               <span className="text-[10px] font-mono px-1.5 py-0.5 bg-emerald-950/60 text-emerald-400 border border-emerald-800 rounded">
                 SOLVENT ESCROW
               </span>
@@ -160,7 +160,7 @@ export default function SponsorHub({
             onClick={onOpenPotModal}
             className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-mono border border-zinc-700 rounded-lg transition-colors flex items-center gap-1.5"
           >
-            <span className="font-mono text-zinc-400">[CERT]</span> Pot Certificate
+            <span className="font-mono text-zinc-400">[CERT]</span> Solvency Certificate
           </button>
         </div>
       </div>

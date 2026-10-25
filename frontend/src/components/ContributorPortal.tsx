@@ -179,7 +179,7 @@ export default function ContributorPortal() {
 
             <div className="flex items-baseline justify-between bg-zinc-950 p-4 rounded-lg border border-zinc-800/80">
               <div>
-                <div className="text-[10px] font-mono text-zinc-500 uppercase">Allocated Bounty</div>
+                <div className="text-[10px] font-mono text-zinc-500 uppercase">Allocated Grant</div>
                 <div className="text-2xl font-bold font-mono text-emerald-400 tabular-nums mt-0.5">
                   ${Number(currentProfile.allocated_usd).toFixed(2)}{" "}
                   <span className="text-xs font-mono text-zinc-500 font-normal">USD</span>

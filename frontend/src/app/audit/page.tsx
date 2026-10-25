@@ -61,7 +61,7 @@ function AuditContent() {
       },
       {
         field: "score",
-        headerName: "AI Score",
+        headerName: "Valuation v(S)",
         width: 110,
         sortable: true,
         cellStyle: (p) => ({
@@ -124,7 +124,7 @@ function AuditContent() {
   };
 
   const downloadCSV = () => {
-    const headers = "Coalition,AI Score,Confidence,Reasoning\n";
+    const headers = "Coalition,Valuation v(S),Confidence,Reasoning\n";
     const rows = evaluations.map((e) => {
       const coalition = e.members.length === 0 ? "(empty)" : `"${e.members.join(" + ")}"`;
       const reasoning = `"${e.reasoning.replace(/"/g, '""')}"`;

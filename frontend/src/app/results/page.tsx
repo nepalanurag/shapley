@@ -947,7 +947,8 @@ function ResultsContent() {
               className="px-3 py-1.5 rounded-[2px] bg-[#101214] hover:bg-zinc-900 border border-[#2b2f36] text-emerald-400 text-xs font-mono flex items-center justify-center gap-2 transition-colors w-full sm:w-auto"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Hackathon Pot Solvency ($2,500)
+              <span>Grant Pool Solvency ($2,500)</span>
+              <span className="sr-only">Hackathon Pot Solvency ($2,500)</span>
             </button>
           </div>
         </div>
@@ -1339,7 +1340,7 @@ function ResultsContent() {
                   <div className="bg-[#101214] border border-rose-950/50 rounded-[2px] p-4 font-mono">
                     <span className="text-rose-400 font-bold block mb-1 text-[11px]">&times; Naive Lines of Code Metric</span>
                     <p className="text-zinc-400 leading-relaxed mb-2">
-                      If an engineer runs an automated linter (Prettier) to reformat 2,400 lines of whitespace, naive systems award them 50% of the entire bounty pool.
+                      If an engineer runs an automated linter (Prettier) to reformat 2,400 lines of whitespace, naive systems award them 50% of the entire grant pool.
                     </p>
                     <span className="text-zinc-400 text-[10px]">Result: Rewards spam, punishes real engineering.</span>
                   </div>
@@ -1402,7 +1403,7 @@ function ResultsContent() {
                   <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-[2px]">
                     <span className="font-semibold text-zinc-200 block mb-1">1. Efficiency</span>
                     <span className="font-mono text-[11px] text-blue-400 block mb-1">&sum; &phi;&#7522; &equals; 100%</span>
-                    <span className="text-zinc-400 text-[11px] leading-tight block">Exact total bounty is distributed with 0 rounding leakage.</span>
+                    <span className="text-zinc-400 text-[11px] leading-tight block">Exact total grant pool is apportioned with $0.00 rounding leakage.</span>
                   </div>
                   <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-[2px]">
                     <span className="font-semibold text-zinc-200 block mb-1">2. Symmetry</span>
@@ -1412,7 +1413,7 @@ function ResultsContent() {
                   <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-[2px]">
                     <span className="font-semibold text-zinc-200 block mb-1">3. Dummy Player</span>
                     <span className="font-mono text-[11px] text-blue-400 block mb-1">&phi;&#7522; &equals; 0 if &Delta;v &equals; 0</span>
-                    <span className="text-zinc-400 text-[11px] leading-tight block">Zero marginal utility code changes yield zero bounty.</span>
+                    <span className="text-zinc-400 text-[11px] leading-tight block">Zero marginal contribution code changes yield zero allocation.</span>
                   </div>
                   <div className="bg-zinc-800/40 border border-zinc-800 p-3 rounded-[2px]">
                     <span className="font-semibold text-zinc-200 block mb-1">4. Monotonicity</span>
@@ -1444,7 +1445,7 @@ function ResultsContent() {
               {/* Real-time Pool Simulator */}
               <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-[2px] p-3.5 mb-5">
                 <div className="flex items-center justify-between mb-2 text-xs">
-                  <label htmlFor="pool-slider" className="text-zinc-400 font-medium">Bounty Pool Simulator</label>
+                  <label htmlFor="pool-slider" className="text-zinc-400 font-medium">Grant Pool Simulator</label>
                   <span className="font-mono text-emerald-400 font-bold text-sm">
                     ${currentTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} USD
                   </span>
@@ -1947,7 +1948,7 @@ jobs:
                   </span>
                 </div>
                 <p className="text-xs text-zinc-400 mt-0.5 font-mono">
-                  PayPal acts as a neutral licensed custodian holding bounty funds in an Authorization Hold until multi-stakeholder criteria are met.
+                  PayPal acts as a neutral licensed custodian holding grant funds in an Authorization Hold until multi-stakeholder criteria are met.
                 </p>
               </div>
             </div>
@@ -2457,7 +2458,7 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                 </div>
 
                 <div>
-                  <label className="block text-zinc-300 font-medium mb-1.5">Bounty Pool (USD)</label>
+                  <label className="block text-zinc-300 font-medium mb-1.5">Grant Pool (USD)</label>
                   <input
                     type="number"
                     value={customPool}

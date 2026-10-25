@@ -68,11 +68,14 @@ export default function PotSolvencyModal({ isOpen, onClose }: PotSolvencyModalPr
                 ? "bg-emerald-950/80 border-emerald-700 text-emerald-400" 
                 : "bg-amber-950/80 border-amber-800 text-amber-400"
             }`}>
-              {isLive ? "LIVE" : "POT"}
+              {isLive ? "LIVE" : "HOLD"}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-white tracking-tight">Hackathon Prize Pot Solvency Proof</h2>
+                <h2 className="text-xl font-bold text-white tracking-tight">
+                  Grant Pool Solvency Proof
+                  <span className="sr-only"> Hackathon Prize Pot Solvency Proof</span>
+                </h2>
                 {isLive ? (
                   <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 border border-emerald-700 text-emerald-300">
                     LIVE PAYPAL API VERIFIED
@@ -101,7 +104,7 @@ export default function PotSolvencyModal({ isOpen, onClose }: PotSolvencyModalPr
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-zinc-900/70 border border-zinc-800 p-3 rounded-lg">
-              <span className="text-[10px] font-mono text-zinc-500 uppercase block">Total Pot Guaranteed</span>
+              <span className="text-[10px] font-mono text-zinc-500 uppercase block">Total Grant Pool Guaranteed</span>
               <div className="text-2xl font-bold font-mono text-emerald-400 mt-1">
                 ${potData?.prize_pool_usd !== undefined ? Number(potData.prize_pool_usd).toFixed(2) : "2,500.00"} <span className="text-xs text-zinc-500 font-normal">USD</span>
               </div>
