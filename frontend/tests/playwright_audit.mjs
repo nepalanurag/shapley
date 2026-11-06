@@ -372,7 +372,7 @@ async function runTestSuite() {
     await page.click('button:has-text("Math Proofs")');
     await page.waitForTimeout(150);
 
-    const formulaVisible = await page.locator('text=Efficiency').isVisible() && await page.locator('text=Monotonicity').isVisible();
+    const formulaVisible = await page.locator('text=Efficiency').first().isVisible() && await page.locator('text=Monotonicity').isVisible();
 
     // Close methodology
     await page.click('button:has-text("Hide Methodology")');
