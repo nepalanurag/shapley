@@ -6,6 +6,22 @@ When 3-5 people collaborate on a project, splitting revenue fairly is impossible
 
 Built for the PayPal AI Hackathon 2026.
 
+- **Live demo:** https://shapley-pi.vercel.app
+- **API:** https://shapley-api.onrender.com ([health check](https://shapley-api.onrender.com/api/health))
+- **Demo video:** https://youtu.be/SjGQPlyEVIY
+- **Devpost submission:** https://devpost.com/software/sahisend
+
+## Screenshots
+
+![Landing page](docs/screenshots/landing.png)
+*Landing page: analyze any repository, or try the demo with no setup*
+
+![Demo results](docs/screenshots/results.png)
+*Demo results: 16 coalitions evaluated, Shapley fair shares vs lines changed*
+
+![Audit trail](docs/screenshots/audit.png)
+*Audit trail: every coalition valuation with confidence and reasoning*
+
 ## Quickstart: a working demo in under five minutes
 
 Demo mode needs **no credentials at all**. The commands below are the
@@ -250,7 +266,7 @@ shapley/
 │       ├── page.tsx         # Landing + repo input
 │       ├── results/page.tsx # Shapley breakdown + coalition lattice
 │       └── audit/page.tsx   # Coalition evaluation log
-└── PLAN.md
+└── docs/screenshots/   # Demo screenshots
 ```
 
 ## API Endpoints
