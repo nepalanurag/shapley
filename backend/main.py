@@ -297,6 +297,25 @@ def analyze(req: AnalyzeRequest):
         log.info(f"Demo job {job_id} created")
         return {"job_id": job_id, "status": "complete", "demo": True}
 
+    if req.session_id:
+        # A session id was sent but the backend no longer holds it:
+        # in-memory sessions are wiped by every Render restart/deploy.
+        # Fail fast with a clear reconnect message instead of silently
+        # analyzing anonymously against the shared 60/hr GitHub quota.
+        # Demo sessions are exempt; they were never a real login.
+        with _oauth_lock:
+            session = _oauth_sessions.get(req.session_id)
+        if session is None or (
+            not session.get("demo_mode")
+            and time.time() - session.get("created_at", 0) > OAUTH_TTL_SEC
+        ):
+            with _oauth_lock:
+                _oauth_sessions.pop(req.session_id, None)
+            raise HTTPException(
+                status_code=401,
+                detail="GitHub session expired. Please reconnect GitHub and try again.",
+            )
+
     job_id = uuid.uuid4().hex[:12]
     with _jobs_lock:
         _jobs[job_id] = {"status": "queued", "created_at": time.time()}

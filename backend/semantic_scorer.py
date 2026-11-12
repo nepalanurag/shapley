@@ -24,7 +24,11 @@ CREDENTIAL = "custom.google-gemini"
 HOSTS = ["generativelanguage.googleapis.com"]
 ENV_VAR = "GEMINI_API_KEY"
 DEFAULT_MODEL = (os.environ.get("GEMINI_MODEL") or "").strip() or "gemini-3.8-flash"
-FALLBACK_MODELS = [DEFAULT_MODEL, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
+# The old fallback models (1.5-flash, 2.0-flash, 1.5-pro) now return 404
+# with the production API key, so they are dead weight; the list is just
+# the primary model. A total Gemini outage falls back to objective
+# metrics inside score_coalition, as before.
+FALLBACK_MODELS = [DEFAULT_MODEL]
 MODELS = list(dict.fromkeys(FALLBACK_MODELS))
 BASE = "https://generativelanguage.googleapis.com/v1beta"
 
@@ -196,10 +200,14 @@ def _call_gemini(prompt: str):
                                headers={"Content-Type": "application/json"})
 
         _last_call = time.time()
-        max_retries = 3
+        # Fail fast: a hanging or overloaded model (503s, read timeouts)
+        # must not eat the 600s job budget. Two attempts at 30s bounds a
+        # bad model to ~65s per coalition, then score_coalition falls back
+        # to objective metrics instead of the job timing out.
+        max_retries = 2
         for attempt in range(max_retries):
             try:
-                with urllib.request.urlopen(req, timeout=90) as resp:
+                with urllib.request.urlopen(req, timeout=30) as resp:
                     return json.loads(resp.read().decode())
             except Exception as e:
                 err = str(e)

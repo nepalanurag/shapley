@@ -92,7 +92,10 @@ export async function startAnalysis(
       ...(sessionId ? { session_id: sessionId } : {}),
     }),
   });
-  if (!res.ok) throw new Error("Analysis start failed");
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Analysis start failed");
+  }
   return res.json();
 }
 
