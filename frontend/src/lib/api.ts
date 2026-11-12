@@ -75,6 +75,13 @@ export async function startAnalysis(
   totalAmount: number,
   demo: boolean
 ): Promise<{ job_id: string }> {
+  // Send the GitHub login session when the user is connected, so the
+  // backend fetches commits with their own token (their own rate limit)
+  // instead of the shared anonymous quota.
+  const sessionId =
+    typeof window !== "undefined"
+      ? sessionStorage.getItem("gh_session")
+      : null;
   const res = await fetch(`${API_BASE}/api/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -82,6 +89,7 @@ export async function startAnalysis(
       repo_url: repoUrl,
       total_amount: totalAmount,
       demo,
+      ...(sessionId ? { session_id: sessionId } : {}),
     }),
   });
   if (!res.ok) throw new Error("Analysis start failed");

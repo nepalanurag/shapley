@@ -37,12 +37,22 @@ def is_bot_login(login):
     return any(b in login for b in KNOWN_BOT_LOGINS)
 
 
-def api_get(path):
+def api_get(path, token=None):
+    """GET a GitHub API path. When token is given (a user's OAuth token),
+    it is sent as the Bearer token. Otherwise falls back to the server
+    env token (GITHUB_TOKEN) or the local surrogate via auth_request."""
     url = f"https://api.github.com{path}"
-    req = auth_request(url, ENV_VAR, CREDENTIAL, HOSTS, headers={
-        "Accept": "application/vnd.github.v3+json",
-        "User-Agent": "shapley-hackathon",
-    })
+    if token:
+        req = urllib.request.Request(url, headers={
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "shapley-hackathon",
+            "Authorization": f"Bearer {token}",
+        })
+    else:
+        req = auth_request(url, ENV_VAR, CREDENTIAL, HOSTS, headers={
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "shapley-hackathon",
+        })
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             return json.loads(resp.read().decode())
@@ -90,16 +100,23 @@ def is_bot_commit(commit):
     return False
 
 
-def get_commits(repo, max_commits=50):
-    """Fetch commits with diffs, grouped by contributor."""
+def get_commits(repo, max_commits=50, token=None):
+    """Fetch commits with diffs, grouped by contributor.
+
+    token: an optional per-user GitHub OAuth token (from the login
+    session). When given it is used for all API calls, so the analysis
+    runs under the user's own rate limit instead of the shared
+    anonymous/server one. When None, api_get falls back to the server
+    env token or anonymous access."""
     print(f"Fetching commits for {repo}...", file=sys.stderr)
-    commits_data = api_get(f"/repos/{repo}/commits?per_page={min(max_commits, 100)}")
+    commits_data = api_get(f"/repos/{repo}/commits?per_page={min(max_commits, 100)}",
+                           token=token)
 
     valid_commits = [c for c in commits_data if not is_bot_commit(c)]
 
     def fetch_detail(sha):
         try:
-            return sha, api_get(f"/repos/{repo}/commits/{sha}")
+            return sha, api_get(f"/repos/{repo}/commits/{sha}", token=token)
         except Exception as e:
             print(f"  Warning: could not fetch {sha[:7]}: {e}", file=sys.stderr)
             return sha, None

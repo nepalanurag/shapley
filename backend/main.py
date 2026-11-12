@@ -84,6 +84,10 @@ class AnalyzeRequest(BaseModel):
     total_amount: float = Field(100.0, gt=0, description="Total payout in USD")
     max_commits: int = Field(30, ge=5, le=50)
     demo: bool = Field(False, description="Use frozen demo data")
+    session_id: str | None = Field(
+        None,
+        description="GitHub OAuth session id from the login flow; its token "
+                    "is used for repo fetching when present and valid")
 
 
 class PayoutShare(BaseModel):
@@ -98,9 +102,32 @@ class PayoutRequest(BaseModel):
     idempotency_key: str | None = None
 
 
+def _resolve_github_token(session_id):
+    """Return the GitHub OAuth access token for a login session, or None.
+
+    The token comes from the user's own GitHub login (the session created
+    by /api/github/oauth-callback). Expired sessions and demo sessions
+    yield None, so ingestion falls back to the server env token or
+    anonymous access exactly as before. The token itself is never logged.
+    """
+    if not session_id:
+        return None
+    with _oauth_lock:
+        session = _oauth_sessions.get(session_id)
+    if not session:
+        return None
+    if session.get("demo_mode"):
+        return None
+    if time.time() - session.get("created_at", 0) > OAUTH_TTL_SEC:
+        with _oauth_lock:
+            _oauth_sessions.pop(session_id, None)
+        return None
+    return session.get("access_token")
+
+
 # ── Background analysis ─────────────────────────────────────────
 
-def _run_analysis(job_id, repo_url, total_amount, max_commits):
+def _run_analysis(job_id, repo_url, total_amount, max_commits, session_id=None):
     """Background worker: ingest → score → Shapley."""
     def update(status, **kw):
         with _jobs_lock:
@@ -113,7 +140,12 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits):
 
         update("ingesting")
         repo = parse_repo_url(repo_url)
-        contributors = get_commits(repo, max_commits)
+        # Prefer the logged-in user's own GitHub token (their 5,000/hr
+        # quota) over the shared anonymous/server path.
+        gh_token = _resolve_github_token(session_id)
+        log.info(f"Ingestion auth for {repo}: "
+                 f"{'user oauth token' if gh_token else 'server token/anonymous'}")
+        contributors = get_commits(repo, max_commits, token=gh_token)
 
         if len(contributors) < 2:
             update("failed", error=f"Need ≥2 contributors, found {len(contributors)}")
@@ -270,7 +302,7 @@ def analyze(req: AnalyzeRequest):
         _jobs[job_id] = {"status": "queued", "created_at": time.time()}
     t = threading.Thread(target=_run_analysis,
                          args=(job_id, req.repo_url, req.total_amount,
-                               req.max_commits), daemon=True)
+                               req.max_commits, req.session_id), daemon=True)
     t.start()
     log.info(f"Analysis job {job_id} queued for {req.repo_url}")
     return {"job_id": job_id, "status": "queued"}
