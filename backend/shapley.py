@@ -60,7 +60,7 @@ import subprocess
 import sys
 from typing import Dict, List, Optional, Any
 
-from semantic_scorer import score_coalition
+from semantic_scorer import score_coalition, score_coalitions_batch
 from financial_math import allocate_exact_cents, usd_to_cents, cents_to_usd_str
 from merkle_audit import build_audit_receipt
 
@@ -89,6 +89,28 @@ def assert_efficiency(shapley_values: Dict[Any, float], v_full: float,
             f"Efficiency violation: sum(phi)={total!r} != "
             f"v(N)-v(empty)={expected!r} (diff={abs(total - expected)!r} "
             f"> tol={tol})")
+
+
+def _score_all_coalitions(coalitions, contributor_diffs, contributor_names):
+    """Score a list of coalitions, batched into as few Gemini prompts as
+    possible (one prompt per up-to-50 coalitions).
+
+    Test fixtures replace the module-level score_coalition with a mock;
+    when that replacement is detected (the same identity check
+    _model_identifier uses), each coalition is scored through the mock
+    instead, so the axiom/golden-fixture suites keep working unchanged.
+    Returns (results_dict, prompts_sent).
+    """
+    import semantic_scorer as _ss
+    if score_coalition is getattr(_ss, "score_coalition", None):
+        return score_coalitions_batch(coalitions, contributor_diffs,
+                                      contributor_names)
+    results = {}
+    for coalition in coalitions:
+        members = sorted(coalition)
+        results[tuple(members)] = score_coalition(
+            members, contributor_diffs, contributor_names)
+    return results, len(coalitions)
 
 
 def all_coalitions(n: int):
@@ -347,16 +369,19 @@ def compute_shapley(
     names = contributor_names or {i: f"Contributor {i}" for i in range(n)}
 
     # ── Shared value table: v(S) evaluated ONCE per subset ─────
+    # Coalitions are scored in batches (one Gemini prompt per up-to-50
+    # coalitions) instead of one prompt per coalition; the value table
+    # and everything downstream are unchanged.
     value_table: Dict[frozenset, float] = {}
     evaluations = []
-    api_calls = 0
 
     all_subs = list(all_coalitions(n))
+    batch_results, api_calls = _score_all_coalitions(
+        [sorted(c) for c in all_subs], contributor_diffs, names)
     for coalition in all_subs:
         member_list = sorted(coalition)
-        result = score_coalition(member_list, contributor_diffs, names)
+        result = batch_results[tuple(member_list)]
         value_table[frozenset(coalition)] = result["score"]
-        api_calls += 1
         evaluations.append({
             "coalition": member_list,
             "members": [names[i] for i in member_list],
@@ -525,64 +550,70 @@ def monte_carlo_shapley(
         contributor_diffs, names)
     rng = random.Random(resolved_seed)
 
-    value_cache = {}
-    evaluations = []
-    api_calls = 0
+    target_pairs = max(min_samples // 2, min(num_samples // 2, max_samples // 2))
+
+    # Phase 1: draw the permutations first (same seeded rng sequence as
+    # before, so the estimator is unchanged), then score every distinct
+    # coalition they need in as few Gemini prompts as possible instead
+    # of one prompt per coalition as the permutations are walked.
+    permutations = []
+    for _pair_idx in range(target_pairs):
+        perm_forward = list(range(n))
+        rng.shuffle(perm_forward)
+        permutations.append(perm_forward)
+        permutations.append(perm_forward[::-1])
+
+    unique_coalitions = set()
+    for perm in permutations:
+        coalition = set()
+        unique_coalitions.add(frozenset())
+        for i in perm:
+            coalition = coalition | {i}
+            unique_coalitions.add(frozenset(coalition))
+
+    batch_results, api_calls = _score_all_coalitions(
+        [sorted(c) for c in unique_coalitions], contributor_diffs, names)
+    value_cache = {frozenset(k): v["score"] for k, v in batch_results.items()}
+    evaluations = [{
+        "coalition": list(k),
+        "members": [names[i] for i in k],
+        "score": v["score"],
+        "scoring_mode": v.get("scoring_mode", "gemini_semantic"),
+        "reasoning": v.get("reasoning", ""),
+        "confidence": v.get("confidence", 0.5),
+        "rubric": v.get("rubric"),
+    } for k, v in sorted(batch_results.items())]
 
     def v(coalition):
-        nonlocal api_calls
-        key = frozenset(coalition)
-        if key not in value_cache:
-            member_list = sorted(coalition)
-            result = score_coalition(member_list, contributor_diffs, names)
-            value_cache[key] = result["score"]
-            api_calls += 1
-            evaluations.append({
-                "coalition": member_list,
-                "members": [names[i] for i in member_list],
-                "score": result["score"],
-                "scoring_mode": result.get("scoring_mode", "gemini_semantic"),
-                "reasoning": result.get("reasoning", ""),
-                "confidence": result.get("confidence", 0.5),
-                "rubric": result.get("rubric"),
-            })
-        return value_cache[key]
-
-    target_pairs = max(min_samples // 2, min(num_samples // 2, max_samples // 2))
+        return value_cache[frozenset(coalition)]
 
     # Per-permutation marginal samples: samples[i][p] is player i's raw
     # marginal on permutation p. These are the bootstrap population and
     # the record from which the published point estimate is the mean.
     per_player_samples: Dict[int, List[float]] = {i: [] for i in range(n)}
     total_permutations = 0
-    for _pair_idx in range(target_pairs):
-        perm_forward = list(range(n))
-        rng.shuffle(perm_forward)
-        perm_reverse = perm_forward[::-1]
-
-        # Antithetic pair: forward permutation + its reverse.
-        for perm in (perm_forward, perm_reverse):
-            total_permutations += 1
-            coalition = set()
-            v_current = v(coalition)
-            perm_marginals: Dict[int, float] = {}
-            for i in perm:
-                coalition_with_i = coalition | {i}
-                v_next = v(coalition_with_i)
-                # Raw marginal difference. No per-step flooring: a
-                # negative marginal is real information about the
-                # scorer's value function and biasing it to zero here
-                # (the previous max(0.0, ...) guard) systematically
-                # inflated every estimate.
-                marginal = v_next - v_current
-                perm_marginals[i] = marginal
-                coalition = coalition_with_i
-                v_current = v_next
-            # Bookkeeping identity: this permutation's marginals must
-            # telescope to v(N) - v(empty).
-            assert_efficiency(perm_marginals, v(set(range(n))), v(set()))
-            for i in range(n):
-                per_player_samples[i].append(perm_marginals[i])
+    for perm in permutations:
+        total_permutations += 1
+        coalition = set()
+        v_current = v(coalition)
+        perm_marginals: Dict[int, float] = {}
+        for i in perm:
+            coalition_with_i = coalition | {i}
+            v_next = v(coalition_with_i)
+            # Raw marginal difference. No per-step flooring: a
+            # negative marginal is real information about the
+            # scorer's value function and biasing it to zero here
+            # (the previous max(0.0, ...) guard) systematically
+            # inflated every estimate.
+            marginal = v_next - v_current
+            perm_marginals[i] = marginal
+            coalition = coalition_with_i
+            v_current = v_next
+        # Bookkeeping identity: this permutation's marginals must
+        # telescope to v(N) - v(empty).
+        assert_efficiency(perm_marginals, v(set(range(n))), v(set()))
+        for i in range(n):
+            per_player_samples[i].append(perm_marginals[i])
 
     # Final estimates: means of the per-permutation samples.
     shapley = {i: sum(per_player_samples[i]) / total_permutations
