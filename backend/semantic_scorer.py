@@ -23,7 +23,7 @@ from ast_quarantine import quarantine_diff
 CREDENTIAL = "custom.google-gemini"
 HOSTS = ["generativelanguage.googleapis.com"]
 ENV_VAR = "GEMINI_API_KEY"
-DEFAULT_MODEL = (os.environ.get("GEMINI_MODEL") or "").strip() or "gemini-2.5-flash"
+DEFAULT_MODEL = (os.environ.get("GEMINI_MODEL") or "").strip() or "gemini-3.8-flash"
 FALLBACK_MODELS = [DEFAULT_MODEL, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
 MODELS = list(dict.fromkeys(FALLBACK_MODELS))
 BASE = "https://generativelanguage.googleapis.com/v1beta"

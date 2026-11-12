@@ -39,7 +39,7 @@ import semantic_scorer
 import main
 assert paypal_payouts.MAX_BATCH_AMOUNT_USD == 10000.0, paypal_payouts.MAX_BATCH_AMOUNT_USD
 assert semantic_scorer.MIN_INTERVAL == 4.0, semantic_scorer.MIN_INTERVAL
-assert semantic_scorer.DEFAULT_MODEL == "gemini-2.5-flash", semantic_scorer.DEFAULT_MODEL
+assert semantic_scorer.DEFAULT_MODEL == "gemini-3.8-flash", semantic_scorer.DEFAULT_MODEL
 assert main.app is not None
 print("IMPORT_OK")
 """
