@@ -179,11 +179,21 @@ def _call_gemini(prompt: str):
         }).encode()
 
         if api_key:
+            # API key goes in the URL only. An API key must never be sent
+            # as a Bearer token: Google rejects it with 401 even when
+            # ?key= is valid (verified 2026-11-12: the same key returns
+            # 400 alone, 401 with the Bearer header). Build the request
+            # directly so no Authorization header is attached.
             url = f"{url}?key={api_key}"
-
-        req = auth_request(url, ENV_VAR, CREDENTIAL, HOSTS,
-                           data=data,
-                           headers={"Content-Type": "application/json"})
+            req = urllib.request.Request(
+                url, data=data,
+                headers={"Content-Type": "application/json"})
+        else:
+            # No key: local dev authenticates through the surrogate
+            # (a real OAuth token, valid as Bearer).
+            req = auth_request(url, ENV_VAR, CREDENTIAL, HOSTS,
+                               data=data,
+                               headers={"Content-Type": "application/json"})
 
         _last_call = time.time()
         max_retries = 3
