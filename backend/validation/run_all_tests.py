@@ -34,10 +34,41 @@ SCRIPTS = [
     (".env.example Startup Regression", "test_env_example_startup.py"),
 ]
 
+# Required backend dependencies (backend/requirements.txt). Deliberately NOT
+# hypothesis/shap: the cold-clone design runs without them and those suites
+# report an explicit SKIP instead (see THRESHOLDS.md SS6).
+REQUIRED_MODULES = ["fastapi", "uvicorn", "pydantic"]
+
+
+def check_required_modules():
+    """Fail fast with the fix when run outside a venv.
+
+    Without this, a bare system python (no fastapi) runs every suite into
+    ModuleNotFoundError and reports several FAILED suites, which reads as
+    broken code when the real problem is a missing install step.
+    """
+    missing = []
+    for mod in REQUIRED_MODULES:
+        try:
+            __import__(mod)
+        except ImportError:
+            missing.append(mod)
+    if missing:
+        print("Missing required backend dependencies: " + ", ".join(missing))
+        print("Run the suite from a virtual environment:")
+        print("  python3 -m venv .venv")
+        print("  .venv/bin/pip install -r backend/requirements.txt")
+        print("  .venv/bin/python backend/validation/run_all_tests.py")
+        return False
+    return True
+
 
 def main():
     val_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.dirname(val_dir)
+
+    if not check_required_modules():
+        sys.exit(2)
 
     print("\n" + "=" * 80)
     print("SHAPLEY PROTOCOL: MASTER VERIFICATION & INVARIANT AUDIT SUITE")

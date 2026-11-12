@@ -1,17 +1,56 @@
 import { chromium } from '@playwright/test';
+import fs from 'node:fs';
 
-const BRAVE_PATH = '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser';
-const FRONTEND_URL = 'http://127.0.0.1:3000';
-const BACKEND_URL = 'http://127.0.0.1:8000';
+// Usage: start the backend (uvicorn, :8000) and the frontend production
+// server (npm run build && npm start, :3000), then run:
+//   node frontend/tests/verify_all_buttons.mjs
+// Run against the production server, not `next dev`: in sandboxed
+// environments the dev server can serve unhydrated HTML (clicks do
+// nothing), while the production build hydrates normally.
+// Override with FRONTEND_URL / BACKEND_URL / BROWSER_PATH as needed.
+// Browser resolution: BROWSER_PATH wins; else Brave on macOS when it is
+// installed (the original behavior); else Playwright's bundled Chromium,
+// which is what runs on Linux and in CI-less environments.
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://127.0.0.1:3000';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8000';
+
+function resolveBrowserPath() {
+  const candidates = [
+    process.env.BROWSER_PATH,
+    '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+  ].filter(Boolean);
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch { /* unreadable path: fall through to bundled Chromium */ }
+  }
+  return null;
+}
 
 async function verifyAllButtons() {
   console.log('='.repeat(80));
   console.log('🎯 COMPREHENSIVE BUTTON & INTERACTION AUDIT SUITE');
   console.log('='.repeat(80));
 
+  // Preflight: both servers must be up, or every selector below times out
+  // with a confusing Playwright error. Fail fast with the actual cause.
+  for (const [name, url] of [['frontend', `${FRONTEND_URL}/`], ['backend', `${BACKEND_URL}/api/health`]]) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      console.error(`\n${name} not reachable at ${url} (${err.message}).`);
+      console.error('Start the backend (uvicorn) and frontend (npm run build && npm start) first,');
+      console.error('or point FRONTEND_URL / BACKEND_URL at running servers.');
+      process.exit(1);
+    }
+  }
+
+  const executablePath = resolveBrowserPath();
+  console.log(`Browser: ${executablePath || 'Playwright bundled Chromium'}`);
   const browser = await chromium.launch({
     headless: true,
-    executablePath: BRAVE_PATH,
+    ...(executablePath ? { executablePath } : {}),
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
 
@@ -80,11 +119,11 @@ async function verifyAllButtons() {
   console.log('\n[2] Verifying Results Page Buttons (/results?demo=true)...');
   await page.waitForSelector('text=Maya Chen', { timeout: 10000 });
 
-  // 2.1 Hackathon Pot Solvency Button & Modal
-  const solvencyBtn = page.locator('button:has-text("Hackathon Pot Solvency")');
+  // 2.1 Grant Pool Solvency Button & Modal
+  const solvencyBtn = page.locator('button:has-text("Grant Pool Solvency")');
   await solvencyBtn.click();
-  await page.waitForSelector('text=Hackathon Prize Pot Solvency Proof');
-  console.log('  ✓ Button "Hackathon Pot Solvency" opened Solvency Modal');
+  await page.waitForSelector('text=Grant Pool Solvency Proof');
+  console.log('  ✓ Button "Grant Pool Solvency" opened Solvency Modal');
 
   const reverifyBtn = page.locator('button:has-text("Re-Verify Live Solvency")');
   await reverifyBtn.click();
