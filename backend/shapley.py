@@ -60,7 +60,7 @@ import subprocess
 import sys
 from typing import Dict, List, Optional, Any
 
-from semantic_scorer import score_coalition, score_coalitions_batch
+from semantic_scorer import score_coalition, score_coalitions
 from financial_math import allocate_exact_cents, usd_to_cents, cents_to_usd_str
 from merkle_audit import build_audit_receipt
 
@@ -92,8 +92,7 @@ def assert_efficiency(shapley_values: Dict[Any, float], v_full: float,
 
 
 def _score_all_coalitions(coalitions, contributor_diffs, contributor_names):
-    """Score a list of coalitions, batched into as few Gemini prompts as
-    possible (one prompt per up-to-50 coalitions).
+    """Score a list of coalitions with a single Gemini prompt.
 
     Test fixtures replace the module-level score_coalition with a mock;
     when that replacement is detected (the same identity check
@@ -103,8 +102,8 @@ def _score_all_coalitions(coalitions, contributor_diffs, contributor_names):
     """
     import semantic_scorer as _ss
     if score_coalition is getattr(_ss, "score_coalition", None):
-        return score_coalitions_batch(coalitions, contributor_diffs,
-                                      contributor_names)
+        return score_coalitions(coalitions, contributor_diffs,
+                                contributor_names)
     results = {}
     for coalition in coalitions:
         members = sorted(coalition)

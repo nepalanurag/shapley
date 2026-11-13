@@ -50,21 +50,14 @@ def _env_float(name, default):
 MIN_INTERVAL = _env_float("GEMINI_MIN_INTERVAL", 4.0)
 
 
-def _env_int(name, default):
-    raw = os.environ.get(name)
-    if raw is None or str(raw).strip() == "":
-        return int(default)
-    return int(raw)
-
-
-# Batched coalition scoring: one prompt carries the involved
-# contributors' diffs once plus a list of coalitions, and Gemini returns
-# one JSON object with a rubric score per coalition. Without this,
-# Shapley needs one call per coalition (2^n exact; ~3,000 for a
-# 22-contributor Monte Carlo run), which cannot fit the 600s job budget
-# at a 4s minimum gap between calls.
-BATCH_SIZE = _env_int("GEMINI_BATCH_SIZE", 50)
-BATCH_DIFF_BUDGET = 16000
+# Single-prompt coalition scoring: one Gemini prompt per repo analysis
+# carries the involved contributors' diffs once plus every coalition to
+# score, and Gemini returns one JSON object with a score per coalition.
+# The key allows 5 requests a minute, so one prompt per coalition (or
+# one per batch of 50) rate-limits; one prompt per repo does not. The
+# response is numbers-only in a compact array format so a large repo's
+# scores fit in a single generation.
+PROMPT_DIFF_BUDGET = 16000
 
 
 def sanitize_diff(text: str) -> str:
@@ -289,21 +282,17 @@ def _heuristic_scored(member_indices, contributor_diffs, reason, warnings=None):
     }
 
 
-def _chunked(seq, size):
-    for i in range(0, len(seq), size):
-        yield seq[i:i + size]
+def score_coalitions(coalitions, contributor_diffs, contributor_names=None):
+    """Score many coalitions with a single Gemini prompt.
 
-
-def score_coalitions_batch(coalitions, contributor_diffs, contributor_names=None):
-    """Score many coalitions with as few Gemini calls as possible.
-
-    One prompt carries the involved contributors' diffs once plus the
-    list of coalitions to score, and Gemini returns one JSON object with
-    a rubric score per coalition. Returns (results, prompts_sent):
-    results maps the sorted member tuple to the same score dict
-    score_coalition returns; prompts_sent counts the Gemini prompts
-    actually sent. Coalitions Gemini fails to score get the
-    objective-only heuristic fallback, flagged as such.
+    One prompt carries the involved contributors' diffs once plus every
+    coalition to score; Gemini returns one JSON object with a rubric
+    score per coalition. Returns (results, prompts_sent): results maps
+    the sorted member tuple to the same score dict score_coalition
+    returns; prompts_sent is 0 or 1. Coalitions Gemini fails to score
+    get the objective-only heuristic fallback, flagged as such. A
+    truncated response still yields its complete entries; only the
+    missing coalitions fall back.
     """
     names = contributor_names or {}
     results = {}
@@ -325,20 +314,53 @@ def score_coalitions_batch(coalitions, contributor_diffs, contributor_names=None
         else:
             pending.append(list(members))
     prompts = 0
-    for chunk in _chunked(pending, BATCH_SIZE):
-        prompts += _score_batch_chunk(chunk, contributor_diffs, names, results)
+    if pending:
+        prompts = _score_single_prompt(pending, contributor_diffs, names, results)
     return results, prompts
 
 
-def _score_batch_chunk(chunk, contributor_diffs, names, results):
-    """Score one batch of coalitions with a single Gemini prompt.
+def _normalize_entry(entry):
+    """Normalize one returned score to (members, rubric, reasoning,
+    confidence), or None when it cannot be read. Accepts the compact
+    array form [members..., complexity, impact, originality, unblocking]
+    and the object form {"coalition": [...], ...}."""
+    if isinstance(entry, list):
+        if len(entry) < 5:
+            return None
+        try:
+            nums = [int(x) for x in entry]
+        except (TypeError, ValueError):
+            return None
+        members = tuple(sorted(nums[:-4]))
+        rubric = {"complexity": _clamp25(nums[-4]), "impact": _clamp25(nums[-3]),
+                  "originality": _clamp25(nums[-2]), "unblocking": _clamp25(nums[-1])}
+        return members, rubric, "", 0.5
+    if isinstance(entry, dict):
+        try:
+            members = tuple(sorted(int(i) for i in entry["coalition"]))
+        except (KeyError, TypeError, ValueError):
+            return None
+        rubric = {"complexity": _clamp25(entry.get("complexity")),
+                  "impact": _clamp25(entry.get("impact")),
+                  "originality": _clamp25(entry.get("originality")),
+                  "unblocking": _clamp25(entry.get("unblocking"))}
+        try:
+            confidence = max(0.0, min(1.0, float(entry.get("confidence", 0.5))))
+        except (TypeError, ValueError):
+            confidence = 0.5
+        return members, rubric, str(entry.get("reasoning", ""))[:500], confidence
+    return None
 
-    Returns the number of Gemini prompts sent (0 or 1). Fills results
-    in place; every coalition gets a score, heuristic fallback when
-    Gemini fails or skips it.
+
+def _score_single_prompt(pending, contributor_diffs, names, results):
+    """Score every pending coalition with one Gemini prompt.
+
+    Returns the number of Gemini prompts sent (1). Fills results in
+    place; every coalition gets a score, heuristic fallback when Gemini
+    fails or skips it.
     """
     # Shared diff context: each involved contributor's diffs once.
-    involved = sorted({idx for members in chunk for idx in members})
+    involved = sorted({idx for members in pending for idx in members})
     diff_sections = []
     for idx in involved:
         name = names.get(idx, f"Contributor {idx}")
@@ -348,11 +370,11 @@ def _score_batch_chunk(chunk, contributor_diffs, names, results):
             sanitized_chunks.append(q_res["executable_diff"])
         diff_sections.append(f"### {name} (contributor {idx}):\n" + "\n---\n".join(sanitized_chunks))
     all_diffs = "\n\n".join(diff_sections)
-    if len(all_diffs) > BATCH_DIFF_BUDGET:
-        all_diffs = all_diffs[:BATCH_DIFF_BUDGET] + "\n[truncated]"
+    if len(all_diffs) > PROMPT_DIFF_BUDGET:
+        all_diffs = all_diffs[:PROMPT_DIFF_BUDGET] + "\n[truncated]"
 
     coalition_lines = []
-    for j, members in enumerate(chunk):
+    for j, members in enumerate(pending):
         member_names = ", ".join(names.get(i, f"Contributor {i}") for i in members)
         coalition_lines.append(f"{j}. members {list(members)} ({member_names})")
     coalition_text = "\n".join(coalition_lines)
@@ -385,17 +407,14 @@ should NOT get top marks in every dimension.
   refactors, APIs, and infrastructure that others build on score high.
   Isolated leaf-node changes score low.
 
-Coalitions to score:
+Coalitions to score, in this order:
 {coalition_text}
 
-Respond with JSON only, one entry per coalition, in the same order:
-{{"scores": [{{"coalition": [<member indices>],
-  "complexity": <0-25 integer>,
-  "impact": <0-25 integer>,
-  "originality": <0-25 integer>,
-  "unblocking": <0-25 integer>,
-  "reasoning": "<under 10 words, reference specific code>",
-  "confidence": <0.0-1.0>}}]}}"""
+Respond with JSON only, one entry per coalition, in the same order, using
+this compact array format and no other fields:
+{{"scores": [[<member indices..., complexity, impact, originality, unblocking>, ...]}}
+Example: a coalition of members 0 and 1 scoring 18, 20, 12, 15 is [0, 1, 18, 20, 12, 15].
+List EVERY coalition above. Do not stop early and do not omit any."""
 
     fail_reason = None
     entries = {}
@@ -406,49 +425,46 @@ Respond with JSON only, one entry per coalition, in the same order:
             text = text.split("```")[1]
             if text.startswith("json"):
                 text = text[4:]
-        parsed = json.loads(text)
-        for entry in parsed.get("scores", []):
-            try:
-                key = tuple(sorted(int(i) for i in entry["coalition"]))
-            except (KeyError, TypeError, ValueError):
-                continue
-            entries[key] = entry
+        try:
+            parsed = json.loads(text)
+            raw_entries = parsed.get("scores", [])
+        except (ValueError, AttributeError):
+            # Truncated response: salvage every complete entry array.
+            raw_entries = [
+                json.loads(m) for m in
+                re.findall(r"\[\s*\d+(?:\s*,\s*\d+){4,}\s*\]", text)
+            ]
+        for entry in raw_entries:
+            normalized = _normalize_entry(entry)
+            if normalized is not None:
+                entries[normalized[0]] = normalized
     except Exception as e:
         fail_reason = str(e)
-        print(f"  [batch scoring fallback to objective metrics: {e}]", file=sys.stderr)
+        print(f"  [single-prompt scoring fallback to objective metrics: {e}]", file=sys.stderr)
 
-    for members in chunk:
+    for members in pending:
         key = tuple(members)
-        entry = entries.get(key)
-        if entry is None:
-            reason = fail_reason or "missing from Gemini batch response"
+        normalized = entries.get(key)
+        if normalized is None:
+            reason = fail_reason or "missing from Gemini response"
             scored = _heuristic_scored(list(members), contributor_diffs, reason)
             results[key] = scored
             _cache[_coalition_hash(list(members), contributor_diffs)] = scored
             continue
+        _members, rubric, reasoning, confidence = normalized
         # Objective part is computed locally, exactly as in score_coalition.
         coalition_diffs = []
         for idx in members:
             coalition_diffs.extend(contributor_diffs.get(idx, []))
         obj_signals = extract_objective_code_signals(coalition_diffs)
         obj_score = obj_signals["objective_score"]
-        rubric = {
-            "complexity": _clamp25(entry.get("complexity")),
-            "impact": _clamp25(entry.get("impact")),
-            "originality": _clamp25(entry.get("originality")),
-            "unblocking": _clamp25(entry.get("unblocking")),
-        }
         semantic_total = sum(rubric.values())
-        try:
-            confidence = max(0.0, min(1.0, float(entry.get("confidence", 0.5))))
-        except (TypeError, ValueError):
-            confidence = 0.5
         scored = {
             "score": round(0.30 * obj_score + 0.70 * semantic_total),
             "scoring_mode": "gemini_semantic",
             "semantic_score": semantic_total,
             "objective_score": obj_score,
-            "reasoning": str(entry.get("reasoning", ""))[:500],
+            "reasoning": reasoning,
             "confidence": confidence,
             "rubric": rubric,
             "objective_signals": obj_signals,
