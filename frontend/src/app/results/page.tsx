@@ -409,6 +409,9 @@ function ResultsContent() {
 
   useEffect(() => {
     const load = async () => {
+      // A new job means a fresh result: never let a modal opened for
+      // the previous job cover it.
+      setShowRepoModal(false);
       const isDemo = params.get("demo") === "true";
       const jobId = params.get("job");
       try {
@@ -851,6 +854,11 @@ function ResultsContent() {
       );
       sessionStorage.setItem("shapley_job", job_id);
       sessionStorage.setItem("shapley_total", customPool);
+      // Close the modal before navigating: its job is done once the
+      // analysis starts, and leaving it open lets it sit over the new
+      // results page when the job completes.
+      setShowRepoModal(false);
+      setAnalyzingCustom(false);
       router.push(`/analyze?job=${job_id}`);
     } catch (err: any) {
       setCustomRepoError(err.message || "Failed to start analysis");
