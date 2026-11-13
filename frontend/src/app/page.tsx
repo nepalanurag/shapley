@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { startAnalysis } from "@/lib/api";
+import { useByok } from "@/lib/byok";
+import ByokFields from "@/components/ByokFields";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -20,6 +22,7 @@ export default function Home() {
   const [total, setTotal] = useState("1000");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const byok = useByok();
 
   // GitHub OAuth state
   const [ghSession, setGhSession] = useState<string | null>(null);
@@ -109,7 +112,8 @@ export default function Home() {
           return;
         }
         const { job_id } = await startAnalysis(
-          repoUrl.trim(), parseFloat(total) || 1000, false);
+          repoUrl.trim(), parseFloat(total) || 1000, false,
+          byok.requestFields());
         sessionStorage.setItem("shapley_job", job_id);
         sessionStorage.setItem("shapley_total", total);
         router.push(`/analyze?job=${job_id}`);
@@ -267,6 +271,10 @@ export default function Home() {
               className="w-full bg-[#121316] border border-[#1e2024] rounded-lg pl-8 pr-4 py-3 text-zinc-100 font-mono focus:outline-none focus:border-zinc-500 transition-colors"
             />
           </div>
+
+          {/* Bring your own AI key: the built-in key is free-tier and
+              rate limited, so users can score with their own quota. */}
+          <ByokFields byok={byok} />
 
           {error && (
             <div className="bg-red-950 border border-red-800 text-red-200 rounded-lg px-4 py-3 mb-4 text-sm animate-shake">

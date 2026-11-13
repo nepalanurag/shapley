@@ -29,8 +29,9 @@ export interface Evaluation {
     unblocking: number;
   };
   monotonicity_adjusted?: boolean;
-  // "gemini_semantic" = scored by Gemini; "heuristic_fallback" = Gemini was
-  // unavailable and the score is the objective line/branch heuristic only.
+  // "<provider>_semantic" = scored by that provider's AI;
+  // "heuristic_fallback" = the provider was unavailable and the score
+  // is the objective line/branch heuristic only.
   scoring_mode?: string;
 }
 
@@ -49,6 +50,14 @@ export interface Provenance {
   efficiency_tol: number;
 }
 
+export interface ScoringInfo {
+  provider: string;
+  model: string;
+  user_key: boolean;
+  rate_limited: boolean;
+  error?: string | null;
+}
+
 export interface AnalysisResult {
   repo: string;
   total_amount: number;
@@ -58,6 +67,14 @@ export interface AnalysisResult {
   api_calls: number;
   num_coalitions: number;
   demo_mode?: boolean;
+  // BYOK scoring record: which key scored this job and whether it was
+  // rate limited. Carries no key material.
+  scoring_info?: ScoringInfo;
+  // True when the built-in server key hit its limit (no user key was
+  // supplied): the UI must say so and offer the BYOK field.
+  server_key_exhausted?: boolean;
+  // True when the user's own key was rate limited.
+  user_key_rate_limited?: boolean;
   // Persisted provenance record produced by the backend Shapley engine.
   // All displayed attribution numbers come from the API response (this
   // record's lineage), never from an on-the-fly recomputation in the UI.
@@ -73,7 +90,8 @@ export async function fetchDemo(): Promise<AnalysisResult> {
 export async function startAnalysis(
   repoUrl: string,
   totalAmount: number,
-  demo: boolean
+  demo: boolean,
+  byok?: { provider?: string; apiKey?: string }
 ): Promise<{ job_id: string }> {
   // Send the GitHub login session when the user is connected, so the
   // backend fetches commits with their own token (their own rate limit)
@@ -90,6 +108,11 @@ export async function startAnalysis(
       total_amount: totalAmount,
       demo,
       ...(sessionId ? { session_id: sessionId } : {}),
+      // BYOK: the user's own key goes only with this request. The
+      // backend uses it for this job only and never stores it.
+      ...(byok?.apiKey
+        ? { provider: byok.provider || "gemini", api_key: byok.apiKey }
+        : {}),
     }),
   });
   if (!res.ok) {

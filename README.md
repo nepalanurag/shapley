@@ -172,9 +172,24 @@ to start. Never use production PayPal credentials here.
 | `GEMINI_API_KEY` | Yes, for live analysis | Google Gemini API key for coalition scoring (https://aistudio.google.com/apikey) |
 | `GEMINI_MODEL` | No | Gemini model override (default `gemini-3.8-flash`) |
 | `GEMINI_MIN_INTERVAL` | No | Minimum seconds between Gemini calls (default `4.0`) |
+| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | No | Optional server keys for the OpenAI / Claude scorers; without them those providers work only with a user-supplied key |
+| `OPENAI_MODEL` / `ANTHROPIC_MODEL` | No | Model overrides (defaults `gpt-4o-mini` / `claude-haiku-5-5`) |
 | `GITHUB_TOKEN` | No | GitHub token; raises API rate limits, needed for private repos |
 | `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET` | No | Only for the "Connect GitHub" repo picker |
 | `FRONTEND_URL` | No (default `http://localhost:3000`) | Frontend origin for the OAuth redirect |
+
+### Bring your own AI key (BYOK)
+
+The built-in Gemini key is free-tier (5 requests/min, 20/day), so a
+busy day exhausts it and live analysis falls back to the objective
+heuristic. Anyone can score with their own quota instead: tick "Use
+my own AI key" on the home page (or in the "Analyze Another Repo"
+modal), pick Gemini, OpenAI, or Claude, and paste a key. The key is
+stored only in that browser's localStorage and sent only with the
+analyze request; the backend holds it in memory for that one job and
+never stores, logs, or returns it. When the built-in key is rate
+limited, the results page says so plainly and points at the key
+field; when a user's own key is rate limited, it says that instead.
 
 Live analysis is paced, by design: the scorer enforces the
 `GEMINI_MIN_INTERVAL` minimum interval (4.0s by default) between

@@ -23,6 +23,8 @@ import {
   AnalysisResult,
   Contributor,
 } from "@/lib/api";
+import { useByok, providerLabel } from "@/lib/byok";
+import ByokFields from "@/components/ByokFields";
 import PotSolvencyModal from "@/components/PotSolvencyModal";
 import SponsorHub from "@/components/SponsorHub";
 import ContributorPortal from "@/components/ContributorPortal";
@@ -80,6 +82,7 @@ function ResultsContent() {
   const [customPool, setCustomPool] = useState("2500");
   const [analyzingCustom, setAnalyzingCustom] = useState(false);
   const [customRepoError, setCustomRepoError] = useState("");
+  const byok = useByok();
   const [selectedContributor, setSelectedContributor] = useState<Contributor | null>(null);
   const [copiedMd, setCopiedMd] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -850,7 +853,8 @@ function ResultsContent() {
       const { job_id } = await startAnalysis(
         customRepo.trim(),
         parseFloat(customPool) || 1000,
-        false
+        false,
+        byok.requestFields()
       );
       sessionStorage.setItem("shapley_job", job_id);
       sessionStorage.setItem("shapley_total", customPool);
@@ -1238,15 +1242,43 @@ function ResultsContent() {
         )}
 
         {/* Heuristic-fallback warning: shown when any coalition was scored
-            by the objective heuristic because Gemini was unavailable. */}
+            by the objective heuristic because the AI provider was unavailable. */}
         {data.evaluations?.some((e) => e.scoring_mode === "heuristic_fallback") && (
           <div className="bg-red-950/40 border border-red-900 rounded-[2px] p-4 mb-8 text-sm text-red-300">
             ⚠ <strong>Heuristic fallback:</strong>{" "}
             {data.evaluations.filter((e) => e.scoring_mode === "heuristic_fallback").length}{" "}
             of {data.evaluations.length} coalition scores came from the objective
-            line/branch heuristic (Gemini unavailable), not from AI semantic
-            evaluation. Treat those shares as low-confidence estimates. Affected
-            coalitions are flagged in the audit view.
+            line/branch heuristic ({providerLabel(data.scoring_info?.provider)} unavailable),
+            not from AI semantic evaluation. Treat those shares as low-confidence
+            estimates. Affected coalitions are flagged in the audit view.
+          </div>
+        )}
+
+        {/* Built-in key exhausted: the server key hit its limit, so no AI
+            scores were possible at all. Point at BYOK instead of leaving
+            the user to guess why the scores are heuristic. */}
+        {data.server_key_exhausted && (
+          <div className="bg-amber-950/40 border border-amber-900 rounded-[2px] p-4 mb-8 text-sm text-amber-200">
+            ⚠ <strong>Our built-in key hit its daily limit.</strong> Shapley&apos;s
+            own {providerLabel(data.scoring_info?.provider)} key is rate limited
+            for the day, so these scores are heuristic estimates, not AI scores.
+            Add your own Gemini, OpenAI, or Claude key to get AI scores with
+            your own quota.{" "}
+            <button
+              onClick={() => setShowRepoModal(true)}
+              className="underline font-semibold hover:text-amber-100"
+            >
+              Analyze with my own key &rarr;
+            </button>
+          </div>
+        )}
+
+        {/* The user's own key was rate limited. */}
+        {data.user_key_rate_limited && (
+          <div className="bg-amber-950/40 border border-amber-900 rounded-[2px] p-4 mb-8 text-sm text-amber-200">
+            ⚠ <strong>Your {providerLabel(data.scoring_info?.provider)} key was rate limited.</strong>{" "}
+            Your own key hit its limit, so these scores are heuristic estimates,
+            not AI scores. Try again later, or use a different key.
           </div>
         )}
 
@@ -2474,6 +2506,8 @@ python3 -m backend.security.merkle_ledger verify receipt.json`}
                     className="w-full bg-[#101214] border border-[#2b2f36] rounded-[2px] px-3.5 py-2 text-zinc-100 font-mono text-xs focus:outline-none focus:border-zinc-500"
                   />
                 </div>
+
+                <ByokFields byok={byok} />
 
                 <div className="pt-3 border-t border-zinc-800 flex justify-end gap-2">
                   <button

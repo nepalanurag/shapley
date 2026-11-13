@@ -91,19 +91,26 @@ def assert_efficiency(shapley_values: Dict[Any, float], v_full: float,
             f"> tol={tol})")
 
 
-def _score_all_coalitions(coalitions, contributor_diffs, contributor_names):
-    """Score a list of coalitions with a single Gemini prompt.
+def _score_all_coalitions(coalitions, contributor_diffs, contributor_names,
+                          provider="gemini", api_key=None, info=None):
+    """Score a list of coalitions with a single AI-provider prompt.
 
     Test fixtures replace the module-level score_coalition with a mock;
     when that replacement is detected (the same identity check
     _model_identifier uses), each coalition is scored through the mock
     instead, so the axiom/golden-fixture suites keep working unchanged.
     Returns (results_dict, prompts_sent).
+
+    provider/api_key are the BYOK scoring choice; info, when given, is
+    filled in place by the real scorer with {provider, model, user_key,
+    rate_limited, error}. The mock path leaves info untouched and calls
+    the mock with exactly the three arguments it expects.
     """
     import semantic_scorer as _ss
     if score_coalition is getattr(_ss, "score_coalition", None):
         return score_coalitions(coalitions, contributor_diffs,
-                                contributor_names)
+                                contributor_names, provider=provider,
+                                api_key=api_key, info=info)
     results = {}
     for coalition in coalitions:
         members = sorted(coalition)
@@ -179,13 +186,18 @@ def _model_identifier() -> (str, str):
 
 def _build_provenance(*, contributor_diffs, contributor_names, algorithm,
                       seed, n_samples, baseline, share_cis,
-                      ci_method) -> Dict[str, Any]:
+                      ci_method, model=None) -> Dict[str, Any]:
     """Persisted provenance record attached to every analysis result.
 
     The API returns this object and the results UI reads its displayed
     numbers' lineage from it; nothing is recomputed on the fly downstream.
+    model, when given, is the provider model id actually used for this
+    run (BYOK); otherwise the scorer's default model is recorded.
     """
-    model, model_hash = _model_identifier()
+    if model is not None:
+        model_hash = hashlib.sha256(str(model).encode("utf-8")).hexdigest()
+    else:
+        model, model_hash = _model_identifier()
     return {
         "input_hash": _input_hash(contributor_diffs, contributor_names),
         "feature_extractor_commit": _feature_extractor_commit(),
@@ -334,6 +346,8 @@ def compute_shapley(
     commit_head: str = "head",
     verbose: bool = False,
     seed: Optional[int] = None,
+    scoring_provider: str = "gemini",
+    scoring_api_key: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Compute exact Shapley values across all 2^N subsets (N <= 15).
 
@@ -375,8 +389,10 @@ def compute_shapley(
     evaluations = []
 
     all_subs = list(all_coalitions(n))
+    scoring_info: Dict[str, Any] = {}
     batch_results, api_calls = _score_all_coalitions(
-        [sorted(c) for c in all_subs], contributor_diffs, names)
+        [sorted(c) for c in all_subs], contributor_diffs, names,
+        provider=scoring_provider, api_key=scoring_api_key, info=scoring_info)
     for coalition in all_subs:
         member_list = sorted(coalition)
         result = batch_results[tuple(member_list)]
@@ -475,7 +491,8 @@ def compute_shapley(
         contributor_diffs=contributor_diffs, contributor_names=names,
         algorithm="exact_all_coalitions", seed=seed,
         n_samples=total_coalitions, baseline=float(v_empty),
-        share_cis=share_cis, ci_method="exact_no_sampling_error")
+        share_cis=share_cis, ci_method="exact_no_sampling_error",
+        model=scoring_info.get("model"))
 
     return {
         "shapley_values": {i: round(v, 2) for i, v in shapley.items()},
@@ -495,6 +512,9 @@ def compute_shapley(
         "baseline": float(v_empty),
         "seed": seed,
         "provenance": provenance,
+        # BYOK scoring record: {provider, model, user_key, rate_limited,
+        # error}. Carries no key material, only which key was used.
+        "scoring_info": scoring_info,
     }
 
 
@@ -513,6 +533,8 @@ def monte_carlo_shapley(
     verbose: bool = False,
     seed: Optional[int] = None,
     n_bootstrap: int = 1000,
+    scoring_provider: str = "gemini",
+    scoring_api_key: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Permutation Monte Carlo Shapley with antithetic pairs + bootstrap CIs.
 
@@ -570,8 +592,10 @@ def monte_carlo_shapley(
             coalition = coalition | {i}
             unique_coalitions.add(frozenset(coalition))
 
+    scoring_info: Dict[str, Any] = {}
     batch_results, api_calls = _score_all_coalitions(
-        [sorted(c) for c in unique_coalitions], contributor_diffs, names)
+        [sorted(c) for c in unique_coalitions], contributor_diffs, names,
+        provider=scoring_provider, api_key=scoring_api_key, info=scoring_info)
     value_cache = {frozenset(k): v["score"] for k, v in batch_results.items()}
     evaluations = [{
         "coalition": list(k),
@@ -647,7 +671,8 @@ def monte_carlo_shapley(
         contributor_diffs=contributor_diffs, contributor_names=names,
         algorithm="monte_carlo_antithetic_bootstrap", seed=resolved_seed,
         n_samples=total_permutations, baseline=baseline,
-        share_cis=share_cis, ci_method="percentile_bootstrap")
+        share_cis=share_cis, ci_method="percentile_bootstrap",
+        model=scoring_info.get("model"))
 
     return {
         "shapley_values": {i: round(v, 2) for i, v in shapley.items()},
@@ -668,6 +693,9 @@ def monte_carlo_shapley(
         "merkle_receipt": audit_receipt,
         "method": "monte_carlo_antithetic_bootstrap",
         "provenance": provenance,
+        # BYOK scoring record: {provider, model, user_key, rate_limited,
+        # error}. Carries no key material, only which key was used.
+        "scoring_info": scoring_info,
     }
 
 

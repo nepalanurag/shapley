@@ -14,6 +14,7 @@ import re
 import sys
 import time
 import urllib.request
+from urllib.error import HTTPError
 from typing import Dict, List, Any
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -31,6 +32,43 @@ DEFAULT_MODEL = (os.environ.get("GEMINI_MODEL") or "").strip() or "gemini-3.8-fl
 FALLBACK_MODELS = [DEFAULT_MODEL]
 MODELS = list(dict.fromkeys(FALLBACK_MODELS))
 BASE = "https://generativelanguage.googleapis.com/v1beta"
+
+# ── Bring-your-own-key providers ──────────────────────────────────
+# One prompt per repo goes to exactly one provider. The server key is
+# used only for Gemini (GEMINI_API_KEY env); OpenAI/Claude have no
+# server key, so they are available only with a user-supplied key.
+# All calls use stdlib urllib (no new dependencies). Model ids are
+# overridable by env for the same reason GEMINI_MODEL is.
+PROVIDERS = ("gemini", "openai", "anthropic")
+PROVIDER_DISPLAY = {"gemini": "Gemini", "openai": "OpenAI", "anthropic": "Claude"}
+OPENAI_ENV_VAR = "OPENAI_API_KEY"
+ANTHROPIC_ENV_VAR = "ANTHROPIC_API_KEY"
+OPENAI_MODEL = (os.environ.get("OPENAI_MODEL") or "").strip() or "gpt-4o-mini"
+# Haiku 4.5 was superseded by Haiku 5.5 on 2026-10-07; claude-haiku-5-5
+# is the current Haiku model id.
+ANTHROPIC_MODEL = (os.environ.get("ANTHROPIC_MODEL") or "").strip() or "claude-haiku-5-5"
+OPENAI_BASE = "https://api.openai.com/v1"
+ANTHROPIC_BASE = "https://api.anthropic.com/v1"
+ANTHROPIC_VERSION = "2023-06-01"
+
+
+def _model_for(provider: str) -> str:
+    return {"gemini": DEFAULT_MODEL, "openai": OPENAI_MODEL,
+            "anthropic": ANTHROPIC_MODEL}[provider]
+
+
+class ProviderRateLimited(Exception):
+    """The provider answered 429 after retries.
+
+    user_key distinguishes "the user's own key hit its limit" from
+    "the built-in server key hit its limit", which the UI reports
+    differently. The key itself is never attached to this exception.
+    """
+
+    def __init__(self, provider: str, user_key: bool, message: str = ""):
+        self.provider = provider
+        self.user_key = user_key
+        super().__init__(message or f"{provider} rate limited (HTTP 429)")
 
 # In-memory cache: coalition hash -> score result
 _cache = {}
@@ -173,10 +211,113 @@ def extract_objective_code_signals(diffs: List[str]) -> Dict[str, Any]:
     }
 
 
-def _call_gemini(prompt: str):
+def _post_json_with_retries(req, provider, user_key, retries=2):
+    """POST a urllib request, retrying 429/503 once, and parse the JSON.
+
+    A 429 that survives the retries raises ProviderRateLimited so the
+    caller can report whose key hit its limit instead of silently
+    falling back. Other failures raise as before.
+    """
+    last_err = None
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return json.loads(resp.read().decode())
+        except Exception as e:
+            last_err = e
+            err = str(e)
+            if attempt < retries - 1 and ("429" in err or "503" in err):
+                wait = 5 * (2 ** attempt)
+                print(f"  [{provider} retry {attempt+1} after {wait}s: {e}]",
+                      file=sys.stderr)
+                time.sleep(wait)
+            else:
+                print(f"  [{provider} exhausted or failed: {e}]", file=sys.stderr)
+                if "429" in err:
+                    raise ProviderRateLimited(provider, user_key, str(e))
+                raise
+    raise RuntimeError(f"{provider} request failed. Last error: {last_err}")
+
+
+def _call_openai(prompt: str, api_key: str = None):
+    """One chat-completions call; normalized to the Gemini-shaped dict
+    _score_single_prompt parses (candidates[0].content.parts[0].text).
+
+    The key is a per-job user key, or OPENAI_API_KEY from the env when
+    set. No server OpenAI key is configured by default.
+    """
+    key = api_key or os.environ.get(OPENAI_ENV_VAR)
+    if not key:
+        raise RuntimeError("No API key for OpenAI: supply your own key")
+    data = json.dumps({
+        "model": OPENAI_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.1,
+        "response_format": {"type": "json_object"},
+    }).encode()
+    req = urllib.request.Request(
+        f"{OPENAI_BASE}/chat/completions", data=data,
+        headers={"Content-Type": "application/json",
+                 "Authorization": f"Bearer {key}"})
+    resp = _post_json_with_retries(req, "openai", bool(api_key))
+    text = resp["choices"][0]["message"]["content"]
+    return {"candidates": [{"content": {"parts": [{"text": text}]}}]}
+
+
+def _call_anthropic(prompt: str, api_key: str = None):
+    """One messages call; normalized to the Gemini-shaped dict.
+
+    The key is a per-job user key, or ANTHROPIC_API_KEY from the env
+    when set. No server Anthropic key is configured by default.
+    """
+    key = api_key or os.environ.get(ANTHROPIC_ENV_VAR)
+    if not key:
+        raise RuntimeError("No API key for Anthropic: supply your own key")
+    data = json.dumps({
+        "model": ANTHROPIC_MODEL,
+        "max_tokens": 4096,
+        "temperature": 0.1,
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode()
+    req = urllib.request.Request(
+        f"{ANTHROPIC_BASE}/messages", data=data,
+        headers={"Content-Type": "application/json",
+                 "x-api-key": key,
+                 "anthropic-version": ANTHROPIC_VERSION})
+    resp = _post_json_with_retries(req, "anthropic", bool(api_key))
+    parts = [b.get("text", "") for b in resp.get("content", [])
+             if b.get("type") == "text"]
+    return {"candidates": [{"content": {"parts": [{"text": "".join(parts)}]}}]}
+
+
+def _call_provider(prompt: str, provider: str = "gemini", api_key: str = None):
+    """Dispatch one scoring prompt to the chosen provider.
+
+    api_key, when given, is a per-job user key: it is used for this
+    call only and never stored or logged anywhere in this module.
+    """
+    if provider not in PROVIDERS:
+        raise ValueError(f"Unknown provider {provider!r}; expected one of {PROVIDERS}")
+    if provider == "openai":
+        return _call_openai(prompt, api_key)
+    if provider == "anthropic":
+        return _call_anthropic(prompt, api_key)
+    # Call _call_gemini with the key argument only when a per-job key
+    # was supplied: the validation suites mock _call_gemini with a
+    # 1-argument lambda, and the no-key path resolves the env key
+    # inside _call_gemini anyway.
+    if api_key is not None:
+        return _call_gemini(prompt, api_key)
+    return _call_gemini(prompt)
+
+
+def _call_gemini(prompt: str, api_key: str = None):
     global _last_call
     last_err = None
-    api_key = os.environ.get(ENV_VAR)
+    # Per-job user key vs server env key: only the former counts as
+    # user_key for rate-limit reporting. Capture before resolving.
+    user_key = bool(api_key)
+    api_key = api_key or os.environ.get(ENV_VAR)
 
     for model_name in MODELS:
         elapsed = time.time() - _last_call
@@ -230,6 +371,8 @@ def _call_gemini(prompt: str):
                 else:
                     print(f"  [{model_name} exhausted or failed: {e}; trying fallback model...]",
                           file=sys.stderr)
+                    if "429" in err:
+                        raise ProviderRateLimited("gemini", user_key, err)
                     break
         else:
             continue
@@ -253,8 +396,9 @@ def _clamp25(v):
         return 0
 
 
-def _heuristic_scored(member_indices, contributor_diffs, reason, warnings=None):
-    """Objective-only score, used whenever Gemini is unavailable.
+def _heuristic_scored(member_indices, contributor_diffs, reason, warnings=None,
+                      provider="gemini"):
+    """Objective-only score, used whenever the provider is unavailable.
 
     HONESTY (fix 2026-10-22): the score is the objective line/branch
     heuristic ONLY. It must never be presented as an AI semantic
@@ -271,7 +415,8 @@ def _heuristic_scored(member_indices, contributor_diffs, reason, warnings=None):
         "scoring_mode": "heuristic_fallback",
         "semantic_score": 0,
         "objective_score": obj_score,
-        "reasoning": (f"Heuristic fallback (Gemini unavailable: {reason}). "
+        "reasoning": (f"Heuristic fallback ({PROVIDER_DISPLAY.get(provider, provider)} "
+                      f"unavailable: {reason}). "
                       "This score is the objective line/branch metric only, "
                       "NOT an AI semantic evaluation."),
         "confidence": 0.4,
@@ -282,19 +427,29 @@ def _heuristic_scored(member_indices, contributor_diffs, reason, warnings=None):
     }
 
 
-def score_coalitions(coalitions, contributor_diffs, contributor_names=None):
-    """Score many coalitions with a single Gemini prompt.
+def score_coalitions(coalitions, contributor_diffs, contributor_names=None,
+                     provider="gemini", api_key=None, info=None):
+    """Score many coalitions with a single provider prompt.
 
     One prompt carries the involved contributors' diffs once plus every
-    coalition to score; Gemini returns one JSON object with a rubric
-    score per coalition. Returns (results, prompts_sent): results maps
-    the sorted member tuple to the same score dict score_coalition
-    returns; prompts_sent is 0 or 1. Coalitions Gemini fails to score
-    get the objective-only heuristic fallback, flagged as such. A
-    truncated response still yields its complete entries; only the
-    missing coalitions fall back.
+    coalition to score; the provider returns one JSON object with a
+    rubric score per coalition. Returns (results, prompts_sent):
+    results maps the sorted member tuple to the same score dict
+    score_coalition returns; prompts_sent is 0 or 1. Coalitions the
+    provider fails to score get the objective-only heuristic fallback,
+    flagged as such. A truncated response still yields its complete
+    entries; only the missing coalitions fall back.
+
+    provider is one of PROVIDERS; api_key is a per-job user key (used
+    for this call only, never stored or logged). info, when given, is
+    filled in place with {provider, model, user_key, rate_limited,
+    error} so the caller can report whose key hit its limit.
     """
     names = contributor_names or {}
+    if info is not None:
+        info.update({"provider": provider, "model": _model_for(provider),
+                     "user_key": bool(api_key), "rate_limited": False,
+                     "error": None})
     results = {}
     pending = []
     for coalition in coalitions:
@@ -315,7 +470,8 @@ def score_coalitions(coalitions, contributor_diffs, contributor_names=None):
             pending.append(list(members))
     prompts = 0
     if pending:
-        prompts = _score_single_prompt(pending, contributor_diffs, names, results)
+        prompts = _score_single_prompt(pending, contributor_diffs, names, results,
+                                       provider=provider, api_key=api_key, info=info)
     return results, prompts
 
 
@@ -352,12 +508,13 @@ def _normalize_entry(entry):
     return None
 
 
-def _score_single_prompt(pending, contributor_diffs, names, results):
-    """Score every pending coalition with one Gemini prompt.
+def _score_single_prompt(pending, contributor_diffs, names, results,
+                         provider="gemini", api_key=None, info=None):
+    """Score every pending coalition with one provider prompt.
 
-    Returns the number of Gemini prompts sent (1). Fills results in
-    place; every coalition gets a score, heuristic fallback when Gemini
-    fails or skips it.
+    Returns the number of provider prompts sent (1). Fills results in
+    place; every coalition gets a score, heuristic fallback when the
+    provider fails or skips it.
     """
     # Shared diff context: each involved contributor's diffs once.
     involved = sorted({idx for members in pending for idx in members})
@@ -419,7 +576,7 @@ List EVERY coalition above. Do not stop early and do not omit any."""
     fail_reason = None
     entries = {}
     try:
-        result = _call_gemini(prompt)
+        result = _call_provider(prompt, provider=provider, api_key=api_key)
         text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
         if text.startswith("```"):
             text = text.split("```")[1]
@@ -438,6 +595,14 @@ List EVERY coalition above. Do not stop early and do not omit any."""
             normalized = _normalize_entry(entry)
             if normalized is not None:
                 entries[normalized[0]] = normalized
+    except ProviderRateLimited as e:
+        # The provider's key hit its limit: remember whose, so the UI
+        # can say so plainly instead of a generic fallback.
+        fail_reason = str(e)
+        if info is not None:
+            info["rate_limited"] = True
+            info["error"] = str(e)
+        print(f"  [single-prompt scoring fallback to objective metrics: {e}]", file=sys.stderr)
     except Exception as e:
         fail_reason = str(e)
         print(f"  [single-prompt scoring fallback to objective metrics: {e}]", file=sys.stderr)
@@ -446,8 +611,9 @@ List EVERY coalition above. Do not stop early and do not omit any."""
         key = tuple(members)
         normalized = entries.get(key)
         if normalized is None:
-            reason = fail_reason or "missing from Gemini response"
-            scored = _heuristic_scored(list(members), contributor_diffs, reason)
+            reason = fail_reason or f"missing from {PROVIDER_DISPLAY.get(provider, provider)} response"
+            scored = _heuristic_scored(list(members), contributor_diffs, reason,
+                                       provider=provider)
             results[key] = scored
             _cache[_coalition_hash(list(members), contributor_diffs)] = scored
             continue
@@ -461,7 +627,7 @@ List EVERY coalition above. Do not stop early and do not omit any."""
         semantic_total = sum(rubric.values())
         scored = {
             "score": round(0.30 * obj_score + 0.70 * semantic_total),
-            "scoring_mode": "gemini_semantic",
+            "scoring_mode": f"{provider}_semantic",
             "semantic_score": semantic_total,
             "objective_score": obj_score,
             "reasoning": reasoning,
@@ -475,12 +641,16 @@ List EVERY coalition above. Do not stop early and do not omit any."""
     return 1
 
 
-def score_coalition(member_indices, contributor_diffs, contributor_names=None):
+def score_coalition(member_indices, contributor_diffs, contributor_names=None,
+                    provider="gemini", api_key=None):
     """Score the combined capability of a coalition using a Hybrid Scorer.
 
     Combines:
       - Objective Code Signals (30% weight): volume, cyclomatic branches, tests.
       - Semantic Review (70% weight): complexity, impact, originality, unblocking.
+
+    provider is one of PROVIDERS; api_key is a per-job user key (used
+    for this call only, never stored or logged).
     """
     if not member_indices:
         return {
@@ -558,7 +728,7 @@ Respond with JSON only:
   "confidence": <0.0-1.0>}}"""
 
     try:
-        result = _call_gemini(prompt)
+        result = _call_provider(prompt, provider=provider, api_key=api_key)
         text = result["candidates"][0]["content"]["parts"][0]["text"]
         text = text.strip()
         if text.startswith("```"):
@@ -580,7 +750,7 @@ Respond with JSON only:
 
         scored = {
             "score": composite_score,
-            "scoring_mode": "gemini_semantic",
+            "scoring_mode": f"{provider}_semantic",
             "semantic_score": semantic_total,
             "objective_score": obj_score,
             "reasoning": str(parsed.get("reasoning", ""))[:500],
@@ -590,14 +760,14 @@ Respond with JSON only:
             "injection_warnings": quarantine_warnings,
         }
     except Exception as e:
-        # HONESTY (fix 2026-10-22): when Gemini is unavailable the score is
+        # HONESTY (fix 2026-10-22): when the provider is unavailable the score is
         # the objective line/branch heuristic ONLY. It must never be
         # presented as an AI semantic evaluation: scoring_mode flags it and
         # the flag propagates through shapley evaluations to the API and
         # the results/audit UI.
         print(f"  [scoring fallback to objective metrics: {e}]", file=sys.stderr)
         scored = _heuristic_scored(member_indices, contributor_diffs, str(e),
-                                   warnings=quarantine_warnings)
+                                   warnings=quarantine_warnings, provider=provider)
 
     _cache[chash] = scored
     return scored

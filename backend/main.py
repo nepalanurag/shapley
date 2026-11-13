@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # In-memory job store (fine for hackathon; use Redis in production)
 _jobs = {}
@@ -88,6 +88,24 @@ class AnalyzeRequest(BaseModel):
         None,
         description="GitHub OAuth session id from the login flow; its token "
                     "is used for repo fetching when present and valid")
+    provider: str = Field(
+        "gemini",
+        description="AI provider for semantic scoring: gemini, openai or anthropic")
+    api_key: str | None = Field(
+        None, max_length=500,
+        description="Optional user-supplied API key for the chosen provider. "
+                    "Used for this job only: it is held in memory for the "
+                    "duration of the job and is never stored, logged, or "
+                    "returned. When absent, the server key is used (Gemini "
+                    "only; OpenAI/Claude have no server key).")
+
+    @field_validator("provider")
+    @classmethod
+    def _validate_provider(cls, v: str) -> str:
+        if v not in ("gemini", "openai", "anthropic"):
+            raise ValueError(
+                f"Unknown provider {v!r}; expected gemini, openai or anthropic")
+        return v
 
 
 class PayoutShare(BaseModel):
@@ -127,8 +145,14 @@ def _resolve_github_token(session_id):
 
 # ── Background analysis ─────────────────────────────────────────
 
-def _run_analysis(job_id, repo_url, total_amount, max_commits, session_id=None):
-    """Background worker: ingest → score → Shapley."""
+def _run_analysis(job_id, repo_url, total_amount, max_commits, session_id=None,
+                  provider="gemini", api_key=None):
+    """Background worker: ingest → score → Shapley.
+
+    api_key is a per-job user key (BYOK): it is passed straight through
+    to the scorer and never stored in the job record, never logged, and
+    never returned. It lives only on this thread's stack.
+    """
     def update(status, **kw):
         with _jobs_lock:
             _jobs[job_id].update({"status": status, **kw})
@@ -177,11 +201,13 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits, session_id=None):
             from shapley import monte_carlo_shapley
             result = monte_carlo_shapley(
                 contributor_diffs, contributor_names,
-                total_amount_usd=total_amount)
+                total_amount_usd=total_amount,
+                scoring_provider=provider, scoring_api_key=api_key)
         else:
             result = compute_shapley(
                 contributor_diffs, contributor_names,
-                total_amount_usd=total_amount)
+                total_amount_usd=total_amount,
+                scoring_provider=provider, scoring_api_key=api_key)
 
         # Confidence intervals come from the single Shapley implementation
         # in backend/shapley.py (exact: degenerate; Monte Carlo:
@@ -228,7 +254,19 @@ def _run_analysis(job_id, repo_url, total_amount, max_commits, session_id=None):
                num_coalitions=result["num_coalitions"],
                merkle_receipt=result.get("merkle_receipt"),
                monotonicity_fixes=result.get("monotonicity_fixes", []),
-               provenance=result.get("provenance"))
+               provenance=result.get("provenance"),
+               # Rate-limit surfacing (BYOK): scoring_info carries no
+               # key material, only which key was used and whether it
+               # was rate limited. server_key_exhausted is the case the
+               # UI must call out: the built-in key hit its limit, so
+               # the user needs their own key for AI scores.
+               scoring_info=result.get("scoring_info", {}),
+               server_key_exhausted=bool(
+                   result.get("scoring_info", {}).get("rate_limited")
+                   and not result.get("scoring_info", {}).get("user_key")),
+               user_key_rate_limited=bool(
+                   result.get("scoring_info", {}).get("rate_limited")
+                   and result.get("scoring_info", {}).get("user_key")))
     except Exception as e:
         # Includes ShapleyEfficiencyError from backend/shapley.py: the job
         # is marked failed and no result numbers are ever exposed, so the
@@ -288,7 +326,9 @@ def demo():
 @app.post("/api/analyze")
 def analyze(req: AnalyzeRequest):
     from demo_data import get_demo_analysis
-    log.info(f"Analyze request: repo={req.repo_url} total=${req.total_amount} demo={req.demo}")
+    # The key itself is never logged: only whether one was supplied.
+    log.info(f"Analyze request: repo={req.repo_url} total=${req.total_amount} "
+             f"demo={req.demo} provider={req.provider} byok={bool(req.api_key)}")
     if req.demo:
         job_id = f"demo_{uuid.uuid4().hex[:8]}"
         with _jobs_lock:
@@ -321,7 +361,8 @@ def analyze(req: AnalyzeRequest):
         _jobs[job_id] = {"status": "queued", "created_at": time.time()}
     t = threading.Thread(target=_run_analysis,
                          args=(job_id, req.repo_url, req.total_amount,
-                               req.max_commits, req.session_id), daemon=True)
+                               req.max_commits, req.session_id,
+                               req.provider, req.api_key), daemon=True)
     t.start()
     log.info(f"Analysis job {job_id} queued for {req.repo_url}")
     return {"job_id": job_id, "status": "queued"}
